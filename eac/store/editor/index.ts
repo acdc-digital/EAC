@@ -23,6 +23,12 @@ const getFileIcon = (type: ProjectFile['type']) => {
       return FileType;
     case 'generals':
       return FileText;
+    case 'percent-complete':
+      return FileSpreadsheet;
+    case 'schedule':
+      return FileSpreadsheet;
+    case 'materials':
+      return FileSpreadsheet;
     default:
       return FileCode;
   }
@@ -45,6 +51,12 @@ const getFileExtension = (type: ProjectFile['type']) => {
       return '.pdf';
     case 'generals':
       return '.generals';
+    case 'percent-complete':
+      return '.percent';
+    case 'schedule':
+      return '.schedule';
+    case 'materials':
+      return '.materials';
     default:
       return '.txt';
   }
@@ -100,6 +112,36 @@ Status: Active
 Created: ${new Date().toLocaleDateString()}
 
 // This file will display the project generals module interface`;
+    case 'percent-complete':
+      return `// ${name} - Percent Complete Tracker
+// This file contains project completion tracking data
+// Created on: ${new Date().toISOString()}
+
+Project: ${name}
+Type: Percent Complete Tracker
+Created: ${new Date().toLocaleDateString()}
+
+// This file will display the percent complete tracking interface`;
+    case 'schedule':
+      return `// ${name} - Project Schedule
+// This file contains project schedule and timeline data
+// Created on: ${new Date().toISOString()}
+
+Project: ${name}
+Type: Project Schedule
+Created: ${new Date().toLocaleDateString()}
+
+// This file will display the project schedule interface with Gantt chart`;
+    case 'materials':
+      return `// ${name} - Materials Management
+// This file contains materials tracking and management data
+// Created on: ${new Date().toISOString()}
+
+Project: ${name}
+Type: Materials Management
+Created: ${new Date().toLocaleDateString()}
+
+// This file will display the materials management interface with manufactured and miscellaneous materials`;
     default:
       return `# ${name}
 

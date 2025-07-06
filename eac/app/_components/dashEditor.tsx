@@ -25,6 +25,21 @@ const EditGenerals = dynamic(() => import('./editGenerals').then(mod => ({ defau
   loading: () => <div className="p-4 text-[#858585]">Loading module...</div>
 });
 
+const EditPercentComplete = dynamic(() => import('./editPercentComplete').then(mod => ({ default: mod.EditPercentComplete })), {
+  ssr: false,
+  loading: () => <div className="p-4 text-[#858585]">Loading module...</div>
+});
+
+const EditSchedule = dynamic(() => import('./editSchedule').then(mod => ({ default: mod.EditSchedule })), {
+  ssr: false,
+  loading: () => <div className="p-4 text-[#858585]">Loading module...</div>
+});
+
+const EditMaterials = dynamic(() => import('./editMaterials').then(mod => ({ default: mod.EditMaterials })), {
+  ssr: false,
+  loading: () => <div className="p-4 text-[#858585]">Loading module...</div>
+});
+
 interface DashEditorProps {}
 
 export function DashEditor({}: DashEditorProps) {
@@ -99,6 +114,9 @@ export function DashEditor({}: DashEditorProps) {
   const currentTab = openTabs.find((t) => t.id === activeTab);
   const isEditable = currentTab ? ['typescript', 'javascript', 'json', 'markdown'].includes(currentTab.type) : false;
   const isGeneralsModule = currentTab?.type === 'generals';
+  const isPercentCompleteModule = currentTab?.type === 'percent-complete';
+  const isScheduleModule = currentTab?.type === 'schedule';
+  const isMaterialsModule = currentTab?.type === 'materials';
 
   // Debug logging
   console.log('Debug Info:', {
@@ -154,6 +172,12 @@ export function DashEditor({}: DashEditorProps) {
                             return FileType;
                           case 'generals':
                             return FileText;
+                          case 'percent-complete':
+                            return FileSpreadsheet;
+                          case 'schedule':
+                            return FileSpreadsheet;
+                          case 'materials':
+                            return FileSpreadsheet;
                           default:
                             return FileCode;
                         }
@@ -239,6 +263,12 @@ export function DashEditor({}: DashEditorProps) {
                 <>
                   {isGeneralsModule ? (
                     <EditGenerals />
+                  ) : isPercentCompleteModule ? (
+                    <EditPercentComplete />
+                  ) : isScheduleModule ? (
+                    <EditSchedule />
+                  ) : isMaterialsModule ? (
+                    <EditMaterials />
                   ) : (
                     <div className="p-4">
                       <TiptapEditor

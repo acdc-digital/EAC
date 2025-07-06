@@ -134,6 +134,9 @@ export function FileCreationDropdown({ isOpen, onClose, preselectedFolder, butto
           >
             <option value="markdown" className="bg-[#2d2d2d] text-[#cccccc]">Markdown (.md)</option>
             <option value="generals" className="bg-[#2d2d2d] text-[#cccccc]">Project Generals</option>
+            <option value="percent-complete" className="bg-[#2d2d2d] text-[#cccccc]">Percent Complete</option>
+            <option value="schedule" className="bg-[#2d2d2d] text-[#cccccc]">Project Schedule</option>
+            <option value="materials" className="bg-[#2d2d2d] text-[#cccccc]">Materials Management</option>
           </select>
         </div>
 

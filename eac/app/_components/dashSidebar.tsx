@@ -203,6 +203,12 @@ export function DashSidebar({ activePanel }: SidebarProps) {
         return FileType;
       case 'generals':
         return FileCode;
+      case 'percent-complete':
+        return FileSpreadsheet;
+      case 'schedule':
+        return FileSpreadsheet;
+      case 'materials':
+        return FileSpreadsheet;
       default:
         return FileCode;
     }

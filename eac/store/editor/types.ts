@@ -9,7 +9,7 @@ export interface EditorTab {
   modified: boolean;
   content: string;
   filePath: string;
-  type: 'typescript' | 'json' | 'excel' | 'pdf' | 'markdown' | 'javascript' | 'generals';
+  type: 'typescript' | 'json' | 'excel' | 'pdf' | 'markdown' | 'javascript' | 'generals' | 'percent-complete' | 'schedule' | 'materials';
 }
 
 export interface ProjectFolder {
@@ -23,7 +23,7 @@ export interface ProjectFile {
   id: string;
   name: string;
   icon: LucideIcon;
-  type: 'typescript' | 'json' | 'excel' | 'pdf' | 'markdown' | 'javascript' | 'generals';
+  type: 'typescript' | 'json' | 'excel' | 'pdf' | 'markdown' | 'javascript' | 'generals' | 'percent-complete' | 'schedule' | 'materials';
   category: 'project' | 'financial';
   content: string;
   filePath: string;

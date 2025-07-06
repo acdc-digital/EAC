@@ -5,6 +5,24 @@
       "static/chunks/_app-pages-browser_app__components_editGenerals_tsx.js"
     ]
   },
+  "app/_components/dashEditor.tsx -> ./editMaterials": {
+    "id": "app/_components/dashEditor.tsx -> ./editMaterials",
+    "files": [
+      "static/chunks/_app-pages-browser_app__components_editMaterials_tsx.js"
+    ]
+  },
+  "app/_components/dashEditor.tsx -> ./editPercentComplete": {
+    "id": "app/_components/dashEditor.tsx -> ./editPercentComplete",
+    "files": [
+      "static/chunks/_app-pages-browser_app__components_editPercentComplete_tsx.js"
+    ]
+  },
+  "app/_components/dashEditor.tsx -> ./editSchedule": {
+    "id": "app/_components/dashEditor.tsx -> ./editSchedule",
+    "files": [
+      "static/chunks/_app-pages-browser_app__components_editSchedule_tsx.js"
+    ]
+  },
   "app/_components/dashEditor.tsx -> @/components/TiptapEditor": {
     "id": "app/_components/dashEditor.tsx -> @/components/TiptapEditor",
     "files": [

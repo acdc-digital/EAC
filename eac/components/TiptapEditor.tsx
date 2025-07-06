@@ -47,6 +47,13 @@ const TiptapEditor = ({ content, onChange, editable = true }: TiptapEditorProps)
         editor.commands.clearContent();
       }
     },
+    onBlur: ({ editor }) => {
+      // Show placeholder text when editor loses focus and content is empty
+      const currentContent = editor.getText().trim();
+      if (currentContent === '') {
+        editor.commands.setContent('<p>Start writing your content here...</p>');
+      }
+    },
   })
 
   // Update content when prop changes
