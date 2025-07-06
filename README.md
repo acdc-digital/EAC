@@ -117,23 +117,6 @@ EAC/
 - **PostCSS** - CSS processing
 - **pnpm** - Fast, disk space efficient package manager
 
-## Configuration
-
-### Environment Setup
-The project uses a pnpm workspace configuration with multiple packages:
-- `eac/` - Main application
-- `convex/` - Backend services (future)
-
-### Styling
-- **Tailwind CSS** with custom VS Code-inspired color scheme
-- **Dark theme** as default with `#1a1a1a` backgrounds
-- **Custom CSS** for Tiptap editor styling
-
-### State Persistence
-- **localStorage** integration with custom serialization
-- **Selective persistence** - only essential state is saved
-- **Icon restoration** - proper handling of React components in storage
-
 ## Deployment
 
 ### Build for Production
@@ -170,10 +153,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Tiptap** - Excellent rich text editing capabilities
 - **Zustand** - Simple and effective state management
 
----
-
-<div align="center">
-  <strong>Built with ❤️ using modern web technologies</strong>
-</div>
+---   
 
 © 2025 ACDC.digital • Maintainer: msimon@acdc.digital
