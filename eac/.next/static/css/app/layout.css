@@ -264,9 +264,6 @@
   .pointer-events-none {
     pointer-events: none;
   }
-  .collapse {
-    visibility: collapse;
-  }
   .visible {
     visibility: visible;
   }
@@ -484,9 +481,6 @@
   .size-full {
     width: 100%;
     height: 100%;
-  }
-  .\!h-\[35px\] {
-    height: 35px !important;
   }
   .h-2 {
     height: calc(var(--spacing) * 2);

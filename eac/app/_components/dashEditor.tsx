@@ -8,9 +8,10 @@ import dynamic from 'next/dynamic';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
+import { ImperativePanelHandle } from "react-resizable-panels";
 
 import { X, Terminal, AlertCircle, Code, Plus, ChevronLeft, ChevronRight, FileCode, FileText, FileSpreadsheet, FileType, Braces, ChevronDown, ChevronUp } from "lucide-react";
-import { useEditorStore } from "@/store";
+import { useEditorStore, useTerminalStore } from "@/store";
 import { ProjectFile } from "@/store/editor/types";
 
 // Dynamic import to avoid SSR issues
@@ -51,14 +52,21 @@ export function DashEditor({}: DashEditorProps) {
     updateFileContent
   } = useEditorStore();
 
+  const {
+    isCollapsed: isTerminalCollapsed,
+    currentSize: terminalSize,
+    lastExpandedSize,
+    setSize: setTerminalSize,
+    setPanelRef,
+    toggleCollapse: toggleTerminalCollapse
+  } = useTerminalStore();
 
   const [scrollPosition, setScrollPosition] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
-  const [isTerminalCollapsed, setIsTerminalCollapsed] = useState(false);
-  const [terminalSize, setTerminalSize] = useState(30);
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [tabContentHeights, setTabContentHeights] = useState<{ [tabId: string]: number }>({});
+  const terminalPanelRef = useRef<ImperativePanelHandle>(null);
 
   // Calculate the visible area width (container width minus button widths)
   const TAB_WIDTH = 200;
@@ -83,11 +91,6 @@ export function DashEditor({}: DashEditorProps) {
       setScrollPosition(maxScrollPosition);
     }
   }, [maxScrollPosition, scrollPosition]);
-
-  // Update terminal size when collapse state changes
-  useEffect(() => {
-    setTerminalSize(isTerminalCollapsed ? 5 : 30);
-  }, [isTerminalCollapsed]);
 
   const scrollLeft = () => {
     setScrollPosition(Math.max(0, scrollPosition - 1));
@@ -167,6 +170,31 @@ export function DashEditor({}: DashEditorProps) {
     currentTab: currentTab?.name,
     isEditable,
     hasActiveTab: !!activeTab
+  });
+
+  // Debug wrapper for terminal size changes
+  const handleTerminalResize = (size: number) => {
+    console.log('ResizablePanel onResize called with size:', size);
+    setTerminalSize(size);
+  };
+
+  // Set the panel ref in the store
+  useEffect(() => {
+    setPanelRef(terminalPanelRef);
+  }, [setPanelRef]);
+
+  // Effect to resize panel when terminal state changes
+  useEffect(() => {
+    if (terminalPanelRef.current) {
+      terminalPanelRef.current.resize(terminalSize);
+    }
+  }, [terminalSize]);
+
+  // Debug terminal state
+  console.log('Terminal state:', {
+    isTerminalCollapsed,
+    terminalSize,
+    lastExpandedSize
   });
 
   return (
@@ -339,9 +367,11 @@ export function DashEditor({}: DashEditorProps) {
         <ResizableHandle className="h-[3px] bg-[#2d2d2d] hover:bg-[#007acc] transition-colors" />
 
         <ResizablePanel
-          defaultSize={terminalSize}
+          ref={terminalPanelRef}
+          defaultSize={lastExpandedSize}
           minSize={isTerminalCollapsed ? 5 : 20}
           maxSize={isTerminalCollapsed ? 5 : 80}
+          onResize={handleTerminalResize}
         >
           {/* Terminal Panel */}
           <div className="h-full flex flex-col">
@@ -375,7 +405,7 @@ export function DashEditor({}: DashEditorProps) {
 
               {/* Collapse/Expand Button - Far right */}
               <button
-                onClick={() => setIsTerminalCollapsed(!isTerminalCollapsed)}
+                onClick={toggleTerminalCollapse}
                 className="w-6 h-6 bg-[#2d2d2d] hover:bg-[#454545] rounded-sm flex items-center justify-center transition-colors ml-4"
                 aria-label={isTerminalCollapsed ? "Expand terminal" : "Collapse terminal"}
               >
