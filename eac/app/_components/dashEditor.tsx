@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 
-import { X, Terminal, AlertCircle, Code, Plus, ChevronLeft, ChevronRight, FileCode, FileText, FileSpreadsheet, FileType, Braces } from "lucide-react";
+import { X, Terminal, AlertCircle, Code, Plus, ChevronLeft, ChevronRight, FileCode, FileText, FileSpreadsheet, FileType, Braces, ChevronDown, ChevronUp } from "lucide-react";
 import { useEditorStore } from "@/store";
 import { ProjectFile } from "@/store/editor/types";
 
@@ -54,8 +54,11 @@ export function DashEditor({}: DashEditorProps) {
 
   const [scrollPosition, setScrollPosition] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
-  const [lineCount, setLineCount] = useState(50);
+  const [isTerminalCollapsed, setIsTerminalCollapsed] = useState(false);
+  const [terminalSize, setTerminalSize] = useState(30);
   const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [tabContentHeights, setTabContentHeights] = useState<{ [tabId: string]: number }>({});
 
   // Calculate the visible area width (container width minus button widths)
   const TAB_WIDTH = 200;
@@ -81,7 +84,10 @@ export function DashEditor({}: DashEditorProps) {
     }
   }, [maxScrollPosition, scrollPosition]);
 
-
+  // Update terminal size when collapse state changes
+  useEffect(() => {
+    setTerminalSize(isTerminalCollapsed ? 5 : 30);
+  }, [isTerminalCollapsed]);
 
   const scrollLeft = () => {
     setScrollPosition(Math.max(0, scrollPosition - 1));
@@ -101,14 +107,50 @@ export function DashEditor({}: DashEditorProps) {
 
   const handleContentChange = (content: string) => {
     if (activeTab) {
-      // Update the line count based on content
-      const lines = content.split('\n').length;
-      setLineCount(Math.max(lines + 10, 50)); // Add some extra lines for scrolling
-      
       // Update the file content in your store
       updateFileContent(activeTab, content);
     }
   };
+
+  // Effect to monitor content height changes for the active tab
+  useEffect(() => {
+    const updateContentHeight = () => {
+      if (contentRef.current && activeTab) {
+        const height = contentRef.current.scrollHeight;
+        setTabContentHeights(prev => ({
+          ...prev,
+          [activeTab]: height
+        }));
+      }
+    };
+
+    // Initial measurement
+    updateContentHeight();
+
+    // Set up ResizeObserver to monitor content changes
+    const resizeObserver = new ResizeObserver(updateContentHeight);
+    if (contentRef.current) {
+      resizeObserver.observe(contentRef.current);
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [activeTab, openTabs]);
+
+  // Calculate line count based on active tab's content height
+  const activeTabContentHeight = activeTab ? (tabContentHeights[activeTab] || 0) : 0;
+  const lineCount = Math.max(Math.ceil(activeTabContentHeight / 20), 50); // 20px per line (5px line height)
+
+  // Debug logging
+  console.log('Content height debug:', {
+    activeTab,
+    activeTabContentHeight,
+    lineCount,
+    tabContentHeights,
+    scrollHeight: contentRef.current?.scrollHeight,
+    offsetHeight: contentRef.current?.offsetHeight
+  });
 
   // Get current tab to check if it's editable
   const currentTab = openTabs.find((t) => t.id === activeTab);
@@ -248,101 +290,133 @@ export function DashEditor({}: DashEditorProps) {
 
           {/* Editor Content */}
           <div className="flex-1 flex overflow-hidden">
-            {/* Line numbers */}
-            <div className="bg-[#1a1a1a] text-[#858585] text-center px-2 select-none w-[40px] border-r border-[#2d2d2d] flex-shrink-0 overflow-y-auto">
-              {Array.from({ length: lineCount }, (_, i) => (
-                <div key={i} className="leading-5 text-xs font-mono h-5">
-                  {i + 1}
-                </div>
-              ))}
-            </div>
-
             {/* Code content with Tiptap or Edit Modules */}
             <div className="flex-1 overflow-auto">
-              {activeTab ? (
-                <>
-                  {isGeneralsModule ? (
-                    <EditGenerals />
-                  ) : isPercentCompleteModule ? (
-                    <EditPercentComplete />
-                  ) : isScheduleModule ? (
-                    <EditSchedule />
-                  ) : isMaterialsModule ? (
-                    <EditMaterials />
+              <div className="flex min-h-full">
+                {/* Line numbers - synchronized with content */}
+                <div className="bg-[#1a1a1a] text-[#858585] text-center px-2 select-none w-[40px] border-r border-[#2d2d2d] flex-shrink-0">
+                  {Array.from({ length: lineCount }, (_, i) => (
+                    <div key={i} className="leading-5 text-xs font-mono h-5">
+                      {i + 1}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Editor content */}
+                <div ref={contentRef} className="flex-1">
+                  {activeTab ? (
+                    <>
+                      {isGeneralsModule ? (
+                        <EditGenerals />
+                      ) : isPercentCompleteModule ? (
+                        <EditPercentComplete />
+                      ) : isScheduleModule ? (
+                        <EditSchedule />
+                      ) : isMaterialsModule ? (
+                        <EditMaterials />
+                      ) : (
+                        <div className="p-4">
+                          <TiptapEditor
+                            content={getFileContent(activeTab)}
+                            onChange={handleContentChange}
+                            editable={isEditable}
+                          />
+                        </div>
+                      )}
+                    </>
                   ) : (
-                    <div className="p-4">
-                      <TiptapEditor
-                        content={getFileContent(activeTab)}
-                        onChange={handleContentChange}
-                        editable={isEditable}
-                      />
+                    <div className="text-[#858585] text-center mt-8 p-4">
+                      <p>No file selected</p>
+                      <p className="text-xs mt-2">Open a file from the sidebar or create a new one</p>
                     </div>
                   )}
-                </>
-              ) : (
-                <div className="text-[#858585] text-center mt-8 p-4">
-                  <p>No file selected</p>
-                  <p className="text-xs mt-2">Open a file from the sidebar or create a new one</p>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </ResizablePanel>
 
         <ResizableHandle className="h-[3px] bg-[#2d2d2d] hover:bg-[#007acc] transition-colors" />
 
-        <ResizablePanel defaultSize={30} minSize={20}>
+        <ResizablePanel
+          defaultSize={terminalSize}
+          minSize={isTerminalCollapsed ? 5 : 20}
+          maxSize={isTerminalCollapsed ? 5 : 80}
+        >
           {/* Terminal Panel */}
-          <Tabs defaultValue="terminal" className="h-full flex flex-col">
-            <TabsList className="h-[35px] bg-[#181818] rounded-none border-b border-[#2d2d2d] justify-start">
-              <TabsTrigger 
-                value="terminal" 
-                className="rounded-none text-xs data-[state=active]:bg-[#1a1a1a] data-[state=active]:text-[#cccccc]"
-              >
-                <Terminal className="w-3 h-3 mr-1" />
-                Terminal
-              </TabsTrigger>
-              <TabsTrigger 
-                value="problems" 
-                className="rounded-none text-xs data-[state=active]:bg-[#1a1a1a] data-[state=active]:text-[#cccccc]"
-              >
-                <AlertCircle className="w-3 h-3 mr-1" />
-                Problems
-              </TabsTrigger>
-              <TabsTrigger 
-                value="output" 
-                className="rounded-none text-xs data-[state=active]:bg-[#1a1a1a] data-[state=active]:text-[#cccccc]"
-              >
-                <Code className="w-3 h-3 mr-1" />
-                Output
-              </TabsTrigger>
-            </TabsList>
+          <div className="h-full flex flex-col">
+            {/* Terminal Header - Always visible */}
+            <div className="h-[35px] bg-[#181818] border-b border-[#2d2d2d] flex items-center justify-between px-2">
+              <Tabs defaultValue="terminal" className="flex-1">
+                <TabsList className="h-[35px] bg-transparent rounded-none border-none justify-start p-0">
+                  <TabsTrigger
+                    value="terminal"
+                    className="rounded-none text-xs data-[state=active]:bg-[#1a1a1a] data-[state=active]:text-[#cccccc] bg-transparent"
+                  >
+                    <Terminal className="w-3 h-3 mr-1" />
+                    Terminal
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="problems"
+                    className="rounded-none text-xs data-[state=active]:bg-[#1a1a1a] data-[state=active]:text-[#cccccc] bg-transparent"
+                  >
+                    <AlertCircle className="w-3 h-3 mr-1" />
+                    Problems
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="output"
+                    className="rounded-none text-xs data-[state=active]:bg-[#1a1a1a] data-[state=active]:text-[#cccccc] bg-transparent"
+                  >
+                    <Code className="w-3 h-3 mr-1" />
+                    Output
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
 
-            <TabsContent value="terminal" className="flex-1 bg-[#0e0e0e] p-2 mt-0">
-              <div className="font-mono text-xs text-[#cccccc] space-y-1">
-                <div className="text-[#858585]">$ pnpm dev</div>
-                <div className="text-[#4ec9b0]">▲ Next.js 15.0.0</div>
-                <div className="text-[#cccccc]">- Local: http://localhost:3000</div>
-                <div className="text-[#cccccc]">- Network: http://192.168.1.100:3000</div>
-                <div className="text-[#858585]">✓ Ready in 1.2s</div>
-                <div className="text-[#858585]">$ _</div>
-              </div>
-            </TabsContent>
+              {/* Collapse/Expand Button - Far right */}
+              <button
+                onClick={() => setIsTerminalCollapsed(!isTerminalCollapsed)}
+                className="w-6 h-6 bg-[#2d2d2d] hover:bg-[#454545] rounded-sm flex items-center justify-center transition-colors ml-4"
+                aria-label={isTerminalCollapsed ? "Expand terminal" : "Collapse terminal"}
+              >
+                {isTerminalCollapsed ? (
+                  <ChevronUp className="w-3 h-3 text-[#cccccc]" />
+                ) : (
+                  <ChevronDown className="w-3 h-3 text-[#cccccc]" />
+                )}
+              </button>
+            </div>
 
-            <TabsContent value="problems" className="flex-1 bg-[#0e0e0e] p-2 mt-0">
-              <div className="text-xs text-[#858585]">
-                No problems detected.
-              </div>
-            </TabsContent>
+            {/* Terminal Content - Only show when not collapsed */}
+            {!isTerminalCollapsed && (
+              <Tabs defaultValue="terminal" className="flex-1 flex flex-col">
+                <TabsContent value="terminal" className="flex-1 bg-[#0e0e0e] p-2 mt-0">
+                  <div className="font-mono text-xs text-[#cccccc] space-y-1">
+                    <div className="text-[#858585]">$ pnpm dev</div>
+                    <div className="text-[#4ec9b0]">▲ Next.js 15.0.0</div>
+                    <div className="text-[#cccccc]">- Local: http://localhost:3000</div>
+                    <div className="text-[#cccccc]">- Network: http://192.168.1.100:3000</div>
+                    <div className="text-[#858585]">✓ Ready in 1.2s</div>
+                    <div className="text-[#858585]">$ _</div>
+                  </div>
+                </TabsContent>
 
-            <TabsContent value="output" className="flex-1 bg-[#0e0e0e] p-2 mt-0">
-              <div className="font-mono text-xs text-[#cccccc] space-y-1">
-                <div className="text-[#858585]">[2024-01-10 14:30:25] Building EAC Dashboard...</div>
-                <div className="text-[#4ec9b0]">[2024-01-10 14:30:26] ✓ Compiled successfully</div>
-                <div className="text-[#007acc]">[2024-01-10 14:30:26] Hot reload enabled</div>
-              </div>
-            </TabsContent>
-          </Tabs>
+                <TabsContent value="problems" className="flex-1 bg-[#0e0e0e] p-2 mt-0">
+                  <div className="text-xs text-[#858585]">
+                    No problems detected.
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="output" className="flex-1 bg-[#0e0e0e] p-2 mt-0">
+                  <div className="font-mono text-xs text-[#cccccc] space-y-1">
+                    <div className="text-[#858585]">[2024-01-10 14:30:25] Building EAC Dashboard...</div>
+                    <div className="text-[#4ec9b0]">[2024-01-10 14:30:26] ✓ Compiled successfully</div>
+                    <div className="text-[#007acc]">[2024-01-10 14:30:26] Hot reload enabled</div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            )}
+          </div>
         </ResizablePanel>
       </ResizablePanelGroup>
     </main>

@@ -172,7 +172,7 @@ export function EditMaterials() {
   };
 
   return (
-    <div className="h-full bg-[#1a1a1a] text-[#cccccc] overflow-auto">
+    <div className="h-full bg-[#1a1a1a] text-[#cccccc]">
       <div className="p-6">
         <div className="mb-6">
           <div className="flex items-center justify-between">

@@ -199,7 +199,7 @@ export function EditPercentComplete() {
   };
 
   return (
-    <div className="h-full bg-[#1a1a1a] text-[#cccccc] overflow-auto">
+    <div className="h-full bg-[#1a1a1a] text-[#cccccc]">
       <div className="p-6">
         <div className="mb-6">
           <h1 className="text-xl font-semibold text-[#cccccc] mb-2">Percent Complete Tracking</h1>
