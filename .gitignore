@@ -1,24 +1,99 @@
-# Compiled class file
-*.class
+# Dependencies
+node_modules/
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
 
-# Log file
+# pnpm
+.pnpm-store/
+pnpm-lock.yaml
+
+# Testing
+/coverage
+*.lcov
+
+# Next.js
+/.next/
+/out/
+/.vercel
+.vercel
+
+# Production builds
+/build
+/dist
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# Convex
+.convex/
+
+# Development tools
+.cursor/
+.trunk/
+.vscode/
+.idea/
+
+# Documentation
+docs/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
 *.log
+logs/
 
-# BlueJ files
-*.ctxt
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
 
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
+# Editor files
+*.swp
+*.swo
+*~
+.viminfo
 
-# Package Files #
-*.jar
-*.war
-*.nar
-*.ear
-*.zip
+# Package files
+*.tgz
 *.tar.gz
+*.zip
 *.rar
 
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
-hs_err_pid*
-replay_pid*
+# Miscellaneous
+*.pem
+.eslintcache
+.stylelintcache
