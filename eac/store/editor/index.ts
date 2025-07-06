@@ -89,17 +89,7 @@ export function ${name.replace(/[^a-zA-Z0-9]/g, '')}() {
   "data": {}
 }`;
     case 'markdown':
-      return `# ${name}
-
-## Overview
-
-This is a new markdown file created in the EAC Dashboard.
-
-## TODO
-
-- [ ] Add content
-- [ ] Update documentation
-- [ ] Review and finalize`;
+      return `Start writing your content here...`;
     case 'generals':
       return `// ${name} - Project General Information
 // This file contains general project details and financial information
@@ -307,7 +297,6 @@ export const useEditorStore = create<EditorState>()(
           const newTab: EditorTab = {
             id: file.id,
             name: file.name,
-            icon: file.icon,
             modified: false,
             content: file.content,
             filePath: file.filePath,
@@ -343,6 +332,13 @@ export const useEditorStore = create<EditorState>()(
           set({
             openTabs: newTabs,
             activeTab: newActiveTab,
+          });
+        },
+
+        closeAllTabs: () => {
+          set({
+            openTabs: [],
+            activeTab: '',
           });
         },
 
@@ -433,12 +429,12 @@ export const useEditorStore = create<EditorState>()(
           // Add to appropriate folder array and ensure category is visible
           if (category === 'financial') {
             set({
-              financialFolders: [...financialFolders, newFolder],
+              financialFolders: [newFolder, ...financialFolders],
               showFinancialCategory: true, // Ensure financial category is visible
             });
           } else {
             set({
-              projectFolders: [...projectFolders, newFolder],
+              projectFolders: [newFolder, ...projectFolders],
               showProjectsCategory: true, // Ensure projects category is visible
             });
           }
@@ -464,7 +460,21 @@ export const useEditorStore = create<EditorState>()(
         },
 
         deleteFolder: (folderId: string) => {
-          const { projectFolders, financialFolders, projectFiles, financialFiles } = get();
+          const { projectFolders, financialFolders, projectFiles, financialFiles, openTabs } = get();
+
+          // Find all files that were in this folder
+          const filesToDelete = [
+            ...projectFiles.filter((file: ProjectFile) => file.folderId === folderId),
+            ...financialFiles.filter((file: ProjectFile) => file.folderId === folderId)
+          ];
+
+          // Close tabs for all files in this folder
+          filesToDelete.forEach((file: ProjectFile) => {
+            const tabToClose = openTabs.find((tab: EditorTab) => tab.id === file.id);
+            if (tabToClose) {
+              get().closeTab(file.id);
+            }
+          });
           
           // Remove from appropriate folder array
           const updatedProjectFolders = projectFolders.filter((folder: ProjectFolder) => folder.id !== folderId);

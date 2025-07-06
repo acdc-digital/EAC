@@ -13,7 +13,11 @@ interface TiptapEditorProps {
 
 const TiptapEditor = ({ content, onChange, editable = true }: TiptapEditorProps) => {
   console.log('TiptapEditor props:', { content: content?.slice(0, 50), editable, hasOnChange: !!onChange });
-  
+
+  const isPlaceholderText = (text: string) => {
+    return text === 'Start writing your content here...' || text === '<p>Start writing your content here...</p>';
+  };
+
   const editor = useEditor({
     extensions: [StarterKit],
     content,
@@ -36,6 +40,13 @@ const TiptapEditor = ({ content, onChange, editable = true }: TiptapEditorProps)
         editor.commands.focus()
       }, 100)
     },
+    onFocus: ({ editor }) => {
+      // Clear placeholder text when user focuses
+      const currentContent = editor.getText().trim();
+      if (isPlaceholderText(currentContent)) {
+        editor.commands.clearContent();
+      }
+    },
   })
 
   // Update content when prop changes
@@ -49,6 +60,11 @@ const TiptapEditor = ({ content, onChange, editable = true }: TiptapEditorProps)
   const handleClick = () => {
     if (editor) {
       editor.commands.focus()
+      // Clear placeholder text when user clicks
+      const currentContent = editor.getText().trim();
+      if (isPlaceholderText(currentContent)) {
+        editor.commands.clearContent();
+      }
     }
   }
 

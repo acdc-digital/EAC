@@ -6,7 +6,6 @@ import { LucideIcon } from 'lucide-react';
 export interface EditorTab {
   id: string;
   name: string;
-  icon: LucideIcon;
   modified: boolean;
   content: string;
   filePath: string;
@@ -49,6 +48,7 @@ export interface EditorState {
   // Actions
   openTab: (file: ProjectFile) => void;
   closeTab: (tabId: string) => void;
+  closeAllTabs: () => void;
   setActiveTab: (tabId: string) => void;
   updateTabContent: (tabId: string, content: string) => void;
   updateFileContent: (tabId: string, content: string) => void;

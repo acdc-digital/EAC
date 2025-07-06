@@ -30,6 +30,10 @@ export const useSidebarStore = create<SidebarState>()(
           set({ activePanel: panel });
         },
 
+        collapseAllSections: () => {
+          set({ openSections: new Set<string>() });
+        },
+
         reset: () => {
           set({
             openSections: new Set<string>(),

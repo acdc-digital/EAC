@@ -9,5 +9,6 @@ export interface SidebarState {
   // Actions
   toggleSection: (sectionId: string) => void;
   setActivePanel: (panel: string) => void;
+  collapseAllSections: () => void;
   reset: () => void;
 } 

@@ -15,9 +15,11 @@ import {
   Braces,
   FileSpreadsheet,
   FileText,
-  FileType
+  FileType,
+  ChevronsDown
 } from "lucide-react";
 import { useEditorStore, useSidebarStore } from "@/store";
+import { FileCreationDropdown } from "./fileCreationDropdown";
 import {
   Dialog,
   DialogContent,
@@ -30,12 +32,11 @@ import { Button } from "@/components/ui/button";
 
 interface SidebarProps {
   activePanel: string;
-  onCreateFileInFolder?: (folderId: string, folderName: string, category: 'project' | 'financial') => void;
 }
 
-export function DashSidebar({ activePanel, onCreateFileInFolder }: SidebarProps) {
-  const { openSections, toggleSection } = useSidebarStore();
-  const { projectFiles, financialFiles, projectFolders, showProjectsCategory, showFinancialCategory, openTab, deleteFile, createFolder, deleteFolder, deleteProjectsCategory, deleteFinancialCategory, reorderProjectFolders } = useEditorStore();
+export function DashSidebar({ activePanel }: SidebarProps) {
+  const { openSections, toggleSection, collapseAllSections } = useSidebarStore();
+  const { projectFiles, financialFiles, projectFolders, showProjectsCategory, showFinancialCategory, openTab, deleteFile, createFolder, deleteFolder, deleteProjectsCategory, deleteFinancialCategory, reorderProjectFolders, closeAllTabs } = useEditorStore();
   const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean; fileId: string; fileName: string }>({
     isOpen: false,
     fileId: '',
@@ -45,6 +46,9 @@ export function DashSidebar({ activePanel, onCreateFileInFolder }: SidebarProps)
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [dragOverItem, setDragOverItem] = useState<string | null>(null);
+  const [isFileDropdownOpen, setIsFileDropdownOpen] = useState(false);
+  const [preselectedFolder, setPreselectedFolder] = useState<{id: string, name: string, category: 'project' | 'financial'} | null>(null);
+  const createButtonRef = React.useRef<HTMLButtonElement | null>(null);
 
   const handleDeleteClick = (fileId: string, fileName: string) => {
     setDeleteConfirmation({ isOpen: true, fileId, fileName });
@@ -57,10 +61,7 @@ export function DashSidebar({ activePanel, onCreateFileInFolder }: SidebarProps)
     }
   };
 
-  const handleCreateFolder = () => {
-    setIsCreatingFolder(true);
-    setNewFolderName('');
-  };
+
 
   const handleFolderNameSubmit = () => {
     if (newFolderName.trim()) {
@@ -73,6 +74,16 @@ export function DashSidebar({ activePanel, onCreateFileInFolder }: SidebarProps)
   const handleFolderNameCancel = () => {
     setIsCreatingFolder(false);
     setNewFolderName('');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleFolderNameSubmit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      handleFolderNameCancel();
+    }
   };
 
   const handleDragStart = (e: React.DragEvent, folderId: string) => {
@@ -111,6 +122,16 @@ export function DashSidebar({ activePanel, onCreateFileInFolder }: SidebarProps)
   const handleDragEnd = () => {
     setDraggedItem(null);
     setDragOverItem(null);
+  };
+
+  const handleCreateFileInFolder = (folderId: string, folderName: string, category: 'project' | 'financial') => {
+    setPreselectedFolder({ id: folderId, name: folderName, category });
+    setIsFileDropdownOpen(true);
+  };
+
+  const handleCloseDropdown = () => {
+    setIsFileDropdownOpen(false);
+    setPreselectedFolder(null);
   };
 
   // Create dynamic file structure using store data
@@ -241,13 +262,33 @@ export function DashSidebar({ activePanel, onCreateFileInFolder }: SidebarProps)
           <div className="p-2">
             <div className="flex items-center justify-between text-xs uppercase text-[#858585] px-2 py-1">
               <span>EAC Explorer</span>
-              <button
-                onClick={handleCreateFolder}
-                className="hover:bg-[#2d2d2d] p-0.5 rounded transition-colors"
-                aria-label="Create new folder"
-              >
-                <Plus className="w-3 h-3" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  ref={createButtonRef}
+                  onClick={() => {
+                    setPreselectedFolder(null);
+                    setIsFileDropdownOpen(true);
+                  }}
+                  className="hover:bg-[#2d2d2d] p-0.5 rounded transition-colors"
+                  aria-label="Create new file"
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={collapseAllSections}
+                  className="hover:bg-[#2d2d2d] p-0.5 rounded transition-colors border border-[#454545] rounded"
+                  aria-label="Collapse all folders"
+                >
+                  <ChevronsDown className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={closeAllTabs}
+                  className="hover:bg-[#2d2d2d] p-0.5 rounded transition-colors border border-[#454545] rounded"
+                  aria-label="Close all tabs"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
             </div>
             
             {/* Show new folder input at the top level when creating */}
@@ -259,14 +300,15 @@ export function DashSidebar({ activePanel, onCreateFileInFolder }: SidebarProps)
                   type="text"
                   value={newFolderName}
                   onChange={(e) => setNewFolderName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleFolderNameSubmit();
-                    } else if (e.key === 'Escape') {
-                      handleFolderNameCancel();
-                    }
+                  onKeyDown={handleKeyDown}
+                  onBlur={() => {
+                    // Only cancel if we're not in the middle of submitting
+                    setTimeout(() => {
+                      if (isCreatingFolder) {
+                        handleFolderNameCancel();
+                      }
+                    }, 100);
                   }}
-                  onBlur={handleFolderNameCancel}
                   className="flex-1 bg-transparent border-none outline-none text-xs text-[#cccccc] placeholder-[#858585]"
                   title="Enter folder name"
                   aria-label="Enter folder name"
@@ -306,14 +348,14 @@ export function DashSidebar({ activePanel, onCreateFileInFolder }: SidebarProps)
                       <section.icon className="w-4 h-4 mr-1 text-[#c09553]" />
                       <span className="text-xs text-[#cccccc]">{section.name}</span>
                     </button>
-                    {onCreateFileInFolder && (section.id === 'projects' || section.id === 'financial' || 'isFolder' in section) && (
+                    {(section.id === 'projects' || section.id === 'financial' || 'isFolder' in section) && (
                       <div className="opacity-0 group-hover:opacity-100 ml-auto flex items-center">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             const folderId = section.id === 'projects' ? '' : section.id === 'financial' ? '' : section.id;
                             const category = section.id === 'financial' ? 'financial' : 'project';
-                            onCreateFileInFolder(folderId, section.name, category);
+                            handleCreateFileInFolder(folderId, section.name, category);
                           }}
                           className="p-0.5 hover:bg-[#3d3d3d] rounded transition-opacity"
                           aria-label={`Create file in ${section.name}`}
@@ -457,7 +499,13 @@ export function DashSidebar({ activePanel, onCreateFileInFolder }: SidebarProps)
         </DialogContent>
       </Dialog>
 
-
+      {/* File Creation Dropdown */}
+      <FileCreationDropdown
+        isOpen={isFileDropdownOpen}
+        onClose={handleCloseDropdown}
+        preselectedFolder={preselectedFolder}
+        buttonRef={createButtonRef}
+      />
     </>
   );
 } 

@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 
-import { X, Terminal, AlertCircle, Code, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, Terminal, AlertCircle, Code, Plus, ChevronLeft, ChevronRight, FileCode, FileText, FileSpreadsheet, FileType, Braces } from "lucide-react";
 import { useEditorStore } from "@/store";
 import { ProjectFile } from "@/store/editor/types";
 
@@ -25,11 +25,9 @@ const EditGenerals = dynamic(() => import('./editGenerals').then(mod => ({ defau
   loading: () => <div className="p-4 text-[#858585]">Loading module...</div>
 });
 
-interface DashEditorProps {
-  onCreateFile?: () => void;
-}
+interface DashEditorProps {}
 
-export function DashEditor({ onCreateFile }: DashEditorProps) {
+export function DashEditor({}: DashEditorProps) {
   const { 
     openTabs, 
     activeTab, 
@@ -140,7 +138,29 @@ export function DashEditor({ onCreateFile }: DashEditorProps) {
                     }}
                     onClick={() => setActiveTab(tab.id)}
                   >
-                    <tab.icon className="w-3 h-3 flex-shrink-0" />
+                    {(() => {
+                      const getTabIcon = (type: string) => {
+                        switch (type) {
+                          case 'typescript':
+                          case 'javascript':
+                            return FileCode;
+                          case 'json':
+                            return Braces;
+                          case 'excel':
+                            return FileSpreadsheet;
+                          case 'markdown':
+                            return FileText;
+                          case 'pdf':
+                            return FileType;
+                          case 'generals':
+                            return FileText;
+                          default:
+                            return FileCode;
+                        }
+                      };
+                      const IconComponent = getTabIcon(tab.type);
+                      return <IconComponent className="w-3 h-3 flex-shrink-0" />;
+                    })()}
                     <span className={`truncate flex-1 ${tab.modified ? 'text-[#cccccc]' : ''}`}>
                       {tab.name}
                     </span>
@@ -191,12 +211,12 @@ export function DashEditor({ onCreateFile }: DashEditorProps) {
                 <ChevronRight className="w-3 h-3" />
               </button>
                 
-              {/* Add New Tab Button */}
+              {/* Add New Tab Button - Disabled (file creation moved to sidebar) */}
               <button 
-                className="flex items-center justify-center w-8 h-[35px] text-xs border-l border-[#2d2d2d] hover:bg-[#2d2d2d] text-[#858585]"
-                onClick={() => onCreateFile?.()}
+                className="flex items-center justify-center w-8 h-[35px] text-xs border-l border-[#2d2d2d] text-[#3d3d3d] opacity-30 cursor-not-allowed"
+                disabled
               >
-                <span className="sr-only">Create new file</span>
+                <span className="sr-only">Create new file (use sidebar)</span>
                 <Plus className="w-3 h-3" />
               </button>
             </div>
