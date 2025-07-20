@@ -379,13 +379,13 @@ export function DashEditor({}: DashEditorProps) {
             <div className="h-[35px] bg-[#181818] border-b border-[#2d2d2d] flex items-center justify-between px-2">
               <Tabs defaultValue="terminal" className="flex-1">
                 <TabsList className="h-[35px] bg-transparent rounded-none border-none justify-start p-0">
-                  <TabsTrigger
-                    value="terminal"
-                    className="rounded-none text-xs data-[state=active]:bg-[#1a1a1a] data-[state=active]:text-[#cccccc] bg-transparent"
+                  <button
+                    onClick={toggleTerminalCollapse}
+                    className="rounded-none text-xs bg-[#1a1a1a] text-[#cccccc] px-3 py-2 flex items-center hover:bg-[#2d2d2d] transition-colors"
                   >
                     <Terminal className="w-3 h-3 mr-1" />
                     Terminal
-                  </TabsTrigger>
+                  </button>
                   <TabsTrigger
                     value="problems"
                     className="rounded-none text-xs data-[state=active]:bg-[#1a1a1a] data-[state=active]:text-[#cccccc] bg-transparent"
@@ -406,13 +406,13 @@ export function DashEditor({}: DashEditorProps) {
               {/* Collapse/Expand Button - Far right */}
               <button
                 onClick={toggleTerminalCollapse}
-                className="w-6 h-6 bg-[#2d2d2d] hover:bg-[#454545] rounded-sm flex items-center justify-center transition-colors ml-4"
+                className="w-4 h-4 flex items-center justify-center transition-colors hover:bg-[#2d2d2d] rounded text-[#858585] hover:text-[#cccccc] flex-shrink-0"
                 aria-label={isTerminalCollapsed ? "Expand terminal" : "Collapse terminal"}
               >
                 {isTerminalCollapsed ? (
-                  <ChevronUp className="w-3 h-3 text-[#cccccc]" />
+                  <ChevronUp className="w-3 h-3" />
                 ) : (
-                  <ChevronDown className="w-3 h-3 text-[#cccccc]" />
+                  <ChevronDown className="w-3 h-3" />
                 )}
               </button>
             </div>

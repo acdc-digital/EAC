@@ -1,0 +1,215 @@
+/*!**********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ../node_modules/.pnpm/next@15.3.5_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[13].oneOf[10].use[2]!../node_modules/.pnpm/next@15.3.5_react-dom@19.1.0_react@19.1.0__react@19.1.0/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[13].oneOf[10].use[3]!./components/tiptap-editor.css ***!
+  \**********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+/* Tiptap Editor VS Code Dark Theme Styling */
+.tiptap-editor {
+  background: transparent;
+  color: #cccccc;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 20px;
+  outline: none !important;
+  border: none !important;
+  min-height: 100%;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  cursor: text;
+  position: relative;
+  z-index: 1;
+}
+
+.tiptap-editor .ProseMirror {
+  outline: none !important;
+  border: none !important;
+  background: transparent;
+  color: #cccccc;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 20px;
+  min-height: 100%;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  cursor: text;
+}
+
+.tiptap-editor:focus {
+  outline: none;
+}
+
+/* Paragraph styling */
+.tiptap-editor p {
+  margin: 0;
+  padding: 0;
+  line-height: 20px;
+  min-height: 20px;
+}
+
+.tiptap-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #858585;
+  pointer-events: none;
+  height: 0;
+}
+
+/* Headings */
+.tiptap-editor h1,
+.tiptap-editor h2,
+.tiptap-editor h3,
+.tiptap-editor h4,
+.tiptap-editor h5,
+.tiptap-editor h6 {
+  color: #569cd6;
+  font-weight: bold;
+  margin: 0;
+  padding: 0;
+  line-height: 20px;
+}
+
+.tiptap-editor h1 {
+  font-size: 16px;
+}
+
+.tiptap-editor h2 {
+  font-size: 14px;
+}
+
+.tiptap-editor h3,
+.tiptap-editor h4,
+.tiptap-editor h5,
+.tiptap-editor h6 {
+  font-size: 12px;
+}
+
+/* Code blocks */
+.tiptap-editor pre {
+  background: #0e0e0e;
+  border: 1px solid #2d2d2d;
+  border-radius: 4px;
+  color: #cccccc;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 20px;
+  padding: 8px 12px;
+  margin: 0;
+  overflow-x: auto;
+}
+
+.tiptap-editor pre code {
+  background: none;
+  color: inherit;
+  font-size: inherit;
+  padding: 0;
+  border-radius: 0;
+}
+
+/* Inline code */
+.tiptap-editor code {
+  background: #2d2d2d;
+  border-radius: 3px;
+  color: #ce9178;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  padding: 2px 4px;
+}
+
+/* Lists */
+.tiptap-editor ul,
+.tiptap-editor ol {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.tiptap-editor li {
+  margin: 0;
+  padding: 0;
+  line-height: 20px;
+}
+
+.tiptap-editor ul li {
+  list-style-type: disc;
+}
+
+.tiptap-editor ol li {
+  list-style-type: decimal;
+}
+
+/* Blockquotes */
+.tiptap-editor blockquote {
+  border-left: 3px solid #569cd6;
+  margin: 0;
+  padding-left: 12px;
+  color: #858585;
+}
+
+/* Horizontal rule */
+.tiptap-editor hr {
+  border: none;
+  border-top: 1px solid #2d2d2d;
+  margin: 10px 0;
+}
+
+/* Bold text */
+.tiptap-editor strong {
+  color: #dcdcaa;
+  font-weight: bold;
+}
+
+/* Italic text */
+.tiptap-editor em {
+  color: #c586c0;
+  font-style: italic;
+}
+
+/* Strikethrough */
+.tiptap-editor s {
+  color: #858585;
+  text-decoration: line-through;
+}
+
+/* Selection */
+.tiptap-editor ::selection {
+  background: #264f78;
+}
+
+.tiptap-editor ::-moz-selection {
+  background: #264f78;
+}
+
+/* Hard break */
+.tiptap-editor br {
+  line-height: 20px;
+}
+
+/* Cursor */
+.tiptap-editor .ProseMirror-focused {
+  outline: none;
+}
+
+/* Placeholder when empty */
+.tiptap-editor.ProseMirror-focused .is-empty::before {
+  content: attr(data-placeholder);
+  color: #858585;
+  pointer-events: none;
+  position: absolute;
+}
+
+/* Ensure consistent line height throughout */
+.tiptap-editor * {
+  line-height: 20px !important;
+}
+
+/* Fix for nested elements */
+.tiptap-editor p > *,
+.tiptap-editor li > *,
+.tiptap-editor blockquote > * {
+  line-height: inherit;
+}
+
+/* Ensure proper spacing for empty lines */
+.tiptap-editor p:empty::before {
+  content: '\00a0';
+  color: transparent;
+} 
