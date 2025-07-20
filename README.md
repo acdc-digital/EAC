@@ -108,31 +108,22 @@ EAC/
 
 ## Technology Stack
 
-### Frontend
-
-- **Next.js 14** - React framework with App Router
-- **React 18** - UI library with hooks and context
-- **TypeScript** - Type-safe JavaScript development
-- **Tailwind CSS** - Utility-first CSS framework
-- **shadcn/ui** - Modern component library
-
-### State Management
-
-- **Zustand** - Lightweight state management
-- **Persist middleware** - Automatic state persistence
-- **Custom storage** - Optimized serialization for complex data
-
-### Rich Text Editing
-
-- **Tiptap** - Headless rich text editor
-- **ProseMirror** - Underlying editor framework
-- **StarterKit** - Essential editing extensions
-
-### Development Tools
-
-- **ESLint** - Code linting and formatting
-- **PostCSS** - CSS processing
-- **pnpm** - Fast, disk space efficient package manager
+| Category              | Technology         | Description                                |
+| --------------------- | ------------------ | ------------------------------------------ |
+| **Frontend**          | Next.js 14         | React framework with App Router            |
+|                       | React 18           | UI library with hooks and context          |
+|                       | TypeScript         | Type-safe JavaScript development           |
+|                       | Tailwind CSS       | Utility-first CSS framework                |
+|                       | shadcn/ui          | Modern component library                   |
+| **State Management**  | Zustand            | Lightweight state management               |
+|                       | Persist middleware | Automatic state persistence                |
+|                       | Custom storage     | Optimized serialization for complex data   |
+| **Rich Text Editing** | Tiptap             | Headless rich text editor                  |
+|                       | ProseMirror        | Underlying editor framework                |
+|                       | StarterKit         | Essential editing extensions               |
+| **Development Tools** | ESLint             | Code linting and formatting                |
+|                       | PostCSS            | CSS processing                             |
+|                       | pnpm               | Fast, disk space efficient package manager |
 
 ## Deployment
 
