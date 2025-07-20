@@ -1,9 +1,9 @@
 // Editor Store
 // /Users/matthewsimon/Projects/EAC/eac/store/editor/index.ts
 
+import { Braces, FileCode, FileSpreadsheet, FileText, FileType } from 'lucide-react';
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
-import { FileCode, FileText, FileSpreadsheet, FileType, Braces } from 'lucide-react';
 import { EditorState, EditorTab, ProjectFile, ProjectFolder } from './types';
 
 // Helper function to get icon based on file type
@@ -498,6 +498,70 @@ export const useEditorStore = create<EditorState>()(
           set({ 
             projectFiles: updatedProjectFiles,
             financialFiles: updatedFinancialFiles 
+          });
+        },
+
+        renameFile: (fileId: string, newName: string) => {
+          const { projectFiles, financialFiles, openTabs } = get();
+          
+          // Find the file to get its type and generate new filename with extension
+          const projectFile = projectFiles.find((file: ProjectFile) => file.id === fileId);
+          const financialFile = financialFiles.find((file: ProjectFile) => file.id === fileId);
+          const file = projectFile || financialFile;
+          
+          if (!file) return;
+          
+          // Generate new filename with appropriate extension
+          const newFileName = `${newName}${getFileExtension(file.type)}`;
+          const basePath = file.category === 'financial' ? '/financial-data' : '/eac-projects';
+          const newFilePath = `${basePath}/${newFileName}`;
+          
+          // Update the file in appropriate array
+          const updatedProjectFiles = projectFiles.map((f: ProjectFile) =>
+            f.id === fileId
+              ? { ...f, name: newFileName, filePath: newFilePath, modifiedAt: new Date() }
+              : f
+          );
+
+          const updatedFinancialFiles = financialFiles.map((f: ProjectFile) =>
+            f.id === fileId
+              ? { ...f, name: newFileName, filePath: newFilePath, modifiedAt: new Date() }
+              : f
+          );
+
+          // Update open tabs if the file is open
+          const updatedTabs = openTabs.map((tab: EditorTab) =>
+            tab.id === fileId
+              ? { ...tab, name: newFileName, filePath: newFilePath, modified: true }
+              : tab
+          );
+
+          set({
+            projectFiles: updatedProjectFiles,
+            financialFiles: updatedFinancialFiles,
+            openTabs: updatedTabs,
+          });
+        },
+
+        renameFolder: (folderId: string, newName: string) => {
+          const { projectFolders, financialFolders } = get();
+          
+          // Update the folder in appropriate array
+          const updatedProjectFolders = projectFolders.map((folder: ProjectFolder) =>
+            folder.id === folderId
+              ? { ...folder, name: newName }
+              : folder
+          );
+
+          const updatedFinancialFolders = financialFolders.map((folder: ProjectFolder) =>
+            folder.id === folderId
+              ? { ...folder, name: newName }
+              : folder
+          );
+
+          set({
+            projectFolders: updatedProjectFolders,
+            financialFolders: updatedFinancialFolders,
           });
         },
 

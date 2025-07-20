@@ -55,7 +55,9 @@ export interface EditorState {
   createNewFile: (name: string, type: ProjectFile['type'], category?: ProjectFile['category'], folderId?: string) => void;
   createFolder: (name: string, category: 'project' | 'financial') => void;
   deleteFile: (fileId: string) => void;
+  renameFile: (fileId: string, newName: string) => void;
   deleteFolder: (folderId: string) => void;
+  renameFolder: (folderId: string, newName: string) => void;
   clearProjectCategory: () => void;
   clearFinancialCategory: () => void;
   deleteProjectsCategory: () => void;

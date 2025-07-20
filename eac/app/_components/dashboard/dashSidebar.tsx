@@ -3,23 +3,32 @@
 
 "use client";
 
-import React, { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  ChevronDown, 
-  ChevronRight, 
-  Folder, 
-  X,
-  Plus,
-  FileCode,
+import { useEditorStore, useSidebarStore } from "@/store";
+import {
   Braces,
+  ChevronDown,
+  ChevronRight,
+  ChevronsDown,
+  Edit3,
+  FileCode,
   FileSpreadsheet,
   FileText,
   FileType,
-  ChevronsDown
+  Folder,
+  Plus,
+  X
 } from "lucide-react";
-import { useEditorStore, useSidebarStore } from "@/store";
+import React, { useState } from "react";
 
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -28,7 +37,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { FileCreationDropdown } from "./_components/fileCreationDropdown";
 
 interface SidebarProps {
@@ -37,12 +45,16 @@ interface SidebarProps {
 
 export function DashSidebar({ activePanel }: SidebarProps) {
   const { openSections, toggleSection, collapseAllSections } = useSidebarStore();
-  const { projectFiles, financialFiles, projectFolders, showProjectsCategory, showFinancialCategory, openTab, deleteFile, createFolder, deleteFolder, deleteProjectsCategory, deleteFinancialCategory, reorderProjectFolders, closeAllTabs } = useEditorStore();
+  const { projectFiles, financialFiles, projectFolders, showProjectsCategory, showFinancialCategory, openTab, deleteFile, renameFile, renameFolder, createFolder, deleteFolder, deleteProjectsCategory, deleteFinancialCategory, reorderProjectFolders, closeAllTabs } = useEditorStore();
   const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean; fileId: string; fileName: string }>({
     isOpen: false,
     fileId: '',
     fileName: ''
   });
+  const [renamingFile, setRenamingFile] = useState<{ fileId: string; currentName: string } | null>(null);
+  const [renamingFolder, setRenamingFolder] = useState<{ folderId: string; currentName: string } | null>(null);
+  const [newFileName, setNewFileName] = useState('');
+  const [newFolderRename, setNewFolderRename] = useState('');
   const [newFolderName, setNewFolderName] = useState('');
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
@@ -59,6 +71,66 @@ export function DashSidebar({ activePanel }: SidebarProps) {
     if (deleteConfirmation.fileId) {
       deleteFile(deleteConfirmation.fileId);
       setDeleteConfirmation({ isOpen: false, fileId: '', fileName: '' });
+    }
+  };
+
+  // File rename handlers
+  const handleRenameClick = (fileId: string, currentName: string) => {
+    // Remove file extension for editing
+    const nameWithoutExtension = currentName.replace(/\.[^/.]+$/, "");
+    setRenamingFile({ fileId, currentName: nameWithoutExtension });
+    setNewFileName(nameWithoutExtension);
+  };
+
+  const handleRenameSubmit = () => {
+    if (renamingFile && newFileName.trim()) {
+      renameFile(renamingFile.fileId, newFileName.trim());
+      setRenamingFile(null);
+      setNewFileName('');
+    }
+  };
+
+  const handleRenameCancel = () => {
+    setRenamingFile(null);
+    setNewFileName('');
+  };
+
+  const handleRenameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleRenameSubmit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      handleRenameCancel();
+    }
+  };
+
+  // Folder rename handlers
+  const handleFolderRenameClick = (folderId: string, currentName: string) => {
+    setRenamingFolder({ folderId, currentName });
+    setNewFolderRename(currentName);
+  };
+
+  const handleFolderRenameSubmit = () => {
+    if (renamingFolder && newFolderRename.trim()) {
+      renameFolder(renamingFolder.folderId, newFolderRename.trim());
+      setRenamingFolder(null);
+      setNewFolderRename('');
+    }
+  };
+
+  const handleFolderRenameCancel = () => {
+    setRenamingFolder(null);
+    setNewFolderRename('');
+  };
+
+  const handleFolderRenameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleFolderRenameSubmit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      handleFolderRenameCancel();
     }
   };
 
@@ -282,14 +354,14 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                 </button>
                 <button
                   onClick={collapseAllSections}
-                  className="hover:bg-[#2d2d2d] p-0.5 rounded transition-colors border border-[#454545] rounded"
+                  className="hover:bg-[#2d2d2d] p-0.5 rounded transition-colors border border-[#454545]"
                   aria-label="Collapse all folders"
                 >
                   <ChevronsDown className="w-3 h-3" />
                 </button>
                 <button
                   onClick={closeAllTabs}
-                  className="hover:bg-[#2d2d2d] p-0.5 rounded transition-colors border border-[#454545] rounded"
+                  className="hover:bg-[#2d2d2d] p-0.5 rounded transition-colors border border-[#454545]"
                   aria-label="Close all tabs"
                 >
                   <X className="w-3 h-3" />
@@ -329,104 +401,188 @@ export function DashSidebar({ activePanel }: SidebarProps) {
               const isFolder = 'isFolder' in section && section.isFolder;
               const isDraggedOver = dragOverItem === section.id;
               const isBeingDragged = draggedItem === section.id;
+              const isCurrentlyRenamingFolder = renamingFolder?.folderId === section.id;
+              
+              // Check if this is a user-created folder (not main categories)
+              const isUserFolder = isFolder && section.id !== 'projects' && section.id !== 'financial';
+              
+              const sectionContent = (
+                <div
+                  className={`flex items-center w-full hover:bg-[#2d2d2d] px-1 py-0.5 rounded group ${
+                    isDraggedOver ? 'bg-[#3a3a3a] border-l-2 border-[#5a5a5a]' : ''
+                  } ${isBeingDragged ? 'opacity-50' : ''}`}
+                  draggable={isFolder}
+                  onDragStart={(e) => isFolder && handleDragStart(e, section.id)}
+                  onDragOver={(e) => isFolder && handleDragOver(e, section.id)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => isFolder && handleDrop(e)}
+                  onDragEnd={handleDragEnd}
+                >
+                  <div
+                    onClick={() => !isCurrentlyRenamingFolder && toggleSection(section.id)}
+                    className={`flex items-center flex-1 text-left ${isFolder ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}
+                  >
+                    {isOpen ? (
+                      <ChevronDown className="w-3 h-3 mr-1 text-[#858585] cursor-pointer" />
+                    ) : (
+                      <ChevronRight className="w-3 h-3 mr-1 text-[#858585] cursor-pointer" />
+                    )}
+                    <section.icon className="w-4 h-4 mr-1 text-[#c09553]" />
+                    {isCurrentlyRenamingFolder ? (
+                      <input
+                        type="text"
+                        value={newFolderRename}
+                        onChange={(e) => setNewFolderRename(e.target.value)}
+                        onKeyDown={handleFolderRenameKeyDown}
+                        onBlur={() => {
+                          setTimeout(() => {
+                            if (renamingFolder) {
+                              handleFolderRenameCancel();
+                            }
+                          }, 100);
+                        }}
+                        className="flex-1 bg-transparent border border-[#454545] outline-none text-xs text-[#cccccc] placeholder-[#858585] px-1 py-0.5 rounded"
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                        placeholder="Folder name..."
+                        title="Enter folder name"
+                        aria-label="Enter folder name"
+                      />
+                    ) : (
+                      <span className="text-xs text-[#cccccc]">{section.name}</span>
+                    )}
+                  </div>
+                  {(section.id === 'projects' || section.id === 'financial' || 'isFolder' in section) && !isCurrentlyRenamingFolder && (
+                    <div className="opacity-0 group-hover:opacity-100 ml-auto flex items-center">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const folderId = section.id === 'projects' ? '' : section.id === 'financial' ? '' : section.id;
+                          const category = section.id === 'financial' ? 'financial' : 'project';
+                          handleCreateFileInFolder(folderId, section.name, category);
+                        }}
+                        className="p-0.5 hover:bg-[#3d3d3d] rounded transition-opacity"
+                        aria-label={`Create file in ${section.name}`}
+                      >
+                        <Plus className="w-3 h-3 text-[#858585] hover:text-[#cccccc]" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (section.id === 'projects') {
+                            // Delete the entire projects category
+                            deleteProjectsCategory();
+                          } else if (section.id === 'financial') {
+                            // Delete the entire financial category
+                            deleteFinancialCategory();
+                          } else {
+                            // Delete specific folder
+                            deleteFolder(section.id);
+                          }
+                        }}
+                        className="p-0.5 hover:bg-[#3d3d3d] rounded transition-opacity"
+                        aria-label={`Delete ${section.name}`}
+                      >
+                        <X className="w-3 h-3 text-[#858585] hover:text-[#cccccc]" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
               
               return (
                 <div key={section.id} className="mb-1">
-                  <div 
-                    className={`flex items-center w-full hover:bg-[#2d2d2d] px-1 py-0.5 rounded group ${
-                      isDraggedOver ? 'bg-[#3a3a3a] border-l-2 border-[#5a5a5a]' : ''
-                    } ${isBeingDragged ? 'opacity-50' : ''}`}
-                    draggable={isFolder}
-                    onDragStart={(e) => isFolder && handleDragStart(e, section.id)}
-                    onDragOver={(e) => isFolder && handleDragOver(e, section.id)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => isFolder && handleDrop(e)}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <button
-                      onClick={() => toggleSection(section.id)}
-                      className={`flex items-center flex-1 text-left ${isFolder ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}
-                    >
-                      {isOpen ? (
-                        <ChevronDown className="w-3 h-3 mr-1 text-[#858585] cursor-pointer" />
-                      ) : (
-                        <ChevronRight className="w-3 h-3 mr-1 text-[#858585] cursor-pointer" />
-                      )}
-                      <section.icon className="w-4 h-4 mr-1 text-[#c09553]" />
-                      <span className="text-xs text-[#cccccc]">{section.name}</span>
-                    </button>
-                    {(section.id === 'projects' || section.id === 'financial' || 'isFolder' in section) && (
-                      <div className="opacity-0 group-hover:opacity-100 ml-auto flex items-center">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const folderId = section.id === 'projects' ? '' : section.id === 'financial' ? '' : section.id;
-                            const category = section.id === 'financial' ? 'financial' : 'project';
-                            handleCreateFileInFolder(folderId, section.name, category);
-                          }}
-                          className="p-0.5 hover:bg-[#3d3d3d] rounded transition-opacity"
-                          aria-label={`Create file in ${section.name}`}
+                  {isUserFolder ? (
+                    <ContextMenu>
+                      <ContextMenuTrigger asChild>
+                        {sectionContent}
+                      </ContextMenuTrigger>
+                      <ContextMenuContent className="w-48 bg-[#252526] border border-[#454545]">
+                        <ContextMenuItem
+                          onClick={() => handleFolderRenameClick(section.id, section.name)}
+                          className="text-xs text-[#cccccc] hover:bg-[#2a2d2e] flex items-center gap-2 px-2 py-1.5"
                         >
-                          <Plus className="w-3 h-3 text-[#858585] hover:text-[#cccccc]" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (section.id === 'projects') {
-                              // Delete the entire projects category
-                              deleteProjectsCategory();
-                            } else if (section.id === 'financial') {
-                              // Delete the entire financial category
-                              deleteFinancialCategory();
-                            } else {
-                              // Delete specific folder
-                              deleteFolder(section.id);
-                            }
-                          }}
-                          className="p-0.5 hover:bg-[#3d3d3d] rounded transition-opacity"
-                          aria-label={`Delete ${section.name}`}
-                        >
-                          <X className="w-3 h-3 text-[#858585] hover:text-[#cccccc]" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                          <Edit3 className="w-3 h-3" />
+                          Rename
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
+                  ) : (
+                    sectionContent
+                  )}
                   
                   {isOpen && 'children' in section && (
                     <div className="ml-4 space-y-0.5 mt-1">
                       {section.children.map((file, index) => {
                         const FileIconComponent = getFileIconComponent(file.type);
                         const isProjectFile = 'file' in file && file.file;
+                        const isCurrentlyRenaming = renamingFile?.fileId === ('id' in file ? file.id : '');
                         
                         return (
-                          <div 
-                            key={'id' in file ? file.id : `${section.id}-${index}`}
-                            className="group flex items-center hover:bg-[#2d2d2d] px-1 py-0.5 rounded cursor-pointer"
-                          >
-                            <div
-                              className="flex items-center flex-1"
-                              onClick={() => {
-                                if (isProjectFile && file.file) {
-                                  openTab(file.file);
-                                }
-                              }}
-                            >
-                              <FileIconComponent className={`w-3 h-3 mr-2 ${getFileIcon(file.type)}`} />
-                              <span className="text-xs text-[#cccccc]">{file.name}</span>
-                            </div>
-                            {isProjectFile && file.file && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteClick(file.file.id, file.name);
-                                }}
-                                className="opacity-0 group-hover:opacity-100 ml-auto px-1 hover:bg-[#3d3d3d] rounded transition-opacity"
-                                aria-label={`Delete ${file.name}`}
+                          <ContextMenu key={'id' in file ? file.id : `${section.id}-${index}`}>
+                            <ContextMenuTrigger asChild>
+                              <div
+                                className="group flex items-center hover:bg-[#2d2d2d] px-1 py-0.5 rounded cursor-pointer"
                               >
-                                <X className="w-3 h-3 text-[#858585] hover:text-[#cccccc]" />
-                              </button>
+                                <div
+                                  className="flex items-center flex-1"
+                                  onClick={() => {
+                                    if (isProjectFile && file.file && !isCurrentlyRenaming) {
+                                      openTab(file.file);
+                                    }
+                                  }}
+                                >
+                                  <FileIconComponent className={`w-3 h-3 mr-2 ${getFileIcon(file.type)}`} />
+                                  {isCurrentlyRenaming ? (
+                                    <input
+                                      type="text"
+                                      value={newFileName}
+                                      onChange={(e) => setNewFileName(e.target.value)}
+                                      onKeyDown={handleRenameKeyDown}
+                                      onBlur={() => {
+                                        setTimeout(() => {
+                                          if (renamingFile) {
+                                            handleRenameCancel();
+                                          }
+                                        }, 100);
+                                      }}
+                                      className="flex-1 bg-transparent border border-[#454545] outline-none text-xs text-[#cccccc] placeholder-[#858585] px-1 py-0.5 rounded"
+                                      autoFocus
+                                      onClick={(e) => e.stopPropagation()}
+                                      placeholder="File name..."
+                                      title="Enter file name"
+                                      aria-label="Enter file name"
+                                    />
+                                  ) : (
+                                    <span className="text-xs text-[#cccccc]">{file.name}</span>
+                                  )}
+                                </div>
+                                {isProjectFile && file.file && !isCurrentlyRenaming && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteClick(file.file.id, file.name);
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 ml-auto px-1 hover:bg-[#3d3d3d] rounded transition-opacity"
+                                    aria-label={`Delete ${file.name}`}
+                                  >
+                                    <X className="w-3 h-3 text-[#858585] hover:text-[#cccccc]" />
+                                  </button>
+                                )}
+                              </div>
+                            </ContextMenuTrigger>
+                            {isProjectFile && file.file && (
+                              <ContextMenuContent>
+                                <ContextMenuItem
+                                  onClick={() => handleRenameClick(file.file.id, file.name)}
+                                  className="flex items-center gap-2"
+                                >
+                                  <Edit3 className="w-3 h-3" />
+                                  Rename
+                                </ContextMenuItem>
+                              </ContextMenuContent>
                             )}
-                          </div>
+                          </ContextMenu>
                         );
                       })}
                     </div>
@@ -434,32 +590,72 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                   
                   {/* Handle top-level files (files without folders) */}
                   {'file' in section && (
-                    <div 
-                      className="group flex items-center hover:bg-[#2d2d2d] px-1 py-0.5 rounded cursor-pointer ml-4"
-                      onClick={() => {
-                        if (section.file) {
-                          openTab(section.file);
-                        }
-                      }}
-                    >
-                      <div className="flex items-center flex-1">
-                        {(() => {
-                          const FileIconComponent = getFileIconComponent(section.type);
-                          return <FileIconComponent className={`w-3 h-3 mr-2 ${getFileIcon(section.type)}`} />;
-                        })()}
-                        <span className="text-xs text-[#cccccc]">{section.name}</span>
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteClick(section.file.id, section.name);
-                        }}
-                        className="opacity-0 group-hover:opacity-100 ml-auto px-1 hover:bg-[#3d3d3d] rounded transition-opacity"
-                        aria-label={`Delete ${section.name}`}
-                      >
-                        <X className="w-3 h-3 text-[#858585] hover:text-[#cccccc]" />
-                      </button>
-                    </div>
+                    <ContextMenu>
+                      <ContextMenuTrigger asChild>
+                        <div
+                          className="group flex items-center hover:bg-[#2d2d2d] px-1 py-0.5 rounded cursor-pointer ml-4"
+                        >
+                          <div
+                            className="flex items-center flex-1"
+                            onClick={() => {
+                              const isCurrentlyRenaming = renamingFile?.fileId === section.file.id;
+                              if (section.file && !isCurrentlyRenaming) {
+                                openTab(section.file);
+                              }
+                            }}
+                          >
+                            {(() => {
+                              const FileIconComponent = getFileIconComponent(section.type);
+                              return <FileIconComponent className={`w-3 h-3 mr-2 ${getFileIcon(section.type)}`} />;
+                            })()}
+                            {renamingFile?.fileId === section.file.id ? (
+                              <input
+                                type="text"
+                                value={newFileName}
+                                onChange={(e) => setNewFileName(e.target.value)}
+                                onKeyDown={handleRenameKeyDown}
+                                onBlur={() => {
+                                  setTimeout(() => {
+                                    if (renamingFile) {
+                                      handleRenameCancel();
+                                    }
+                                  }, 100);
+                                }}
+                                className="flex-1 bg-transparent border border-[#454545] outline-none text-xs text-[#cccccc] placeholder-[#858585] px-1 py-0.5 rounded"
+                                autoFocus
+                                onClick={(e) => e.stopPropagation()}
+                                placeholder="File name..."
+                                title="Enter file name"
+                                aria-label="Enter file name"
+                              />
+                            ) : (
+                              <span className="text-xs text-[#cccccc]">{section.name}</span>
+                            )}
+                          </div>
+                          {renamingFile?.fileId !== section.file.id && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteClick(section.file.id, section.name);
+                              }}
+                              className="opacity-0 group-hover:opacity-100 ml-auto px-1 hover:bg-[#3d3d3d] rounded transition-opacity"
+                              aria-label={`Delete ${section.name}`}
+                            >
+                              <X className="w-3 h-3 text-[#858585] hover:text-[#cccccc]" />
+                            </button>
+                          )}
+                        </div>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent>
+                        <ContextMenuItem
+                          onClick={() => handleRenameClick(section.file.id, section.name)}
+                          className="flex items-center gap-2"
+                        >
+                          <Edit3 className="w-3 h-3" />
+                          Rename
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
                   )}
                 </div>
               );
