@@ -522,7 +522,7 @@ export function DashEditor() {
         </ResizablePanel>
 
         {!isTerminalCollapsed && (
-          <ResizableHandle className="h-[3px] bg-[#2d2d2d] hover:bg-[#007acc] transition-colors" />
+          <ResizableHandle className="h-[3px] bg-[#2d2d2d] hover:bg-white transition-colors cursor-ns-resize" />
         )}
 
         <Terminal />

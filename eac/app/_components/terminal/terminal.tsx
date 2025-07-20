@@ -3,19 +3,17 @@
 
 "use client";
 
-import React from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Terminal as TerminalIcon, AlertCircle, Code, ChevronDown, ChevronUp } from "lucide-react";
 import { ResizablePanel } from "@/components/ui/resizable";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTerminalStore } from "@/store/terminal";
 import { useChatStore } from "@/store/terminal/chat";
+import { AlertCircle, ChevronDown, ChevronUp, Code, Terminal as TerminalIcon } from "lucide-react";
 import { ChatMessages, RealTerminal } from "./_components";
 
 export function Terminal() {
   const { 
     isCollapsed, 
     toggleCollapse, 
-    currentSize, 
     setSize 
   } = useTerminalStore();
 
@@ -23,15 +21,8 @@ export function Terminal() {
 
   const handleResize = (size: number) => {
     try {
-      if (!isCollapsed && size > 0) {
-        const sizePercent = size;
-        const current = currentSize || 30;
-        const sizeDiff = Math.abs(sizePercent - current);
-        
-        if (sizeDiff > 5) {
-          setSize(sizePercent);
-        }
-      }
+      // Simple size update - no complex logic
+      setSize(size);
     } catch (error) {
       console.error('Error in terminal resize:', error);
     }
@@ -41,33 +32,34 @@ export function Terminal() {
     <ResizablePanel
       key={`terminal-${isCollapsed}`}
       id="terminal"
-      defaultSize={isCollapsed ? 2 : currentSize || 30}
-      minSize={isCollapsed ? 4.5 : 15}
+      defaultSize={isCollapsed ? 2.75 : 40}
+      minSize={isCollapsed ? 2.27 : 15}
       maxSize={60}
       onResize={handleResize}
     >
-      <div className="flex flex-col h-full bg-[#181818] border-t border-[#2d2d2d]">
+      <div className="flex flex-col h-full bg-[#181818]">
         {/* Fixed Header */}
-        <div className="h-[35px] bg-[#181818] border-b border-[#2d2d2d] flex items-center justify-between px-0 flex-shrink-0">
+        <div className="h-[30px] bg-[#0e639c] border-b border-[#2d2d2d] flex items-center justify-between px-0 flex-shrink-0">
           <Tabs defaultValue="terminal" className="flex-1">
-            <TabsList className="h-[35px] bg-transparent rounded-none border-none justify-start p-0">
+            <TabsList className="h-[30px] bg-transparent rounded-none border-none justify-start p-0">
               <TabsTrigger
                 value="terminal"
-                className="rounded-none text-xs data-[state=active]:bg-[#1a1a1a] data-[state=active]:text-[#cccccc] bg-transparent"
+                className="rounded-none text-xs h-[30px] data-[state=active]:bg-[#1a1a1a] data-[state=active]:text-[#cccccc] bg-transparent cursor-pointer"
+                onClick={toggleCollapse}
               >
                 <TerminalIcon className="w-3 h-3 mr-1" />
                 Terminal
               </TabsTrigger>
               <TabsTrigger
                 value="problems"
-                className="rounded-none text-xs data-[state=active]:bg-[#1a1a1a] data-[state=active]:text-[#cccccc] bg-transparent"
+                className="rounded-none text-xs h-[30px] data-[state=active]:bg-[#1a1a1a] data-[state=active]:text-[#cccccc] bg-transparent"
               >
                 <AlertCircle className="w-3 h-3 mr-1" />
                 Problems
               </TabsTrigger>
               <TabsTrigger
                 value="output"
-                className="rounded-none text-xs data-[state=active]:bg-[#1a1a1a] data-[state=active]:text-[#cccccc] bg-transparent"
+                className="rounded-none text-xs h-[30px] data-[state=active]:bg-[#1a1a1a] data-[state=active]:text-[#cccccc] bg-transparent"
               >
                 <Code className="w-3 h-3 mr-1" />
                 History
@@ -78,18 +70,18 @@ export function Terminal() {
           {/* Collapse/Expand Button */}
           <button
             onClick={toggleCollapse}
-            className="w-6 h-6 bg-[#2d2d2d] hover:bg-[#454545] rounded-sm border border-[##454545] flex items-center justify-center transition-colors ml-4 mr-3"
+            className="w-5 h-5 bg-white hover:bg-gray-200 rounded-sm border border-[#cccccc] flex items-center justify-center transition-colors ml-4 mr-3 cursor-pointer"
             aria-label={isCollapsed ? "Expand terminal" : "Collapse terminal"}
           >
             {isCollapsed ? (
-              <ChevronUp className="w-3 h-3 text-[#cccccc]" />
+              <ChevronUp className="w-2.5 h-2.5 text-[#0e639c]" />
             ) : (
-              <ChevronDown className="w-3 h-3 text-[#cccccc]" />
+              <ChevronDown className="w-2.5 h-2.5 text-[#0e639c]" />
             )}
           </button>
         </div>
 
-        {/* Scrollable Chat Area */}
+        {/* Scrollable Chat Area - Only show when not collapsed */}
         {!isCollapsed && (
           <Tabs defaultValue="terminal" className="flex-1 flex flex-col min-h-0">
             <TabsContent value="terminal" className="flex-1 flex flex-col mt-0 min-h-0">
