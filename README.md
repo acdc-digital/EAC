@@ -125,6 +125,44 @@ EAC/
 |                       | PostCSS            | CSS processing                             |
 |                       | pnpm               | Fast, disk space efficient package manager |
 
+## Convex Backend
+
+The EAC project uses Convex for its backend database and API layer, providing real-time data synchronization and serverless functions.
+
+### Database Schema
+
+| Table      | Purpose             | Key Fields                                |
+| ---------- | ------------------- | ----------------------------------------- |
+| `messages` | Chat/communication  | `text`, `author`, `createdAt`             |
+| `projects` | Project management  | `name`, `description`, `status`, `budget` |
+| `users`    | User authentication | `email`, `name`, `role`, `authId`         |
+
+### Development Commands
+
+| Command                | Purpose                           |
+| ---------------------- | --------------------------------- |
+| `npx convex dev`       | Start development with hot reload |
+| `npx convex deploy`    | Deploy to production              |
+| `npx convex dashboard` | Open Convex dashboard             |
+
+### Project Structure
+
+```
+convex/
+├── _generated/          # Auto-generated types and API
+├── schema.ts           # Database schema definition
+├── messages.ts         # Message-related functions
+└── package.json        # Convex dependencies
+```
+
+### MCP Integration
+
+The project includes Model Context Protocol (MCP) server integration for AI development assistance:
+
+- **Configuration**: `.vscode/mcp.json` (project-specific)
+- **GitHub Copilot**: Enhanced with Convex-specific instructions
+- **Usage**: Automatically provides database context to AI tools
+
 ## Deployment
 
 ### Build for Production
