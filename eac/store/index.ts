@@ -11,3 +11,5 @@ export { useDailyTrackerStore } from './dailyTracker';
 export type { DailyEntry } from './dailyTracker/types';
 export * from './terminal';
 export type { TerminalState } from './terminal/types';
+export { useChatStore } from './terminal/chat';
+export type { ChatMessage } from './terminal/chat';

@@ -68,25 +68,38 @@ EAC Dashboard is a project management application that combines the familiar int
 EAC/
 ├── eac/                          # Main application
 │   ├── app/                      # Next.js app directory
-│   │   ├── _components/          # Dashboard components
-│   │   │   ├── dashSidebar.tsx   # File explorer sidebar
-│   │   │   ├── dashEditor.tsx    # Tabbed editor component
-│   │   │   ├── dashOverview.tsx  # Overview dashboard
-│   │   │   └── dashActivityBar.tsx # Activity bar navigation
+│   │   ├── _components/          # Application components
+│   │   │   ├── dashboard/        # Dashboard module
+│   │   │   │   ├── _components/  # Dashboard-specific components
+│   │   │   │   │   └── fileCreationDropdown.tsx
+│   │   │   │   ├── dashSidebar.tsx      # File explorer sidebar
+│   │   │   │   ├── dashEditor.tsx       # Tabbed editor component
+│   │   │   │   ├── dashOverview.tsx     # Overview dashboard
+│   │   │   │   └── dashActivityBar.tsx  # Activity bar navigation
+│   │   │   ├── editor/           # Editor module
+│   │   │   │   ├── _components/  # Editor-specific components
+│   │   │   │   │   ├── TiptapEditor.tsx     # Rich text editor
+│   │   │   │   │   ├── dailyTracker.tsx     # Daily time tracking
+│   │   │   │   │   └── weeklyAnalytics.tsx  # Weekly reporting
+│   │   │   │   ├── editSchedule.tsx         # Schedule management
+│   │   │   │   ├── editPercentComplete.tsx  # Progress tracking
+│   │   │   │   ├── editGenerals.tsx         # Project generals form
+│   │   │   │   └── editMaterials.tsx        # Materials management
+│   │   │   └── navbar.tsx        # Navigation bar
 │   │   ├── layout.tsx            # Root layout
 │   │   └── page.tsx              # Main dashboard page
-│   ├── components/               # Reusable UI components
+│   ├── components/               # Shared UI components
+│   │   ├── css/                  # Component styles
+│   │   │   └── tiptap-editor.css # Tiptap editor styles
 │   │   ├── ui/                   # shadcn/ui components
-│   │   ├── navbar.tsx            # Navigation bar
-│   │   ├── TiptapEditor.tsx      # Rich text editor
-│   │   └── editGenerals.tsx      # Project generals form
+│   │   │   └── [17 UI components]
+│   │   └── theme-provider.tsx    # Theme configuration
 │   ├── store/                    # Zustand state management
+│   │   ├── dailyTracker/         # Daily tracking store
 │   │   ├── editor/               # Editor store
-│   │   │   ├── index.ts          # Editor state and actions
-│   │   │   └── types.ts          # TypeScript definitions
+│   │   ├── materials/            # Materials store
 │   │   ├── sidebar/              # Sidebar store
-│   │   │   ├── index.ts          # Sidebar state and actions
-│   │   │   └── types.ts          # TypeScript definitions
+│   │   ├── terminal/             # Terminal store
 │   │   └── index.ts              # Store exports
 │   └── lib/                      # Utility functions
 ├── convex/                       # Convex backend (future integration)

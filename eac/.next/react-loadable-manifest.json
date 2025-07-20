@@ -1,33 +1,39 @@
 {
-  "app/_components/dashEditor.tsx -> ./editGenerals": {
-    "id": "app/_components/dashEditor.tsx -> ./editGenerals",
+  "app/_components/dashboard/dashEditor.tsx -> ../editor/editGenerals": {
+    "id": "app/_components/dashboard/dashEditor.tsx -> ../editor/editGenerals",
     "files": [
-      "static/chunks/_app-pages-browser_app__components_editGenerals_tsx.js"
+      "static/chunks/_app-pages-browser_app__components_editor_editGenerals_tsx.js"
     ]
   },
-  "app/_components/dashEditor.tsx -> ./editMaterials": {
-    "id": "app/_components/dashEditor.tsx -> ./editMaterials",
+  "app/_components/dashboard/dashEditor.tsx -> ../editor/editMaterials": {
+    "id": "app/_components/dashboard/dashEditor.tsx -> ../editor/editMaterials",
     "files": [
-      "static/chunks/_app-pages-browser_app__components_editMaterials_tsx.js"
+      "static/chunks/_app-pages-browser_app__components_editor_editMaterials_tsx.js"
     ]
   },
-  "app/_components/dashEditor.tsx -> ./editPercentComplete": {
-    "id": "app/_components/dashEditor.tsx -> ./editPercentComplete",
+  "app/_components/dashboard/dashEditor.tsx -> ../editor/editPercentComplete": {
+    "id": "app/_components/dashboard/dashEditor.tsx -> ../editor/editPercentComplete",
     "files": [
-      "static/chunks/_app-pages-browser_app__components_editPercentComplete_tsx.js"
+      "static/chunks/_app-pages-browser_app__components_editor_editPercentComplete_tsx.js"
     ]
   },
-  "app/_components/dashEditor.tsx -> ./editSchedule": {
-    "id": "app/_components/dashEditor.tsx -> ./editSchedule",
+  "app/_components/dashboard/dashEditor.tsx -> ../editor/editSchedule": {
+    "id": "app/_components/dashboard/dashEditor.tsx -> ../editor/editSchedule",
     "files": [
-      "static/chunks/_app-pages-browser_app__components_editSchedule_tsx.js"
+      "static/chunks/_app-pages-browser_app__components_editor_editSchedule_tsx.js"
     ]
   },
-  "app/_components/dashEditor.tsx -> @/components/TiptapEditor": {
-    "id": "app/_components/dashEditor.tsx -> @/components/TiptapEditor",
+  "app/_components/dashboard/dashEditor.tsx -> ../terminal/terminal": {
+    "id": "app/_components/dashboard/dashEditor.tsx -> ../terminal/terminal",
     "files": [
-      "static/css/_app-pages-browser_components_TiptapEditor_tsx.css",
-      "static/chunks/_app-pages-browser_components_TiptapEditor_tsx.js"
+      "static/chunks/_app-pages-browser_app__components_terminal_terminal_tsx.js"
+    ]
+  },
+  "app/_components/dashboard/dashEditor.tsx -> @/app/_components/editor/_components/TiptapEditor": {
+    "id": "app/_components/dashboard/dashEditor.tsx -> @/app/_components/editor/_components/TiptapEditor",
+    "files": [
+      "static/css/_app-pages-browser_app__components_editor__components_TiptapEditor_tsx.css",
+      "static/chunks/_app-pages-browser_app__components_editor__components_TiptapEditor_tsx.js"
     ]
   }
 }
