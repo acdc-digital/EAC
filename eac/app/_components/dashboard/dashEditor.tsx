@@ -3,17 +3,13 @@
 
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import dynamic from 'next/dynamic';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
-import { ImperativePanelHandle } from "react-resizable-panels";
+import { useEffect, useRef, useState } from "react";
 
-import { X, Plus, ChevronLeft, ChevronRight, FileCode, FileText, FileSpreadsheet, FileType, Braces } from "lucide-react";
 import { useEditorStore } from "@/store";
 import { useTerminalStore } from "@/store/terminal";
-import { ProjectFile } from "@/store/editor/types";
+import { AtSign, Braces, Camera, ChevronLeft, ChevronRight, Edit3, FileCode, FileSpreadsheet, FileText, FileType, Hash, MessageSquare, Plus, Users, X } from "lucide-react";
 
 // Dynamic import to avoid SSR issues
 const TiptapEditor = dynamic(() => import('@/app/_components/editor/_components/TiptapEditor'), {
@@ -48,6 +44,38 @@ const Terminal = dynamic(() => import('../terminal/terminal').then(mod => ({ def
   loading: () => <div className="p-4 text-[#858585]">Loading terminal...</div>
 });
 
+// Dynamic import for Social and File Editor components
+const SocialConnectors = dynamic(() => import('./socialConnectors').then(mod => ({ default: mod.SocialConnectors })), {
+  ssr: false,
+  loading: () => <div className="p-4 text-[#858585]">Loading social connectors...</div>
+});
+
+const FileEditor = dynamic(() => import('./fileEditor').then(mod => ({ default: mod.FileEditor })), {
+  ssr: false,
+  loading: () => <div className="p-4 text-[#858585]">Loading file editor...</div>
+});
+
+// Dynamic import for Social Platform Editors
+const FacebookPostEditor = dynamic(() => import('./socialPlatforms/facebookPostEditor').then(mod => ({ default: mod.FacebookPostEditor })), {
+  ssr: false,
+  loading: () => <div className="p-4 text-[#858585]">Loading Facebook editor...</div>
+});
+
+const XPostEditor = dynamic(() => import('./socialPlatforms/xPostEditor').then(mod => ({ default: mod.XPostEditor })), {
+  ssr: false,
+  loading: () => <div className="p-4 text-[#858585]">Loading X editor...</div>
+});
+
+const InstagramPostEditor = dynamic(() => import('./socialPlatforms/instagramPostEditor').then(mod => ({ default: mod.InstagramPostEditor })), {
+  ssr: false,
+  loading: () => <div className="p-4 text-[#858585]">Loading Instagram editor...</div>
+});
+
+const RedditPostEditor = dynamic(() => import('./socialPlatforms/redditPostEditor').then(mod => ({ default: mod.RedditPostEditor })), {
+  ssr: false,
+  loading: () => <div className="p-4 text-[#858585]">Loading Reddit editor...</div>
+});
+
 interface DashEditorProps {}
 
 export function DashEditor({}: DashEditorProps) {
@@ -56,7 +84,8 @@ export function DashEditor({}: DashEditorProps) {
     activeTab, 
     closeTab, 
     setActiveTab, 
-    updateFileContent
+    updateFileContent,
+    createNewFile
   } = useEditorStore();
 
   const { isCollapsed: isTerminalCollapsed } = useTerminalStore();
@@ -65,7 +94,8 @@ export function DashEditor({}: DashEditorProps) {
   const [containerWidth, setContainerWidth] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const [tabContentHeights, setTabContentHeights] = useState<{ [tabId: string]: number }>({});
+  const [showCreateMenu, setShowCreateMenu] = useState(false);
+  const createMenuRef = useRef<HTMLDivElement>(null);
 
   // Calculate the visible area width (container width minus button widths)
   const TAB_WIDTH = 200;
@@ -83,6 +113,23 @@ export function DashEditor({}: DashEditorProps) {
     window.addEventListener('resize', updateContainerWidth);
     return () => window.removeEventListener('resize', updateContainerWidth);
   }, []);
+
+  // Close create menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (createMenuRef.current && !createMenuRef.current.contains(event.target as Node)) {
+        setShowCreateMenu(false);
+      }
+    };
+
+    if (showCreateMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showCreateMenu]);
 
   // Adjust scroll position if tabs are removed
   useEffect(() => {
@@ -114,45 +161,28 @@ export function DashEditor({}: DashEditorProps) {
     }
   };
 
-  // Effect to monitor content height changes for the active tab
-  useEffect(() => {
-    const updateContentHeight = () => {
-      if (contentRef.current && activeTab) {
-        const height = contentRef.current.scrollHeight;
-        setTabContentHeights(prev => ({
-          ...prev,
-          [activeTab]: height
-        }));
-      }
+  const handleCreateFile = (type: 'typescript' | 'javascript' | 'json' | 'markdown' | 'facebook' | 'instagram' | 'x' | 'reddit') => {
+    const defaultNames = {
+      typescript: 'NewComponent',
+      javascript: 'newScript',
+      json: 'config',
+      markdown: 'README',
+      facebook: 'facebook-post',
+      instagram: 'instagram-post',
+      x: 'x-post',
+      reddit: 'reddit-post'
     };
+    
+    const baseName = defaultNames[type];
+    const timestamp = Date.now();
+    const fileName = `${baseName}-${timestamp}`;
+    
+    createNewFile(fileName, type, 'project');
+    setShowCreateMenu(false);
+  };
 
-    // Initial measurement
-    updateContentHeight();
-
-    // Set up ResizeObserver to monitor content changes
-    const resizeObserver = new ResizeObserver(updateContentHeight);
-    if (contentRef.current) {
-      resizeObserver.observe(contentRef.current);
-    }
-
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, [activeTab, openTabs]);
-
-  // Calculate line count based on active tab's content height
-  const activeTabContentHeight = activeTab ? (tabContentHeights[activeTab] || 0) : 0;
-  const lineCount = Math.max(Math.ceil(activeTabContentHeight / 20), 50); // 20px per line (5px line height)
-
-  // Debug logging
-  console.log('Content height debug:', {
-    activeTab,
-    activeTabContentHeight,
-    lineCount,
-    tabContentHeights,
-    scrollHeight: contentRef.current?.scrollHeight,
-    offsetHeight: contentRef.current?.offsetHeight
-  });
+  // Calculate line count based on active tab's content height - using a simple static approach
+  const lineCount = 50; // Fixed line count to prevent infinite loops
 
   // Get current tab to check if it's editable
   const currentTab = openTabs.find((t) => t.id === activeTab);
@@ -161,17 +191,8 @@ export function DashEditor({}: DashEditorProps) {
   const isPercentCompleteModule = currentTab?.type === 'percent-complete';
   const isScheduleModule = currentTab?.type === 'schedule';
   const isMaterialsModule = currentTab?.type === 'materials';
-
-  // Debug logging
-  console.log('Debug Info:', {
-    openTabs: openTabs.length,
-    activeTab,
-    currentTab: currentTab?.name,
-    isEditable,
-    hasActiveTab: !!activeTab
-  });
-
-
+  const isSocialConnectModule = currentTab?.type === 'social-connect';
+  const isPostCreatorModule = currentTab?.type === 'post-creator';
 
   return (
     <main className="flex-1 flex flex-col bg-[#1a1a1a]">
@@ -224,6 +245,18 @@ export function DashEditor({}: DashEditorProps) {
                             return FileSpreadsheet;
                           case 'materials':
                             return FileSpreadsheet;
+                          case 'social-connect':
+                            return Users;
+                          case 'post-creator':
+                            return Edit3;
+                          case 'facebook':
+                            return MessageSquare;
+                          case 'reddit':
+                            return Hash;
+                          case 'instagram':
+                            return Camera;
+                          case 'x':
+                            return AtSign;
                           default:
                             return FileCode;
                         }
@@ -281,14 +314,81 @@ export function DashEditor({}: DashEditorProps) {
                 <ChevronRight className="w-3 h-3" />
               </button>
                 
-              {/* Add New Tab Button - Disabled (file creation moved to sidebar) */}
-              <button 
-                className="flex items-center justify-center w-8 h-[35px] text-xs border-l border-[#2d2d2d] text-[#3d3d3d] opacity-30 cursor-not-allowed"
-                disabled
-              >
-                <span className="sr-only">Create new file (use sidebar)</span>
-                <Plus className="w-3 h-3" />
-              </button>
+              {/* Add New Tab Button - Now functional */}
+              <div className="relative" ref={createMenuRef}>
+                <button
+                  className="flex items-center justify-center w-8 h-[35px] text-xs border-l border-[#2d2d2d] text-[#858585] hover:bg-[#2d2d2d] transition-colors"
+                  onClick={() => setShowCreateMenu(!showCreateMenu)}
+                >
+                  <span className="sr-only">Create new file</span>
+                  <Plus className="w-3 h-3" />
+                </button>
+
+                {/* Create file dropdown menu */}
+                {showCreateMenu && (
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-[#2d2d2d] border border-[#454545] rounded shadow-lg z-50">
+                    <div className="py-1">
+                      <button
+                        onClick={() => handleCreateFile('typescript')}
+                        className="flex items-center w-full px-3 py-2 text-xs text-[#cccccc] hover:bg-[#3d3d3d] transition-colors"
+                      >
+                        <FileCode className="w-3 h-3 mr-2" />
+                        TypeScript Component
+                      </button>
+                      <button
+                        onClick={() => handleCreateFile('javascript')}
+                        className="flex items-center w-full px-3 py-2 text-xs text-[#cccccc] hover:bg-[#3d3d3d] transition-colors"
+                      >
+                        <FileCode className="w-3 h-3 mr-2" />
+                        JavaScript File
+                      </button>
+                      <button
+                        onClick={() => handleCreateFile('json')}
+                        className="flex items-center w-full px-3 py-2 text-xs text-[#cccccc] hover:bg-[#3d3d3d] transition-colors"
+                      >
+                        <Braces className="w-3 h-3 mr-2" />
+                        JSON Configuration
+                      </button>
+                      <button
+                        onClick={() => handleCreateFile('markdown')}
+                        className="flex items-center w-full px-3 py-2 text-xs text-[#cccccc] hover:bg-[#3d3d3d] transition-colors"
+                      >
+                        <FileText className="w-3 h-3 mr-2" />
+                        Markdown Document
+                      </button>
+                      <hr className="border-[#454545] my-1" />
+                      <button
+                        onClick={() => handleCreateFile('facebook')}
+                        className="flex items-center w-full px-3 py-2 text-xs text-[#cccccc] hover:bg-[#3d3d3d] transition-colors"
+                      >
+                        <MessageSquare className="w-3 h-3 mr-2" />
+                        Facebook Post
+                      </button>
+                      <button
+                        onClick={() => handleCreateFile('x')}
+                        className="flex items-center w-full px-3 py-2 text-xs text-[#cccccc] hover:bg-[#3d3d3d] transition-colors"
+                      >
+                        <AtSign className="w-3 h-3 mr-2" />
+                        X (Twitter) Post
+                      </button>
+                      <button
+                        onClick={() => handleCreateFile('instagram')}
+                        className="flex items-center w-full px-3 py-2 text-xs text-[#cccccc] hover:bg-[#3d3d3d] transition-colors"
+                      >
+                        <Camera className="w-3 h-3 mr-2" />
+                        Instagram Post
+                      </button>
+                      <button
+                        onClick={() => handleCreateFile('reddit')}
+                        className="flex items-center w-full px-3 py-2 text-xs text-[#cccccc] hover:bg-[#3d3d3d] transition-colors"
+                      >
+                        <Hash className="w-3 h-3 mr-2" />
+                        Reddit Post
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -351,6 +451,30 @@ export function DashEditor({}: DashEditorProps) {
                         <EditSchedule />
                       ) : isMaterialsModule ? (
                         <EditMaterials />
+                      ) : isSocialConnectModule ? (
+                        <SocialConnectors />
+                      ) : isPostCreatorModule ? (
+                        <FileEditor />
+                      ) : currentTab?.type === 'facebook' ? (
+                        <FacebookPostEditor
+                          fileName={currentTab.name}
+                          onChange={(content) => updateFileContent(currentTab.id, content)}
+                        />
+                      ) : currentTab?.type === 'x' ? (
+                        <XPostEditor
+                          fileName={currentTab.name}
+                          onChange={(content) => updateFileContent(currentTab.id, content)}
+                        />
+                      ) : currentTab?.type === 'instagram' ? (
+                        <InstagramPostEditor
+                          fileName={currentTab.name}
+                          onChange={(content) => updateFileContent(currentTab.id, content)}
+                        />
+                      ) : currentTab?.type === 'reddit' ? (
+                        <RedditPostEditor
+                          fileName={currentTab.name}
+                          onChange={(content) => updateFileContent(currentTab.id, content)}
+                        />
                       ) : (
                         <div className="p-4">
                           <TiptapEditor

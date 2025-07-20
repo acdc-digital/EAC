@@ -3,18 +3,14 @@
 
 "use client";
 
-import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { 
-  FileText, 
-  Search, 
-  GitBranch, 
-  Bug, 
-  Grid3X3,
-  Settings,
-  BarChart3,
-  DollarSign,
-  TrendingUp
+import { useEditorStore } from "@/store/editor";
+import {
+    Edit3,
+    FileText,
+    Settings,
+    Trash2,
+    Users
 } from "lucide-react";
 
 interface ActivityBarProps {
@@ -23,16 +19,29 @@ interface ActivityBarProps {
 }
 
 export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps) {
+  const { openSpecialTab } = useEditorStore();
+
   const activityItems = [
     { id: "explorer", icon: FileText, label: "Explorer" },
-    { id: "financial", icon: DollarSign, label: "Financial Overview" },
-    { id: "analytics", icon: TrendingUp, label: "Analytics" },
-    { id: "dashboard", icon: BarChart3, label: "Dashboard" },
-    { id: "search", icon: Search, label: "Search" },
-    { id: "source", icon: GitBranch, label: "Source Control" },
-    { id: "debug", icon: Bug, label: "Debug" },
-    { id: "extensions", icon: Grid3X3, label: "Extensions" },
+    { id: "social-connectors", icon: Users, label: "Social Media Connectors" },
+    { id: "file-editor", icon: Edit3, label: "File Editor" },
+    { id: "trash", icon: Trash2, label: "Trash" },
   ];
+
+  const handleActivityClick = (id: string) => {
+    // For social connectors and file editor, open tabs directly
+    if (id === 'social-connectors') {
+      openSpecialTab('social-connectors', 'Social Media Connectors', 'social-connect');
+      return;
+    }
+    if (id === 'file-editor') {
+      openSpecialTab('file-editor', 'File Editor', 'post-creator');
+      return;
+    }
+    
+    // For other panels, toggle sidebar visibility
+    onPanelChange(id);
+  };
 
   return (
     <aside className="w-12 bg-[#181818] border-r border-[#2d2d2d] flex flex-col">
@@ -47,7 +56,7 @@ export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps
               key={item.id}
               variant="ghost"
               size="icon"
-              onClick={() => onPanelChange(item.id)}
+              onClick={() => handleActivityClick(item.id)}
               className={`
                 w-11 h-11 rounded-none hover:bg-[#2d2d2d] relative
                 ${isActive 

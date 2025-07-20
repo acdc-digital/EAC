@@ -3,17 +3,16 @@
 
 "use client";
 
-import React from "react";
-import { DashActivityBar } from "./_components/dashboard/dashActivityBar";
-import { DashSidebar } from "./_components/dashboard/dashSidebar";
-import { DashEditor } from "./_components/dashboard/dashEditor";
-import { 
-  Copyright, 
-  AlertCircle, 
-  Cpu, 
-  Wifi 
-} from "lucide-react";
 import { useSidebarStore } from "@/store";
+import {
+    AlertCircle,
+    Copyright,
+    Cpu,
+    Wifi
+} from "lucide-react";
+import { DashActivityBar } from "./_components/dashboard/dashActivityBar";
+import { DashEditor } from "./_components/dashboard/dashEditor";
+import { DashSidebar } from "./_components/dashboard/dashSidebar";
 
 export default function DashboardPage() {
   const { activePanel, setActivePanel } = useSidebarStore();

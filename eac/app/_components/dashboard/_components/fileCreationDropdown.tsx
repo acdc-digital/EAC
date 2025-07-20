@@ -3,9 +3,7 @@
 
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import React, { useEffect, useRef, useState } from "react";
 
 import { useEditorStore } from "@/store";
 import { ProjectFile } from "@/store/editor/types";
@@ -134,10 +132,10 @@ export function FileCreationDropdown({ isOpen, onClose, preselectedFolder, butto
             aria-label="Select file type"
           >
             <option value="markdown" className="bg-[#2d2d2d] text-[#cccccc]">Markdown (.md)</option>
-            <option value="generals" className="bg-[#2d2d2d] text-[#cccccc]">Project Generals</option>
-            <option value="percent-complete" className="bg-[#2d2d2d] text-[#cccccc]">Percent Complete</option>
-            <option value="schedule" className="bg-[#2d2d2d] text-[#cccccc]">Project Schedule</option>
-            <option value="materials" className="bg-[#2d2d2d] text-[#cccccc]">Materials Management</option>
+            <option value="facebook" className="bg-[#2d2d2d] text-[#cccccc]">Facebook Post (.facebook)</option>
+            <option value="reddit" className="bg-[#2d2d2d] text-[#cccccc]">Reddit Post (.reddit)</option>
+            <option value="instagram" className="bg-[#2d2d2d] text-[#cccccc]">Instagram Post (.instagram)</option>
+            <option value="x" className="bg-[#2d2d2d] text-[#cccccc]">X/Twitter Post (.x)</option>
           </select>
         </div>
 

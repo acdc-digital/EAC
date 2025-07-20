@@ -1,10 +1,10 @@
 // Editor Store
 // /Users/matthewsimon/Projects/EAC/eac/store/editor/index.ts
 
-import { Braces, FileCode, FileSpreadsheet, FileText, FileType } from 'lucide-react';
+import { AtSign, Braces, Camera, FileCode, FileSpreadsheet, FileText, FileType, Hash, MessageSquare } from 'lucide-react';
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
-import { EditorState, EditorTab, ProjectFile, ProjectFolder } from './types';
+import { EditorState, EditorTab, ProjectFile, ProjectFolder, TrashItem } from './types';
 
 // Helper function to get icon based on file type
 const getFileIcon = (type: ProjectFile['type']) => {
@@ -29,24 +29,31 @@ const getFileIcon = (type: ProjectFile['type']) => {
       return FileSpreadsheet;
     case 'materials':
       return FileSpreadsheet;
+    case 'facebook':
+      return MessageSquare;
+    case 'reddit':
+      return Hash;
+    case 'instagram':
+      return Camera;
+    case 'x':
+      return AtSign;
     default:
       return FileCode;
   }
 };
 
 // Helper function to get file extension
-const getFileExtension = (type: ProjectFile['type']) => {
+// Helper function to get file extension
+const getFileExtension = (type: ProjectFile['type']): string => {
   switch (type) {
     case 'typescript':
-      return '.tsx';
+      return '.ts';
     case 'javascript':
       return '.js';
     case 'json':
       return '.json';
     case 'excel':
       return '.xlsx';
-    case 'markdown':
-      return '.md';
     case 'pdf':
       return '.pdf';
     case 'generals':
@@ -57,6 +64,14 @@ const getFileExtension = (type: ProjectFile['type']) => {
       return '.schedule';
     case 'materials':
       return '.materials';
+    case 'facebook':
+      return '.facebook';
+    case 'reddit':
+      return '.reddit';
+    case 'instagram':
+      return '.instagram';
+    case 'x':
+      return '.x';
     default:
       return '.txt';
   }
@@ -142,6 +157,99 @@ Type: Materials Management
 Created: ${new Date().toLocaleDateString()}
 
 // This file will display the materials management interface with manufactured and miscellaneous materials`;
+    case 'facebook':
+      return `# ${name} - Facebook Post
+Platform: Facebook
+Created: ${new Date().toLocaleDateString()}
+
+## Post Content
+Write your Facebook post content here...
+
+## Settings
+- Audience: Public
+- Schedule: Now
+- Hashtags: #example
+
+## Media
+- Images: []
+- Videos: []
+
+## Analytics
+- Engagement: 0
+- Reach: 0
+- Clicks: 0`;
+    case 'reddit':
+      return `# ${name} - Reddit Post
+Platform: Reddit
+Created: ${new Date().toLocaleDateString()}
+
+## Post Content
+Write your Reddit post content here...
+
+## Settings
+- Subreddit: r/example
+- Post Type: Text/Link/Image
+- Flair: Discussion
+- NSFW: No
+
+## Media
+- Images: []
+- Links: []
+
+## Analytics
+- Upvotes: 0
+- Comments: 0
+- Awards: 0`;
+    case 'instagram':
+      return `# ${name} - Instagram Post
+Platform: Instagram
+Created: ${new Date().toLocaleDateString()}
+
+## Post Content
+Write your Instagram post content here...
+
+## Settings
+- Post Type: Feed/Story/Reel
+- Location: City, Country
+- Alt Text: Describe image
+- Comment Settings: Public
+
+## Media
+- Images: []
+- Videos: []
+
+## Hashtags
+#hashtag1 #hashtag2 #hashtag3
+
+## Analytics
+- Likes: 0
+- Comments: 0
+- Shares: 0
+- Reach: 0`;
+    case 'x':
+      return `# ${name} - X/Twitter Post
+Platform: X (Twitter)
+Created: ${new Date().toLocaleDateString()}
+
+## Post Content
+Write your X post content here... (280 character limit)
+
+## Settings
+- Reply Settings: Everyone
+- Schedule: Now
+- Thread: Single Tweet
+
+## Media
+- Images: []
+- Videos: []
+- GIFs: []
+
+## Analytics
+- Impressions: 0
+- Engagements: 0
+- Retweets: 0
+- Likes: 0
+- Replies: 0`;
     default:
       return `# ${name}
 
@@ -153,158 +261,46 @@ Created on: ${new Date().toISOString()}`;
 // Initial project files
 const initialProjectFiles: ProjectFile[] = [
   {
-    id: 'budget-2024',
-    name: 'Q4-Budget-2024.xlsx',
-    icon: FileSpreadsheet,
-    type: 'excel',
+    id: 'project-overview',
+    name: 'Project-Overview.md',
+    icon: FileText,
+    type: 'markdown',
     category: 'project',
-    content: '// Excel file content placeholder',
-    filePath: '/eac-projects/Q4-Budget-2024.xlsx',
-    createdAt: new Date('2024-01-01'),
-    modifiedAt: new Date('2024-01-15'),
-  },
-  {
-    id: 'marketing-roi',
-    name: 'Marketing-ROI.tsx',
-    icon: FileCode,
-    type: 'typescript',
-    category: 'project',
-    content: `// Marketing ROI Component
-import React from 'react';
+    content: `# Project Overview
 
-export function MarketingROI() {
-  return (
-    <div className="p-4">
-      <h2 className="text-lg font-semibold">Marketing ROI Analysis</h2>
-      <p>ROI: 245%</p>
-    </div>
-  );
-}`,
-    filePath: '/eac-projects/Marketing-ROI.tsx',
-    createdAt: new Date('2024-01-05'),
-    modifiedAt: new Date('2024-01-20'),
-  },
-  {
-    id: 'revenue-analysis',
-    name: 'Revenue-Analysis.json',
-    icon: Braces,
-    type: 'json',
-    category: 'project',
-    content: `{
-  "quarter": "Q4 2024",
-  "revenue": {
-    "total": 189500,
-    "growth": 12.3,
-    "breakdown": {
-      "recurring": 145000,
-      "new_business": 44500
-    }
-  }
-}`,
-    filePath: '/eac-projects/Revenue-Analysis.json',
-    createdAt: new Date('2024-01-10'),
-    modifiedAt: new Date('2024-01-25'),
-  },
-  {
-    id: 'expense-report',
-    name: 'Expense-Report.pdf',
-    icon: FileType,
-    type: 'pdf',
-    category: 'project',
-    content: '// PDF file content placeholder',
-    filePath: '/eac-projects/Expense-Report.pdf',
-    createdAt: new Date('2024-01-12'),
-    modifiedAt: new Date('2024-01-22'),
+## Current Projects
+- Write your project details here...
+- Track progress and milestones
+- Document requirements and specifications
+
+## Notes
+Start planning your projects here...`,
+    filePath: '/eac-projects/Project-Overview.md',
+    createdAt: new Date(),
+    modifiedAt: new Date(),
   },
 ];
 
 // Initial financial files
 const initialFinancialFiles: ProjectFile[] = [
   {
-    id: 'current-month-report',
-    name: 'Current-Month-Report.json',
-    icon: Braces,
-    type: 'json',
+    id: 'financial-notes',
+    name: 'Financial-Notes.md',
+    icon: FileText,
+    type: 'markdown',
     category: 'financial',
-    content: `{
-  "month": "January 2024",
-  "revenue": {
-    "total": 47382.50,
-    "growth": 12.3,
-    "sources": {
-      "subscriptions": 35000,
-      "one_time": 12382.50
-    }
-  },
-  "expenses": {
-    "total": 23451.20,
-    "breakdown": {
-      "payroll": 18000,
-      "marketing": 3200,
-      "operations": 2251.20
-    }
-  },
-  "profit": 23931.30
-}`,
-    filePath: '/financial-data/Current-Month-Report.json',
-    createdAt: new Date('2024-01-01'),
-    modifiedAt: new Date('2024-01-31'),
-  },
-  {
-    id: 'quarterly-forecast',
-    name: 'Q1-Forecast-2024.xlsx',
-    icon: FileSpreadsheet,
-    type: 'excel',
-    category: 'financial',
-    content: '// Excel forecasting model with quarterly projections',
-    filePath: '/financial-data/Q1-Forecast-2024.xlsx',
-    createdAt: new Date('2024-01-01'),
-    modifiedAt: new Date('2024-01-15'),
-  },
-  {
-    id: 'annual-summary',
-    name: 'Annual-Summary-2023.pdf',
-    icon: FileType,
-    type: 'pdf',
-    category: 'financial',
-    content: '// Annual financial summary report',
-    filePath: '/financial-data/Annual-Summary-2023.pdf',
-    createdAt: new Date('2023-12-31'),
-    modifiedAt: new Date('2024-01-05'),
-  },
-  {
-    id: 'budget-tracker',
-    name: 'Budget-Tracker.tsx',
-    icon: FileCode,
-    type: 'typescript',
-    category: 'financial',
-    content: `// Budget Tracker Component
-import React from 'react';
+    content: `# Financial Notes
 
-export function BudgetTracker() {
-  const budgets = [
-    { category: 'Marketing', allocated: 15000, spent: 12500 },
-    { category: 'Operations', allocated: 25000, spent: 18200 },
-    { category: 'Development', allocated: 30000, spent: 28500 },
-  ];
+## Monthly Tracking
+- Track your revenue and expenses here
+- Monitor budget allocations
+- Document financial decisions
 
-  return (
-    <div className="p-4">
-      <h2 className="text-lg font-semibold">Budget Tracker</h2>
-      <div className="space-y-2 mt-4">
-        {budgets.map((budget, index) => (
-          <div key={index} className="flex justify-between">
-            <span>{budget.category}</span>
-            <span>\${budget.spent} / \${budget.allocated}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}`,
-    filePath: '/financial-data/Budget-Tracker.tsx',
-    createdAt: new Date('2024-01-10'),
-    modifiedAt: new Date('2024-01-28'),
+## Budget Overview
+Start documenting your financial planning here...`,
+    filePath: '/financial-data/Financial-Notes.md',
+    createdAt: new Date(),
+    modifiedAt: new Date(),
   },
 ];
 
@@ -319,6 +315,7 @@ export const useEditorStore = create<EditorState>()(
         financialFiles: initialFinancialFiles,
         projectFolders: [],
         financialFolders: [],
+        trashItems: [],
         showProjectsCategory: true,
         showFinancialCategory: true,
         isLoading: false,
@@ -343,6 +340,32 @@ export const useEditorStore = create<EditorState>()(
             content: file.content,
             filePath: file.filePath,
             type: file.type,
+          };
+
+          set({
+            openTabs: [...openTabs, newTab],
+            activeTab: newTab.id,
+          });
+        },
+
+        openSpecialTab: (id: string, name: string, type: 'social-connect' | 'post-creator') => {
+          const { openTabs } = get();
+          
+          // Check if tab is already open
+          const existingTab = openTabs.find(tab => tab.id === id);
+          if (existingTab) {
+            set({ activeTab: existingTab.id });
+            return;
+          }
+
+          // Create new special tab
+          const newTab: EditorTab = {
+            id,
+            name,
+            modified: false,
+            content: '',
+            filePath: `/${type}`,
+            type,
           };
 
           set({
@@ -596,6 +619,131 @@ export const useEditorStore = create<EditorState>()(
             projectFiles: updatedProjectFiles,
             financialFiles: updatedFinancialFiles
           });
+        },
+
+        moveToTrash: (item: ProjectFile | ProjectFolder, type: 'file' | 'folder') => {
+          const { trashItems, projectFiles, financialFiles, projectFolders, financialFolders, openTabs } = get();
+          
+          // Create trash item
+          const trashItem: TrashItem = {
+            id: `trash_${item.id}_${Date.now()}`,
+            name: item.name,
+            type,
+            originalData: item,
+            deletedAt: new Date(),
+            category: item.category
+          };
+          
+          if (type === 'file') {
+            const file = item as ProjectFile;
+            
+            // Close tab if it's open
+            const tabToClose = openTabs.find((tab: EditorTab) => tab.id === file.id);
+            if (tabToClose) {
+              get().closeTab(file.id);
+            }
+            
+            // Remove from appropriate file array
+            const updatedProjectFiles = projectFiles.filter((f: ProjectFile) => f.id !== file.id);
+            const updatedFinancialFiles = financialFiles.filter((f: ProjectFile) => f.id !== file.id);
+            
+            set({
+              trashItems: [...trashItems, trashItem],
+              projectFiles: updatedProjectFiles,
+              financialFiles: updatedFinancialFiles
+            });
+          } else {
+            const folder = item as ProjectFolder;
+            
+            // Find all files that were in this folder and move them to trash too
+            const filesToTrash = [
+              ...projectFiles.filter((file: ProjectFile) => file.folderId === folder.id),
+              ...financialFiles.filter((file: ProjectFile) => file.folderId === folder.id)
+            ];
+            
+            // Close tabs for all files in this folder
+            filesToTrash.forEach((file: ProjectFile) => {
+              const tabToClose = openTabs.find((tab: EditorTab) => tab.id === file.id);
+              if (tabToClose) {
+                get().closeTab(file.id);
+              }
+            });
+            
+            // Create trash items for all files in the folder
+            const fileTrashItems = filesToTrash.map((file: ProjectFile) => ({
+              id: `trash_${file.id}_${Date.now()}`,
+              name: file.name,
+              type: 'file' as const,
+              originalData: file,
+              deletedAt: new Date(),
+              category: file.category
+            }));
+            
+            // Remove folder and its files from arrays
+            const updatedProjectFolders = projectFolders.filter((f: ProjectFolder) => f.id !== folder.id);
+            const updatedFinancialFolders = financialFolders.filter((f: ProjectFolder) => f.id !== folder.id);
+            const updatedProjectFiles = projectFiles.filter((file: ProjectFile) => file.folderId !== folder.id);
+            const updatedFinancialFiles = financialFiles.filter((file: ProjectFile) => file.folderId !== folder.id);
+            
+            set({
+              trashItems: [...trashItems, trashItem, ...fileTrashItems],
+              projectFolders: updatedProjectFolders,
+              financialFolders: updatedFinancialFolders,
+              projectFiles: updatedProjectFiles,
+              financialFiles: updatedFinancialFiles
+            });
+          }
+        },
+
+        restoreFromTrash: (trashItemId: string) => {
+          const { trashItems, projectFiles, financialFiles, projectFolders, financialFolders } = get();
+          
+          const trashItem = trashItems.find(item => item.id === trashItemId);
+          if (!trashItem) return;
+          
+          // Remove from trash
+          const updatedTrashItems = trashItems.filter(item => item.id !== trashItemId);
+          
+          // Restore to appropriate array
+          if (trashItem.type === 'file') {
+            const file = trashItem.originalData as ProjectFile;
+            if (file.category === 'project') {
+              set({
+                trashItems: updatedTrashItems,
+                projectFiles: [...projectFiles, { ...file, modifiedAt: new Date() }]
+              });
+            } else {
+              set({
+                trashItems: updatedTrashItems,
+                financialFiles: [...financialFiles, { ...file, modifiedAt: new Date() }]
+              });
+            }
+          } else {
+            const folder = trashItem.originalData as ProjectFolder;
+            if (folder.category === 'project') {
+              set({
+                trashItems: updatedTrashItems,
+                projectFolders: [...projectFolders, folder]
+              });
+            } else {
+              set({
+                trashItems: updatedTrashItems,
+                financialFolders: [...financialFolders, folder]
+              });
+            }
+          }
+        },
+
+        permanentlyDelete: (trashItemId: string) => {
+          const { trashItems } = get();
+          
+          // Remove from trash permanently
+          const updatedTrashItems = trashItems.filter(item => item.id !== trashItemId);
+          set({ trashItems: updatedTrashItems });
+        },
+
+        emptyTrash: () => {
+          set({ trashItems: [] });
         },
 
         clearProjectCategory: () => {

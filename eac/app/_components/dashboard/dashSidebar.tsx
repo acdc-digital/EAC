@@ -19,7 +19,8 @@ import {
   Plus,
   X
 } from "lucide-react";
-import React, { useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
+import { DashTrash } from "./dashTrash";
 
 import {
   ContextMenu,
@@ -45,7 +46,7 @@ interface SidebarProps {
 
 export function DashSidebar({ activePanel }: SidebarProps) {
   const { openSections, toggleSection, collapseAllSections } = useSidebarStore();
-  const { projectFiles, financialFiles, projectFolders, showProjectsCategory, showFinancialCategory, openTab, deleteFile, renameFile, renameFolder, createFolder, deleteFolder, deleteProjectsCategory, deleteFinancialCategory, reorderProjectFolders, closeAllTabs } = useEditorStore();
+  const { projectFiles, financialFiles, projectFolders, showProjectsCategory, showFinancialCategory, openTab, openSpecialTab, renameFile, renameFolder, createFolder, deleteProjectsCategory, deleteFinancialCategory, reorderProjectFolders, closeAllTabs, moveToTrash } = useEditorStore();
   const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean; fileId: string; fileName: string }>({
     isOpen: false,
     fileId: '',
@@ -69,7 +70,11 @@ export function DashSidebar({ activePanel }: SidebarProps) {
 
   const handleConfirmDelete = () => {
     if (deleteConfirmation.fileId) {
-      deleteFile(deleteConfirmation.fileId);
+      // Find the file to move to trash
+      const file = [...projectFiles, ...financialFiles].find(f => f.id === deleteConfirmation.fileId);
+      if (file) {
+        moveToTrash(file, 'file');
+      }
       setDeleteConfirmation({ isOpen: false, fileId: '', fileName: '' });
     }
   };
@@ -159,16 +164,30 @@ export function DashSidebar({ activePanel }: SidebarProps) {
     }
   };
 
-  const handleDragStart = (e: React.DragEvent, folderId: string) => {
+  const handleDragStart = useCallback((e: React.DragEvent, folderId: string) => {
     setDraggedItem(folderId);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', folderId);
-  };
+  }, []);
 
-  const handleDragOver = (e: React.DragEvent, folderId: string) => {
+  const handleDragOver = useCallback((e: React.DragEvent, folderId: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     
+    // Only update drag over item if it's different from the current one
+    if (draggedItem && draggedItem !== folderId && dragOverItem !== folderId) {
+      setDragOverItem(folderId);
+    }
+  }, [draggedItem, dragOverItem]);
+
+  const handleDragLeave = useCallback(() => {
+    setDragOverItem(null);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, folderId: string) => {
+    e.preventDefault();
+    
+    // Perform the actual reordering on drop
     if (draggedItem && draggedItem !== folderId) {
       const draggedIndex = projectFolders.findIndex(folder => folder.id === draggedItem);
       const dropIndex = projectFolders.findIndex(folder => folder.id === folderId);
@@ -178,24 +197,14 @@ export function DashSidebar({ activePanel }: SidebarProps) {
       }
     }
     
-    setDragOverItem(folderId);
-  };
-
-  const handleDragLeave = () => {
-    setDragOverItem(null);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    
     setDraggedItem(null);
     setDragOverItem(null);
-  };
+  }, [draggedItem, projectFolders, reorderProjectFolders]);
 
-  const handleDragEnd = () => {
+  const handleDragEnd = useCallback(() => {
     setDraggedItem(null);
     setDragOverItem(null);
-  };
+  }, []);
 
   const handleCreateFileInFolder = (folderId: string, folderName: string, category: 'project' | 'financial') => {
     setPreselectedFolder({ id: folderId, name: folderName, category });
@@ -208,7 +217,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
   };
 
   // Create dynamic file structure using store data
-  const fileStructure = [
+  const fileStructure = useMemo(() => [
     // Add project folders as top-level items (only if projects category exists)
     ...(showProjectsCategory ? projectFolders.map(folder => ({
       id: folder.id,
@@ -248,7 +257,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
         file: file, // Store the full file object for opening
       }))
     }] : [])
-  ];
+  ], [showProjectsCategory, showFinancialCategory, projectFolders, projectFiles, financialFiles]);
 
   const getFileIcon = (type: string) => {
     switch (type) {
@@ -336,6 +345,32 @@ export function DashSidebar({ activePanel }: SidebarProps) {
             </div>
           </div>
         );
+      case 'social-connect':
+        return (
+          <div className="p-4">
+            <button
+              onClick={() => openSpecialTab('social-connectors', 'Social Media Connectors', 'social-connect')}
+              className="w-full text-left bg-[#2d2d2d] hover:bg-[#3d3d3d] p-3 rounded mb-2 text-sm"
+            >
+              🔗 Open Social Media Connectors
+            </button>
+            <p className="text-xs text-[#858585]">Connect your social media accounts</p>
+          </div>
+        );
+      case 'post-creator':
+        return (
+          <div className="p-4">
+            <button
+              onClick={() => openSpecialTab('post-creator', 'Social Media Post Creator', 'post-creator')}
+              className="w-full text-left bg-[#2d2d2d] hover:bg-[#3d3d3d] p-3 rounded mb-2 text-sm"
+            >
+              ✏️ Open Post Creator
+            </button>
+            <p className="text-xs text-[#858585]">Create posts for your connected platforms</p>
+          </div>
+        );
+      case 'trash':
+        return <DashTrash />;
       default:
         return (
           <div className="p-2">
@@ -411,16 +446,10 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                   className={`flex items-center w-full hover:bg-[#2d2d2d] px-1 py-0.5 rounded group ${
                     isDraggedOver ? 'bg-[#3a3a3a] border-l-2 border-[#5a5a5a]' : ''
                   } ${isBeingDragged ? 'opacity-50' : ''}`}
-                  draggable={isFolder}
-                  onDragStart={(e) => isFolder && handleDragStart(e, section.id)}
-                  onDragOver={(e) => isFolder && handleDragOver(e, section.id)}
-                  onDragLeave={handleDragLeave}
-                  onDrop={(e) => isFolder && handleDrop(e)}
-                  onDragEnd={handleDragEnd}
                 >
                   <div
                     onClick={() => !isCurrentlyRenamingFolder && toggleSection(section.id)}
-                    className={`flex items-center flex-1 text-left ${isFolder ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}`}
+                    className={`flex items-center flex-1 text-left cursor-pointer`}
                   >
                     {isOpen ? (
                       <ChevronDown className="w-3 h-3 mr-1 text-[#858585] cursor-pointer" />
@@ -476,8 +505,11 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                             // Delete the entire financial category
                             deleteFinancialCategory();
                           } else {
-                            // Delete specific folder
-                            deleteFolder(section.id);
+                            // Move user folder to trash
+                            const folder = [...projectFolders].find(f => f.id === section.id);
+                            if (folder) {
+                              moveToTrash(folder, 'folder');
+                            }
                           }
                         }}
                         className="p-0.5 hover:bg-[#3d3d3d] rounded transition-opacity"
@@ -604,10 +636,9 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                               }
                             }}
                           >
-                            {(() => {
-                              const FileIconComponent = getFileIconComponent(section.type);
-                              return <FileIconComponent className={`w-3 h-3 mr-2 ${getFileIcon(section.type)}`} />;
-                            })()}
+                            {React.createElement(getFileIconComponent(section.type), {
+                              className: `w-3 h-3 mr-2 ${getFileIcon(section.type)}`
+                            })}
                             {renamingFile?.fileId === section.file.id ? (
                               <input
                                 type="text"

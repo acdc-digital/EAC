@@ -9,7 +9,7 @@ export interface EditorTab {
   modified: boolean;
   content: string;
   filePath: string;
-  type: 'typescript' | 'json' | 'excel' | 'pdf' | 'markdown' | 'javascript' | 'generals' | 'percent-complete' | 'schedule' | 'materials';
+  type: 'typescript' | 'json' | 'excel' | 'pdf' | 'markdown' | 'javascript' | 'generals' | 'percent-complete' | 'schedule' | 'materials' | 'social-connect' | 'post-creator' | 'facebook' | 'reddit' | 'instagram' | 'x';
 }
 
 export interface ProjectFolder {
@@ -19,11 +19,20 @@ export interface ProjectFolder {
   createdAt: Date;
 }
 
+export interface TrashItem {
+  id: string;
+  name: string;
+  type: 'file' | 'folder';
+  originalData: ProjectFile | ProjectFolder;
+  deletedAt: Date;
+  category: 'project' | 'financial';
+}
+
 export interface ProjectFile {
   id: string;
   name: string;
   icon: LucideIcon;
-  type: 'typescript' | 'json' | 'excel' | 'pdf' | 'markdown' | 'javascript' | 'generals' | 'percent-complete' | 'schedule' | 'materials';
+  type: 'typescript' | 'json' | 'excel' | 'pdf' | 'markdown' | 'javascript' | 'generals' | 'percent-complete' | 'schedule' | 'materials' | 'social-connect' | 'post-creator' | 'facebook' | 'reddit' | 'instagram' | 'x';
   category: 'project' | 'financial';
   content: string;
   filePath: string;
@@ -40,6 +49,7 @@ export interface EditorState {
   financialFiles: ProjectFile[];
   projectFolders: ProjectFolder[];
   financialFolders: ProjectFolder[];
+  trashItems: TrashItem[];
   showProjectsCategory: boolean;
   showFinancialCategory: boolean;
   isLoading: boolean;
@@ -47,6 +57,7 @@ export interface EditorState {
   
   // Actions
   openTab: (file: ProjectFile) => void;
+  openSpecialTab: (id: string, name: string, type: 'social-connect' | 'post-creator') => void;
   closeTab: (tabId: string) => void;
   closeAllTabs: () => void;
   setActiveTab: (tabId: string) => void;
@@ -58,6 +69,10 @@ export interface EditorState {
   renameFile: (fileId: string, newName: string) => void;
   deleteFolder: (folderId: string) => void;
   renameFolder: (folderId: string, newName: string) => void;
+  moveToTrash: (item: ProjectFile | ProjectFolder, type: 'file' | 'folder') => void;
+  restoreFromTrash: (trashItemId: string) => void;
+  permanentlyDelete: (trashItemId: string) => void;
+  emptyTrash: () => void;
   clearProjectCategory: () => void;
   clearFinancialCategory: () => void;
   deleteProjectsCategory: () => void;
