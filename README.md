@@ -3,8 +3,8 @@
 ![Repository Views Since Release](https://visitor-badge.laobi.icu/badge?page_id=matthewsimon.EAC)
 
 ```text
- _____    _    ____     
-| ____|  / \  / ___|___ 
+ _____    _    ____
+| ____|  / \  / ___|___
 |  _|   / _ \| |   / __|
 | |___ / ___ \ |___\__ \
 |_____/_/   \_\____|___/
@@ -16,7 +16,7 @@
 
 [![Next.js](https://img.shields.io/badge/Next.js-14-000000?logo=next.js&logoColor=white&labelColor=101010)](https://nextjs.org/) [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white&labelColor=101010)](https://reactjs.org/) [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white&labelColor=101010)](https://www.typescriptlang.org/) [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white&labelColor=101010)](https://tailwindcss.com/) [![Zustand](https://img.shields.io/badge/Zustand-State_Management-FF6B35?logo=react&logoColor=white&labelColor=101010)](https://github.com/pmndrs/zustand) [![Convex](https://img.shields.io/badge/Convex-DB-FF6B35?logo=data%3Adownload&logoColor=white&labelColor=101010)](https://convex.dev/) [![OpenAI](https://img.shields.io/badge/OpenAI-API-000000?logo=openai&logoColor=white&labelColor=101010)](https://openai.com/) [![pnpm](https://img.shields.io/badge/pnpm-Workspace-F69220?logo=pnpm&logoColor=white&labelColor=101010)](https://pnpm.io/)
 
-> A modern, VS Code-inspired dashboard for project management and financial tracking built with React, Next.js, and TypeScript.
+> A modern, VS Code-inspired dashboard for Social management and Media Analytic tracking built with React, Next.js, and TypeScript. This project is optimized for GitHub Copilot in VS Code. The codebase follows modern React patterns with comprehensive documentation to help AI assistants understand the project structure and conventions. Familiarize yourself with our [Copilot Instructions](.github/copilot-instructions.md) to get the most out of AI-assisted development.
 
 ## Overview
 
@@ -24,35 +24,39 @@ EAC Dashboard is a project management application that combines the familiar int
 
 ## Features
 
-| Feature | Description |
-|---------|-------------|
-| **File Management** | VS Code-inspired interface with sidebar navigation, tabbed editor, drag & drop folder reordering |
-| **Rich Text Editing** | Tiptap editor integration with syntax highlighting and real-time content updates |
-| **Project Management** | Project tracking with budget management, progress indicators, and documentation |
-| **Financial Dashboard** | Real-time financial metrics, revenue/expense tracking, and budget analysis |
-| **State Management** | Zustand store architecture with TypeScript support and persistent storage |
-| **UI/UX** | Dark theme, responsive design, smooth animations, and keyboard navigation |
+| Feature                 | Description                                                                                      |
+| ----------------------- | ------------------------------------------------------------------------------------------------ |
+| **File Management**     | VS Code-inspired interface with sidebar navigation, tabbed editor, drag & drop folder reordering |
+| **Rich Text Editing**   | Tiptap editor integration with syntax highlighting and real-time content updates                 |
+| **Project Management**  | Project tracking with budget management, progress indicators, and documentation                  |
+| **Financial Dashboard** | Real-time financial metrics, revenue/expense tracking, and budget analysis                       |
+| **State Management**    | Zustand store architecture with TypeScript support and persistent storage                        |
+| **UI/UX**               | Dark theme, responsive design, smooth animations, and keyboard navigation                        |
 
 ## Quick Start
 
 ### Prerequisites
-- Node.js 18+ 
+
+- Node.js 18+
 - pnpm (recommended package manager)
 
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/yourusername/EAC.git
    cd EAC
    ```
 
 2. **Install dependencies**
+
    ```bash
    pnpm install
    ```
 
 3. **Start the development server**
+
    ```bash
    pnpm dev
    ```
@@ -109,6 +113,7 @@ EAC/
 ## Technology Stack
 
 ### Frontend
+
 - **Next.js 14** - React framework with App Router
 - **React 18** - UI library with hooks and context
 - **TypeScript** - Type-safe JavaScript development
@@ -116,16 +121,19 @@ EAC/
 - **shadcn/ui** - Modern component library
 
 ### State Management
+
 - **Zustand** - Lightweight state management
 - **Persist middleware** - Automatic state persistence
 - **Custom storage** - Optimized serialization for complex data
 
 ### Rich Text Editing
+
 - **Tiptap** - Headless rich text editor
 - **ProseMirror** - Underlying editor framework
 - **StarterKit** - Essential editing extensions
 
 ### Development Tools
+
 - **ESLint** - Code linting and formatting
 - **PostCSS** - CSS processing
 - **pnpm** - Fast, disk space efficient package manager
@@ -133,16 +141,19 @@ EAC/
 ## Deployment
 
 ### Build for Production
+
 ```bash
 pnpm build
 ```
 
 ### Start Production Server
+
 ```bash
 pnpm start
 ```
 
 ### Export Static Site
+
 ```bash
 pnpm export
 ```
@@ -169,31 +180,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 © 2025 ACDC.digital • Maintainer: msimon@acdc.digital
-
-## Development Guidelines
-
-This project is optimized for GitHub Copilot in VS Code. The codebase follows modern React patterns with comprehensive documentation to help AI assistants understand the project structure and conventions.
-
-### Documentation Structure
-
-- **[GitHub Copilot Instructions](.github/copilot-instructions.md)** - Project overview and coding standards for AI assistance
-- **[Design System](docs/design-system.md)** - Component architecture, styling guidelines, and UI patterns
-- **[State Management](docs/state-management.md)** - Zustand store patterns and best practices
-
-### AI-Friendly Development
-
-This project is structured to work seamlessly with GitHub Copilot:
-
-- Comprehensive TypeScript interfaces and type definitions
-- Consistent component patterns and naming conventions
-- Detailed inline documentation and JSDoc comments
-- Clear separation of concerns with well-organized file structure
-- Extensive code examples and pattern documentation
-
-### Getting the Most from GitHub Copilot
-
-1. **Read the Documentation**: Familiarize yourself with our [Copilot Instructions](.github/copilot-instructions.md)
-2. **Use Descriptive Comments**: Write clear comments about what you want to implement
-3. **Follow Patterns**: Reference existing components for consistent patterns
-4. **Leverage TypeScript**: Use our type definitions to get better suggestions
-
