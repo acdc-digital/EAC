@@ -18,10 +18,6 @@
 
 > A modern, VS Code-inspired dashboard for Social management and Media Analytic tracking built with React, Next.js, and TypeScript. This project is optimized for GitHub Copilot in VS Code. The codebase follows modern React patterns with comprehensive documentation to help AI assistants understand the project structure and conventions. Familiarize yourself with our [Copilot Instructions](.github/copilot-instructions.md) to get the most out of AI-assisted development.
 
-## Overview
-
-EAC Dashboard is a project management application that combines the familiar interface of VS Code with project and financial management capabilities. Built with modern web technologies, it provides a seamless experience for managing projects, tracking finances, and organizing files with persistent state management.
-
 ## Features
 
 | Feature                 | Description                                                                                      |
