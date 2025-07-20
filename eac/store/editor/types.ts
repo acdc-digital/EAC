@@ -39,6 +39,7 @@ export interface ProjectFile {
   createdAt: Date;
   modifiedAt: Date;
   folderId?: string; // Optional folder reference
+  status?: 'draft' | 'scheduled' | 'complete'; // Post status for social media files
 }
 
 export interface EditorState {
@@ -63,6 +64,7 @@ export interface EditorState {
   setActiveTab: (tabId: string) => void;
   updateTabContent: (tabId: string, content: string) => void;
   updateFileContent: (tabId: string, content: string) => void;
+  updateFileStatus: (fileId: string, status: 'draft' | 'scheduled' | 'complete') => void;
   createNewFile: (name: string, type: ProjectFile['type'], category?: ProjectFile['category'], folderId?: string) => void;
   createFolder: (name: string, category: 'project' | 'financial') => void;
   deleteFile: (fileId: string) => void;

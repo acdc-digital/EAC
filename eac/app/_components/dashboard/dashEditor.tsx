@@ -8,6 +8,7 @@ import dynamic from 'next/dynamic';
 import { useEffect, useRef, useState } from "react";
 
 import { useEditorStore } from "@/store";
+import { ProjectFile } from "@/store/editor/types";
 import { useTerminalStore } from "@/store/terminal";
 import { AtSign, Braces, Camera, ChevronLeft, ChevronRight, Edit3, FileCode, FileSpreadsheet, FileText, FileType, Hash, MessageSquare, Plus, Users, X } from "lucide-react";
 
@@ -76,16 +77,15 @@ const RedditPostEditor = dynamic(() => import('./socialPlatforms/redditPostEdito
   loading: () => <div className="p-4 text-[#858585]">Loading Reddit editor...</div>
 });
 
-interface DashEditorProps {}
-
-export function DashEditor({}: DashEditorProps) {
+export function DashEditor() {
   const { 
     openTabs, 
     activeTab, 
     closeTab, 
     setActiveTab, 
     updateFileContent,
-    createNewFile
+    createNewFile,
+    projectFolders
   } = useEditorStore();
 
   const { isCollapsed: isTerminalCollapsed } = useTerminalStore();
@@ -96,6 +96,9 @@ export function DashEditor({}: DashEditorProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const createMenuRef = useRef<HTMLDivElement>(null);
+  const [newFileName, setNewFileName] = useState('');
+  const [newFileType, setNewFileType] = useState<ProjectFile['type']>('markdown');
+  const [newFileFolderId, setNewFileFolderId] = useState<string>('no-folder');
 
   // Calculate the visible area width (container width minus button widths)
   const TAB_WIDTH = 200;
@@ -161,24 +164,30 @@ export function DashEditor({}: DashEditorProps) {
     }
   };
 
-  const handleCreateFile = (type: 'typescript' | 'javascript' | 'json' | 'markdown' | 'facebook' | 'instagram' | 'x' | 'reddit') => {
-    const defaultNames = {
-      typescript: 'NewComponent',
-      javascript: 'newScript',
-      json: 'config',
-      markdown: 'README',
-      facebook: 'facebook-post',
-      instagram: 'instagram-post',
-      x: 'x-post',
-      reddit: 'reddit-post'
-    };
-    
-    const baseName = defaultNames[type];
-    const timestamp = Date.now();
-    const fileName = `${baseName}-${timestamp}`;
-    
-    createNewFile(fileName, type, 'project');
-    setShowCreateMenu(false);
+  const handleCreateFileWithDetails = () => {
+    if (newFileName.trim()) {
+      createNewFile(
+        newFileName.trim(),
+        newFileType,
+        'project',
+        newFileFolderId === 'no-folder' ? undefined : newFileFolderId
+      );
+      // Reset form
+      setNewFileName('');
+      setNewFileType('markdown');
+      setNewFileFolderId('no-folder');
+      setShowCreateMenu(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleCreateFileWithDetails();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setShowCreateMenu(false);
+    }
   };
 
   // Calculate line count based on active tab's content height - using a simple static approach
@@ -324,67 +333,82 @@ export function DashEditor({}: DashEditorProps) {
                   <Plus className="w-3 h-3" />
                 </button>
 
-                {/* Create file dropdown menu */}
+                {/* Create file modal-style dropdown */}
                 {showCreateMenu && (
-                  <div className="absolute right-0 top-full mt-1 w-48 bg-[#2d2d2d] border border-[#454545] rounded shadow-lg z-50">
-                    <div className="py-1">
-                      <button
-                        onClick={() => handleCreateFile('typescript')}
-                        className="flex items-center w-full px-3 py-2 text-xs text-[#cccccc] hover:bg-[#3d3d3d] transition-colors"
-                      >
-                        <FileCode className="w-3 h-3 mr-2" />
-                        TypeScript Component
-                      </button>
-                      <button
-                        onClick={() => handleCreateFile('javascript')}
-                        className="flex items-center w-full px-3 py-2 text-xs text-[#cccccc] hover:bg-[#3d3d3d] transition-colors"
-                      >
-                        <FileCode className="w-3 h-3 mr-2" />
-                        JavaScript File
-                      </button>
-                      <button
-                        onClick={() => handleCreateFile('json')}
-                        className="flex items-center w-full px-3 py-2 text-xs text-[#cccccc] hover:bg-[#3d3d3d] transition-colors"
-                      >
-                        <Braces className="w-3 h-3 mr-2" />
-                        JSON Configuration
-                      </button>
-                      <button
-                        onClick={() => handleCreateFile('markdown')}
-                        className="flex items-center w-full px-3 py-2 text-xs text-[#cccccc] hover:bg-[#3d3d3d] transition-colors"
-                      >
-                        <FileText className="w-3 h-3 mr-2" />
-                        Markdown Document
-                      </button>
-                      <hr className="border-[#454545] my-1" />
-                      <button
-                        onClick={() => handleCreateFile('facebook')}
-                        className="flex items-center w-full px-3 py-2 text-xs text-[#cccccc] hover:bg-[#3d3d3d] transition-colors"
-                      >
-                        <MessageSquare className="w-3 h-3 mr-2" />
-                        Facebook Post
-                      </button>
-                      <button
-                        onClick={() => handleCreateFile('x')}
-                        className="flex items-center w-full px-3 py-2 text-xs text-[#cccccc] hover:bg-[#3d3d3d] transition-colors"
-                      >
-                        <AtSign className="w-3 h-3 mr-2" />
-                        X (Twitter) Post
-                      </button>
-                      <button
-                        onClick={() => handleCreateFile('instagram')}
-                        className="flex items-center w-full px-3 py-2 text-xs text-[#cccccc] hover:bg-[#3d3d3d] transition-colors"
-                      >
-                        <Camera className="w-3 h-3 mr-2" />
-                        Instagram Post
-                      </button>
-                      <button
-                        onClick={() => handleCreateFile('reddit')}
-                        className="flex items-center w-full px-3 py-2 text-xs text-[#cccccc] hover:bg-[#3d3d3d] transition-colors"
-                      >
-                        <Hash className="w-3 h-3 mr-2" />
-                        Reddit Post
-                      </button>
+                  <div className="absolute right-0 top-full mt-1 w-80 bg-[#2d2d2d] border border-[#454545] rounded shadow-xl z-50 p-4">
+                    <div className="space-y-4">
+                      {/* Header */}
+                      <div className="text-sm font-medium text-[#cccccc] border-b border-[#454545] pb-2">
+                        Create New File
+                      </div>
+
+                      {/* File Name Input */}
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-[#cccccc]">File Name</label>
+                        <input
+                          value={newFileName}
+                          onChange={(e) => setNewFileName(e.target.value)}
+                          placeholder="Enter file name"
+                          className="w-full px-3 py-2 text-sm bg-[#1e1e1e] border border-[#454545] text-[#cccccc] placeholder-[#858585] rounded focus:outline-none focus:border-[#007acc] focus:ring-1 focus:ring-[#007acc]"
+                          onKeyDown={handleKeyDown}
+                          autoFocus
+                        />
+                      </div>
+
+                      {/* File Type Select */}
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-[#cccccc]">File Type</label>
+                        <select
+                          value={newFileType}
+                          onChange={(e) => setNewFileType(e.target.value as ProjectFile['type'])}
+                          className="w-full px-3 py-2 text-sm bg-[#1e1e1e] border border-[#454545] text-[#cccccc] rounded focus:outline-none focus:border-[#007acc] focus:ring-1 focus:ring-[#007acc]"
+                          aria-label="Select file type"
+                        >
+                          <option value="markdown" className="bg-[#2d2d2d]">Markdown (.md)</option>
+                          <option value="typescript" className="bg-[#2d2d2d]">TypeScript (.ts/.tsx)</option>
+                          <option value="javascript" className="bg-[#2d2d2d]">JavaScript (.js/.jsx)</option>
+                          <option value="json" className="bg-[#2d2d2d]">JSON (.json)</option>
+                          <option value="facebook" className="bg-[#2d2d2d]">Facebook Post</option>
+                          <option value="instagram" className="bg-[#2d2d2d]">Instagram Post</option>
+                          <option value="x" className="bg-[#2d2d2d]">X/Twitter Post</option>
+                          <option value="reddit" className="bg-[#2d2d2d]">Reddit Post</option>
+                        </select>
+                      </div>
+
+                      {/* Folder Select */}
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-[#cccccc]">Project/Folder</label>
+                        <select
+                          value={newFileFolderId}
+                          onChange={(e) => setNewFileFolderId(e.target.value)}
+                          className="w-full px-3 py-2 text-sm bg-[#1e1e1e] border border-[#454545] text-[#cccccc] rounded focus:outline-none focus:border-[#007acc] focus:ring-1 focus:ring-[#007acc]"
+                          aria-label="Select project folder"
+                        >
+                          <option value="no-folder" className="bg-[#2d2d2d]">No folder</option>
+                          {projectFolders.map((folder) => (
+                            <option key={folder.id} value={folder.id} className="bg-[#2d2d2d]">
+                              📁 {folder.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex justify-end gap-2 pt-2 border-t border-[#454545]">
+                        <button
+                          onClick={() => setShowCreateMenu(false)}
+                          className="px-3 py-1.5 text-xs bg-[#3d3d3d] text-[#cccccc] hover:bg-[#4d4d4d] border border-[#454545] rounded transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleCreateFileWithDetails}
+                          disabled={!newFileName.trim()}
+                          className="px-3 py-1.5 text-xs bg-[#007acc] text-[#cccccc] hover:bg-[#005a9e] disabled:opacity-50 disabled:cursor-not-allowed rounded transition-colors"
+                        >
+                          Create File
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}

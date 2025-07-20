@@ -438,6 +438,25 @@ export const useEditorStore = create<EditorState>()(
           set({ openTabs: updatedTabs });
         },
 
+        updateFileStatus: (fileId: string, status: 'draft' | 'scheduled' | 'complete') => {
+          const { projectFiles, financialFiles } = get();
+
+          // Update in project files
+          const updatedProjectFiles = projectFiles.map(file =>
+            file.id === fileId ? { ...file, status, modifiedAt: new Date() } : file
+          );
+
+          // Update in financial files
+          const updatedFinancialFiles = financialFiles.map(file =>
+            file.id === fileId ? { ...file, status, modifiedAt: new Date() } : file
+          );
+
+          set({
+            projectFiles: updatedProjectFiles,
+            financialFiles: updatedFinancialFiles
+          });
+        },
+
         createNewFile: (name: string, type: ProjectFile['type'], category: ProjectFile['category'] = 'project', folderId?: string) => {
           const { projectFiles, financialFiles } = get();
           
@@ -458,6 +477,7 @@ export const useEditorStore = create<EditorState>()(
             createdAt: new Date(),
             modifiedAt: new Date(),
             folderId, // Add folder assignment
+            status: ['facebook', 'reddit', 'instagram', 'x'].includes(type) ? 'draft' : undefined, // Default social media files to draft
           };
 
           // Add to appropriate file array and ensure category is visible

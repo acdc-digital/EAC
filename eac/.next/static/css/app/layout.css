@@ -659,6 +659,9 @@
   .w-20 {
     width: calc(var(--spacing) * 20);
   }
+  .w-24 {
+    width: calc(var(--spacing) * 24);
+  }
   .w-32 {
     width: calc(var(--spacing) * 32);
   }
@@ -676,6 +679,9 @@
   }
   .w-70 {
     width: calc(var(--spacing) * 70);
+  }
+  .w-80 {
+    width: calc(var(--spacing) * 80);
   }
   .w-96 {
     width: calc(var(--spacing) * 96);
@@ -1071,6 +1077,12 @@
   .border-\[\#2d2d2d\] {
     border-color: #2d2d2d;
   }
+  .border-\[\#2d2d2d\]\/20 {
+    border-color: color-mix(in oklab, #2d2d2d 20%, transparent);
+  }
+  .border-\[\#2d2d2d\]\/30 {
+    border-color: color-mix(in oklab, #2d2d2d 30%, transparent);
+  }
   .border-\[\#4a9eff\] {
     border-color: #4a9eff;
   }
@@ -1152,8 +1164,14 @@
   .bg-\[\#3a3a3a\] {
     background-color: #3a3a3a;
   }
+  .bg-\[\#3b82f6\] {
+    background-color: #3b82f6;
+  }
   .bg-\[\#3d3d3d\] {
     background-color: #3d3d3d;
+  }
+  .bg-\[\#4a4a4a\] {
+    background-color: #4a4a4a;
   }
   .bg-\[\#4a9eff\] {
     background-color: #4a9eff;
@@ -1172,6 +1190,9 @@
   }
   .bg-\[\#8b5cf6\] {
     background-color: #8b5cf6;
+  }
+  .bg-\[\#10b981\] {
+    background-color: #10b981;
   }
   .bg-\[\#1877f2\] {
     background-color: #1877f2;
@@ -1664,6 +1685,10 @@
     --tw-shadow: 0 1px 3px 0 var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 1px 2px -1px var(--tw-shadow-color, rgb(0 0 0 / 0.1));
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
+  .shadow-xl {
+    --tw-shadow: 0 20px 25px -5px var(--tw-shadow-color, rgb(0 0 0 / 0.1)), 0 8px 10px -6px var(--tw-shadow-color, rgb(0 0 0 / 0.1));
+    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+  }
   .shadow-xs {
     --tw-shadow: 0 1px 2px 0 var(--tw-shadow-color, rgb(0 0 0 / 0.05));
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
@@ -2144,6 +2169,13 @@
     &:hover {
       @media (hover: hover) {
         text-decoration-line: underline;
+      }
+    }
+  }
+  .hover\:opacity-80 {
+    &:hover {
+      @media (hover: hover) {
+        opacity: 80%;
       }
     }
   }

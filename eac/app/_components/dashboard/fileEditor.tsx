@@ -5,6 +5,7 @@
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useEditorStore } from "@/store";
+import { ProjectFile } from "@/store/editor/types";
 import { AtSign, Camera, ChevronDown, ChevronRight, FileText, Folder, Hash, MessageSquare } from "lucide-react";
 import { useState } from 'react';
 
@@ -14,7 +15,8 @@ export function FileEditor() {
     financialFiles, 
     projectFolders, 
     financialFolders,
-    openTab 
+    openTab,
+    updateFileStatus
   } = useEditorStore();
 
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
@@ -27,6 +29,34 @@ export function FileEditor() {
   const filteredFinancialFiles = financialFiles.filter(file => 
     ['facebook', 'reddit', 'instagram', 'x', 'markdown'].includes(file.type)
   );
+
+  const getStatusBadge = (file: ProjectFile) => {
+    if (!['facebook', 'reddit', 'instagram', 'x'].includes(file.type)) {
+      return <div className="w-20"></div>; // Empty space for non-social files
+    }
+    
+    const status = file.status || 'draft';
+    const statusConfig = {
+      draft: { label: 'Draft', color: 'bg-[#4a4a4a] text-[#cccccc]', next: 'scheduled' as const },
+      scheduled: { label: 'Scheduled', color: 'bg-[#3b82f6] text-white', next: 'complete' as const },
+      complete: { label: 'Complete', color: 'bg-[#10b981] text-white', next: 'draft' as const }
+    };
+
+    const config = statusConfig[status];
+    
+    return (
+      <button
+        onClick={(e) => {
+          e.stopPropagation(); // Prevent opening the file
+          updateFileStatus(file.id, config.next);
+        }}
+        className={`px-2 py-0.5 text-xs rounded-full hover:opacity-80 transition-opacity ${config.color}`}
+        title={`Click to change to ${config.next}`}
+      >
+        {config.label}
+      </button>
+    );
+  };
 
   const getFileIcon = (type: string) => {
     switch (type) {
@@ -80,7 +110,16 @@ export function FileEditor() {
     })).filter(group => group.files.length > 0);
 
     return (
-      <>
+      <div className="space-y-1">
+        {/* Table Header */}
+        {(filesWithoutFolder.length > 0 || filesInFolders.length > 0) && (
+          <div className="flex items-center px-3 py-2 text-xs font-medium text-[#858585] uppercase tracking-wide border-b border-[#2d2d2d] bg-[#1a1a1a]">
+            <div className="flex-1">File Name</div>
+            <div className="w-24 text-center">Type</div>
+            <div className="w-20 text-center">Status</div>
+          </div>
+        )}
+
         {/* Files not in folders */}
         {filesWithoutFolder.map(file => {
           const IconComponent = getFileIcon(file.type);
@@ -88,13 +127,18 @@ export function FileEditor() {
             <div
               key={file.id}
               onClick={() => openTab(file)}
-              className="flex items-center gap-2 px-3 py-1.5 hover:bg-[#2d2d2d] cursor-pointer text-[#cccccc] text-xs group"
+              className="flex items-center gap-2 px-3 py-2 hover:bg-[#2d2d2d] cursor-pointer text-[#cccccc] text-sm group border-b border-[#2d2d2d]/30"
             >
-              <IconComponent className="w-4 h-4 flex-shrink-0 text-[#858585]" />
-              <span className="truncate flex-1">{file.name}</span>
-              <span className="text-[#858585] text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <IconComponent className="w-4 h-4 flex-shrink-0 text-[#858585]" />
+                <span className="truncate">{file.name}</span>
+              </div>
+              <div className="w-24 text-center text-xs text-[#858585]">
                 {getFileTypeLabel(file.type)}
-              </span>
+              </div>
+              <div className="w-20 text-center">
+                {getStatusBadge(file)}
+              </div>
             </div>
           );
         })}
@@ -106,33 +150,43 @@ export function FileEditor() {
             <div key={folder.id}>
               <div
                 onClick={() => toggleFolder(folder.id)}
-                className="flex items-center gap-1 px-3 py-1.5 hover:bg-[#2d2d2d] cursor-pointer text-[#cccccc] text-xs"
+                className="flex items-center gap-1 px-3 py-2 hover:bg-[#2d2d2d] cursor-pointer text-[#cccccc] text-sm border-b border-[#2d2d2d]/30"
               >
-                {isExpanded ? (
-                  <ChevronDown className="w-3 h-3 flex-shrink-0" />
-                ) : (
-                  <ChevronRight className="w-3 h-3 flex-shrink-0" />
-                )}
-                <Folder className="w-4 h-4 flex-shrink-0 text-[#007acc]" />
-                <span className="truncate flex-1">{folder.name}</span>
-                <span className="text-[#858585] text-xs">{files.length}</span>
+                <div className="flex items-center gap-1 flex-1">
+                  {isExpanded ? (
+                    <ChevronDown className="w-3 h-3 flex-shrink-0" />
+                  ) : (
+                    <ChevronRight className="w-3 h-3 flex-shrink-0" />
+                  )}
+                  <Folder className="w-4 h-4 flex-shrink-0 text-[#007acc]" />
+                  <span className="truncate">{folder.name}</span>
+                </div>
+                <div className="w-24 text-center text-xs text-[#858585]">
+                  {files.length} files
+                </div>
+                <div className="w-20"></div>
               </div>
               
               {isExpanded && (
-                <div className="ml-6">
+                <div className="bg-[#1a1a1a]">
                   {files.map(file => {
                     const IconComponent = getFileIcon(file.type);
                     return (
                       <div
                         key={file.id}
                         onClick={() => openTab(file)}
-                        className="flex items-center gap-2 px-3 py-1.5 hover:bg-[#2d2d2d] cursor-pointer text-[#cccccc] text-xs group"
+                        className="flex items-center gap-2 px-6 py-2 hover:bg-[#2d2d2d] cursor-pointer text-[#cccccc] text-sm group border-b border-[#2d2d2d]/20"
                       >
-                        <IconComponent className="w-4 h-4 flex-shrink-0 text-[#858585]" />
-                        <span className="truncate flex-1">{file.name}</span>
-                        <span className="text-[#858585] text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <IconComponent className="w-4 h-4 flex-shrink-0 text-[#858585]" />
+                          <span className="truncate">{file.name}</span>
+                        </div>
+                        <div className="w-24 text-center text-xs text-[#858585]">
                           {getFileTypeLabel(file.type)}
-                        </span>
+                        </div>
+                        <div className="w-20 text-center">
+                          {getStatusBadge(file)}
+                        </div>
                       </div>
                     );
                   })}
@@ -141,7 +195,7 @@ export function FileEditor() {
             </div>
           );
         })}
-      </>
+      </div>
     );
   };
 
