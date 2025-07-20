@@ -169,3 +169,31 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 © 2025 ACDC.digital • Maintainer: msimon@acdc.digital
+
+## Development Guidelines
+
+This project is optimized for GitHub Copilot in VS Code. The codebase follows modern React patterns with comprehensive documentation to help AI assistants understand the project structure and conventions.
+
+### Documentation Structure
+
+- **[GitHub Copilot Instructions](.github/copilot-instructions.md)** - Project overview and coding standards for AI assistance
+- **[Design System](docs/design-system.md)** - Component architecture, styling guidelines, and UI patterns
+- **[State Management](docs/state-management.md)** - Zustand store patterns and best practices
+
+### AI-Friendly Development
+
+This project is structured to work seamlessly with GitHub Copilot:
+
+- Comprehensive TypeScript interfaces and type definitions
+- Consistent component patterns and naming conventions
+- Detailed inline documentation and JSDoc comments
+- Clear separation of concerns with well-organized file structure
+- Extensive code examples and pattern documentation
+
+### Getting the Most from GitHub Copilot
+
+1. **Read the Documentation**: Familiarize yourself with our [Copilot Instructions](.github/copilot-instructions.md)
+2. **Use Descriptive Comments**: Write clear comments about what you want to implement
+3. **Follow Patterns**: Reference existing components for consistent patterns
+4. **Leverage TypeScript**: Use our type definitions to get better suggestions
+
