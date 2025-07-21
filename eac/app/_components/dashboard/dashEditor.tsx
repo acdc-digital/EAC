@@ -18,6 +18,12 @@ const TiptapEditor = dynamic(() => import('@/app/_components/editor/_components/
   loading: () => <div className="p-4 text-[#858585]">Loading editor...</div>
 });
 
+// Dynamic import for markdown editor with preview
+const MarkdownEditor = dynamic(() => import('@/app/_components/editor/_components/MarkdownEditor'), {
+  ssr: false,
+  loading: () => <div className="p-4 text-[#858585]">Loading markdown editor...</div>
+});
+
 // Dynamic import for edit modules
 const EditGenerals = dynamic(() => import('../editor/editGenerals').then(mod => ({ default: mod.EditGenerals })), {
   ssr: false,
@@ -37,6 +43,12 @@ const EditSchedule = dynamic(() => import('../editor/editSchedule').then(mod => 
 const EditMaterials = dynamic(() => import('../editor/editMaterials').then(mod => ({ default: mod.EditMaterials })), {
   ssr: false,
   loading: () => <div className="p-4 text-[#858585]">Loading module...</div>
+});
+
+// Dynamic import for Calendar component
+const CalendarPage = dynamic(() => import('../calendar/page'), {
+  ssr: false,
+  loading: () => <div className="p-4 text-[#858585]">Loading calendar...</div>
 });
 
 // Dynamic import for Terminal component
@@ -196,12 +208,14 @@ export function DashEditor() {
   // Get current tab to check if it's editable
   const currentTab = openTabs.find((t) => t.id === activeTab);
   const isEditable = currentTab ? ['typescript', 'javascript', 'json', 'markdown'].includes(currentTab.type) : false;
+  const isMarkdownFile = currentTab?.type === 'markdown';
   const isGeneralsModule = currentTab?.type === 'generals';
   const isPercentCompleteModule = currentTab?.type === 'percent-complete';
   const isScheduleModule = currentTab?.type === 'schedule';
   const isMaterialsModule = currentTab?.type === 'materials';
   const isSocialConnectModule = currentTab?.type === 'social-connect';
   const isPostCreatorModule = currentTab?.type === 'post-creator';
+  const isCalendarModule = currentTab?.type === 'calendar';
 
   return (
     <main className="flex-1 flex flex-col bg-[#1a1a1a]">
@@ -484,6 +498,8 @@ export function DashEditor() {
                         <SocialConnectors />
                       ) : isPostCreatorModule ? (
                         <FileEditor />
+                      ) : isCalendarModule ? (
+                        <CalendarPage />
                       ) : currentTab?.type === 'facebook' ? (
                         <FacebookPostEditor
                           fileName={currentTab.name}
@@ -505,13 +521,22 @@ export function DashEditor() {
                           onChange={(content) => updateFileContent(currentTab.id, content)}
                         />
                       ) : (
-                        <div className="p-4">
-                          <TiptapEditor
+                        // Use MarkdownEditor for markdown files, TiptapEditor for others
+                        isMarkdownFile ? (
+                          <MarkdownEditor
                             content={getFileContent(activeTab)}
                             onChange={handleContentChange}
                             editable={isEditable}
                           />
-                        </div>
+                        ) : (
+                          <div className="p-4">
+                            <TiptapEditor
+                              content={getFileContent(activeTab)}
+                              onChange={handleContentChange}
+                              editable={isEditable}
+                            />
+                          </div>
+                        )
                       )}
                     </>
                   ) : (

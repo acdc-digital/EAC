@@ -18,6 +18,7 @@ import {
   FileType,
   Folder,
   GripVertical,
+  Pin,
   Plus,
   X
 } from "lucide-react";
@@ -288,47 +289,103 @@ export function DashSidebar({ activePanel }: SidebarProps) {
   };
 
   // Create dynamic file structure using store data
-  const fileStructure = useMemo(() => [
-    // Add project folders as top-level items (only if projects category exists)
-    ...(showProjectsCategory ? projectFolders.map(folder => ({
-      id: folder.id,
-      name: folder.name,
-      icon: Folder,
-      type: 'folder' as const,
-      isFolder: true,
-      children: [
-        // Show files that belong to this folder
-        ...projectFiles.filter(file => file.folderId === folder.id).map(file => ({
+  const fileStructure = useMemo(() => {
+    // Separate pinned and regular folders
+    const pinnedFolders = projectFolders.filter(folder => folder.pinned);
+    const regularFolders = projectFolders.filter(folder => !folder.pinned);
+    
+    const sections = [];
+    
+    // Add System section with pinned folders
+    if (showProjectsCategory && pinnedFolders.length > 0) {
+      sections.push({
+        id: 'system-header',
+        name: 'System',
+        type: 'header' as const,
+        isHeader: true,
+      });
+      
+      sections.push(...pinnedFolders.map(folder => ({
+        id: folder.id,
+        name: folder.name,
+        icon: Folder,
+        type: 'folder' as const,
+        isFolder: true,
+        isPinned: true,
+        children: [
+          // Show files that belong to this folder
+          ...projectFiles.filter(file => file.folderId === folder.id).map(file => ({
+            id: file.id,
+            name: file.name,
+            icon: file.icon,
+            type: file.type,
+            file: file,
+          }))
+        ]
+      })));
+    }
+    
+    // Add Projects section with regular folders
+    if (showProjectsCategory && regularFolders.length > 0) {
+      sections.push({
+        id: 'projects-header',
+        name: 'Projects',
+        type: 'header' as const,
+        isHeader: true,
+      });
+      
+      sections.push(...regularFolders.map(folder => ({
+        id: folder.id,
+        name: folder.name,
+        icon: Folder,
+        type: 'folder' as const,
+        isFolder: true,
+        isPinned: false,
+        children: [
+          // Show files that belong to this folder
+          ...projectFiles.filter(file => file.folderId === folder.id).map(file => ({
+            id: file.id,
+            name: file.name,
+            icon: file.icon,
+            type: file.type,
+            file: file,
+          }))
+        ]
+      })));
+    }
+    
+    // Add loose project files
+    if (showProjectsCategory) {
+      const looseFiles = projectFiles.filter(file => !file.folderId);
+      if (looseFiles.length > 0) {
+        sections.push(...looseFiles.map(file => ({
           id: file.id,
           name: file.name,
           icon: file.icon,
           type: file.type,
-          file: file,
+          file: file, // Store the full file object for opening
+        })));
+      }
+    }
+    
+    // Add Financial section if it exists
+    if (showFinancialCategory) {
+      sections.push({
+        id: 'financial',
+        name: 'Financial Data',
+        icon: Folder,
+        children: financialFiles.map(file => ({
+          id: file.id,
+          name: file.name,
+          icon: file.icon,
+          type: file.type,
+          file: file, // Store the full file object for opening
         }))
-      ]
-    })) : []),
-    // Show project files that aren't in folders as top-level items
-    ...(showProjectsCategory ? projectFiles.filter(file => !file.folderId).map(file => ({
-      id: file.id,
-      name: file.name,
-      icon: file.icon,
-      type: file.type,
-      file: file, // Store the full file object for opening
-    })) : []),
-    // Only show financial category if it exists
-    ...(showFinancialCategory ? [{
-      id: 'financial',
-      name: 'Financial Data',
-      icon: Folder,
-      children: financialFiles.map(file => ({
-        id: file.id,
-        name: file.name,
-        icon: file.icon,
-        type: file.type,
-        file: file, // Store the full file object for opening
-      }))
-    }] : [])
-  ], [showProjectsCategory, showFinancialCategory, projectFolders, projectFiles, financialFiles]);
+      });
+    }
+    
+    return sections;
+  }, [showProjectsCategory, showFinancialCategory, projectFolders, projectFiles, financialFiles]);
 
   const getFileIconComponent = (type: string) => {
     switch (type) {
@@ -494,7 +551,22 @@ export function DashSidebar({ activePanel }: SidebarProps) {
               </div>
             )}
             
-            {fileStructure.map((section) => {
+            <div className="pt-2">
+              {fileStructure.map((section) => {
+              // Check if this is a header section
+              const isHeader = 'isHeader' in section && section.isHeader;
+              
+              // Render header sections differently
+              if (isHeader) {
+                return (
+                  <div key={section.id} className="mb-2 mt-4 first:mt-0">
+                    <div className="text-[10px] uppercase text-[#858585] px-2 py-1 font-medium tracking-wide">
+                      {section.name}
+                    </div>
+                  </div>
+                );
+              }
+              
               const isOpen = openSections.has(section.id);
               const isFolder = 'isFolder' in section && section.isFolder;
               const isDraggedOver = dragOverItem === section.id;
@@ -503,18 +575,20 @@ export function DashSidebar({ activePanel }: SidebarProps) {
               
               // Check if this is a user-created folder (not main categories)
               const isUserFolder = isFolder && section.id !== 'projects' && section.id !== 'financial';
+              const isPinnedFolder = 'isPinned' in section && section.isPinned;
+              const isDraggableFolder = isUserFolder && !isPinnedFolder;
               
               const sectionContent = (
                 <div
                   className={`flex items-center w-full hover:bg-[#2d2d2d] px-1 py-0.5 rounded group transition-all duration-150 ${
                     isDraggedOver ? 'bg-[#3a3a3a] border-l-2 border-[#007acc] shadow-lg transform scale-105' : ''
-                  } ${isBeingDragged ? 'opacity-30 scale-95' : ''} ${isUserFolder ? 'cursor-move' : ''}`}
-                  draggable={isUserFolder}
-                  onDragStart={isUserFolder ? (e) => handleDragStart(e, section.id) : undefined}
-                  onDragOver={isUserFolder ? (e) => handleDragOver(e, section.id) : undefined}
-                  onDragLeave={isUserFolder ? handleDragLeave : undefined}
-                  onDrop={isUserFolder ? (e) => handleDrop(e, section.id) : undefined}
-                  onDragEnd={isUserFolder ? handleDragEnd : undefined}
+                  } ${isBeingDragged ? 'opacity-30 scale-95' : ''} ${isDraggableFolder ? 'cursor-move' : ''}`}
+                  draggable={isDraggableFolder}
+                  onDragStart={isDraggableFolder ? (e) => handleDragStart(e, section.id) : undefined}
+                  onDragOver={isDraggableFolder ? (e) => handleDragOver(e, section.id) : undefined}
+                  onDragLeave={isDraggableFolder ? handleDragLeave : undefined}
+                  onDrop={isDraggableFolder ? (e) => handleDrop(e, section.id) : undefined}
+                  onDragEnd={isDraggableFolder ? handleDragEnd : undefined}
                 >
                   <div
                     onClick={() => !isCurrentlyRenamingFolder && toggleSection(section.id)}
@@ -551,7 +625,14 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                         aria-label="Enter folder name"
                       />
                     ) : (
-                      <span className="text-xs text-[#cccccc]">{section.name}</span>
+                      <div className="flex items-center">
+                        <span className="text-xs text-[#cccccc]">{section.name}</span>
+                        {isPinnedFolder && (
+                          <div title="Pinned folder">
+                            <Pin className="w-3 h-3 ml-1 text-[#007acc]" />
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                   {(section.id === 'projects' || section.id === 'financial' || 'isFolder' in section) && !isCurrentlyRenamingFolder && (
@@ -576,28 +657,30 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                       >
                         <Plus className="w-3 h-3 text-[#858585] hover:text-[#cccccc]" />
                       </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (section.id === 'projects') {
-                            // Delete the entire projects category
-                            deleteProjectsCategory();
-                          } else if (section.id === 'financial') {
-                            // Delete the entire financial category
-                            deleteFinancialCategory();
-                          } else {
-                            // Move user folder to trash
-                            const folder = [...projectFolders].find(f => f.id === section.id);
-                            if (folder) {
-                              moveToTrash(folder, 'folder');
+                      {!isPinnedFolder && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (section.id === 'projects') {
+                              // Delete the entire projects category
+                              deleteProjectsCategory();
+                            } else if (section.id === 'financial') {
+                              // Delete the entire financial category
+                              deleteFinancialCategory();
+                            } else {
+                              // Move user folder to trash (only if not pinned)
+                              const folder = [...projectFolders].find(f => f.id === section.id);
+                              if (folder && !folder.pinned) {
+                                moveToTrash(folder, 'folder');
+                              }
                             }
-                          }
-                        }}
-                        className="p-0.5 hover:bg-[#3d3d3d] rounded transition-opacity"
-                        aria-label={`Delete ${section.name}`}
-                      >
-                        <X className="w-3 h-3 text-[#858585] hover:text-[#cccccc]" />
-                      </button>
+                          }}
+                          className="p-0.5 hover:bg-[#3d3d3d] rounded transition-opacity"
+                          aria-label={`Delete ${section.name}`}
+                        >
+                          <X className="w-3 h-3 text-[#858585] hover:text-[#cccccc]" />
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -624,7 +707,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                     sectionContent
                   )}
                   
-                  {isOpen && 'children' in section && (
+                  {isOpen && 'children' in section && section.children && (
                     <div className="ml-4 space-y-0.5 mt-1">
                       {section.children.map((file, index) => {
                         const FileIconComponent = getFileIconComponent(file.type);
@@ -802,6 +885,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                 </div>
               );
             })}
+            </div>
           </div>
         );
     }

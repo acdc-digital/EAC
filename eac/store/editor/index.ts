@@ -1,7 +1,7 @@
 // Editor Store
 // /Users/matthewsimon/Projects/EAC/eac/store/editor/index.ts
 
-import { AtSign, Braces, Camera, FileCode, FileSpreadsheet, FileText, FileType, Hash, MessageSquare } from 'lucide-react';
+import { AtSign, Braces, Calendar, Camera, FileCode, FileSpreadsheet, FileText, FileType, Hash, MessageSquare } from 'lucide-react';
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { EditorState, EditorTab, ProjectFile, ProjectFolder, TrashItem } from './types';
@@ -37,6 +37,8 @@ const getFileIcon = (type: ProjectFile['type']) => {
       return Camera;
     case 'x':
       return AtSign;
+    case 'calendar':
+      return Calendar;
     default:
       return FileCode;
   }
@@ -304,6 +306,17 @@ Start documenting your financial planning here...`,
   },
 ];
 
+// Initial project folders
+const initialProjectFolders: ProjectFolder[] = [
+  {
+    id: 'instructions-folder',
+    name: 'Instructions',
+    category: 'project',
+    createdAt: new Date(),
+    pinned: true,
+  },
+];
+
 export const useEditorStore = create<EditorState>()(
   devtools(
     persist(
@@ -313,7 +326,7 @@ export const useEditorStore = create<EditorState>()(
         activeTab: '',
         projectFiles: initialProjectFiles,
         financialFiles: initialFinancialFiles,
-        projectFolders: [],
+        projectFolders: initialProjectFolders,
         financialFolders: [],
         trashItems: [],
         showProjectsCategory: true,
@@ -348,7 +361,7 @@ export const useEditorStore = create<EditorState>()(
           });
         },
 
-        openSpecialTab: (id: string, name: string, type: 'social-connect' | 'post-creator') => {
+        openSpecialTab: (id: string, name: string, type: 'social-connect' | 'post-creator' | 'calendar') => {
           const { openTabs } = get();
           
           // Check if tab is already open
@@ -1075,6 +1088,27 @@ export const useEditorStore = create<EditorState>()(
             localStorage.setItem(name, JSON.stringify(value));
           },
           removeItem: (name) => localStorage.removeItem(name),
+        },
+        onRehydrateStorage: () => (state) => {
+          if (state) {
+            // Ensure the pinned Instructions folder is always present
+            const hasInstructionsFolder = state.projectFolders.some(folder =>
+              folder.id === 'instructions-folder' && folder.pinned
+            );
+            
+            if (!hasInstructionsFolder) {
+              state.projectFolders = [
+                {
+                  id: 'instructions-folder',
+                  name: 'Instructions',
+                  category: 'project',
+                  createdAt: new Date(),
+                  pinned: true,
+                },
+                ...state.projectFolders
+              ];
+            }
+          }
         },
       }
     ),
