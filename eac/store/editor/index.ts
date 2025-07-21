@@ -457,7 +457,7 @@ export const useEditorStore = create<EditorState>()(
           });
         },
 
-        createNewFile: (name: string, type: ProjectFile['type'], category: ProjectFile['category'] = 'project', folderId?: string) => {
+        createNewFile: async (name: string, type: ProjectFile['type'], category: ProjectFile['category'] = 'project', folderId?: string) => {
           const { projectFiles, financialFiles } = get();
           
           // Generate unique ID
@@ -495,17 +495,62 @@ export const useEditorStore = create<EditorState>()(
 
           // Automatically open the new file
           get().openTab(newFile);
+
+          // Save to Convex database (async - don't block UI)
+          try {
+            // We need to import the Convex hooks here, which isn't ideal
+            // Better to handle this in the component level
+            console.log('File created locally:', newFile);
+            
+            // Dispatch custom event that components can listen to
+            window.dispatchEvent(new CustomEvent('fileCreated', { 
+              detail: { 
+                file: newFile,
+                projectId: folderId // Using folderId as projectId for now
+              } 
+            }));
+            
+          } catch (error) {
+            console.error('Failed to save file to database:', error);
+          }
         },
 
         createFolder: (name: string, category: 'project' | 'financial') => {
           const { projectFolders, financialFolders } = get();
           
-          // Generate unique ID
-          const id = `folder-${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now()}`;
+          // Check if folder with this name already exists to prevent duplicates
+          const existingFolders = category === 'financial' ? financialFolders : projectFolders;
+          const folderExists = existingFolders.some(folder => 
+            folder.name.toLowerCase() === name.toLowerCase()
+          );
+          
+          if (folderExists) {
+            console.log(`Folder "${name}" already exists in ${category} category, skipping creation`);
+            return;
+          }
+          
+          // Generate truly unique ID using crypto if available, otherwise fallback to timestamp + random
+          let uniqueId: string;
+          if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+            uniqueId = `folder-${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${crypto.randomUUID()}`;
+          } else {
+            // Fallback for environments without crypto.randomUUID
+            const timestamp = Date.now();
+            const random = Math.random().toString(36).substring(2, 12);
+            const counter = Math.floor(Math.random() * 10000);
+            uniqueId = `folder-${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${timestamp}-${random}-${counter}`;
+          }
+          
+          // Double-check uniqueness against all existing folder IDs
+          const allFolders = [...projectFolders, ...financialFolders];
+          while (allFolders.some(folder => folder.id === uniqueId)) {
+            const randomSuffix = Math.random().toString(36).substring(2, 8);
+            uniqueId = `${uniqueId}-${randomSuffix}`;
+          }
           
           // Create new folder
           const newFolder: ProjectFolder = {
-            id,
+            id: uniqueId,
             name,
             category,
             createdAt: new Date(),
@@ -521,6 +566,58 @@ export const useEditorStore = create<EditorState>()(
             set({
               projectFolders: [newFolder, ...projectFolders],
               showProjectsCategory: true, // Ensure projects category is visible
+            });
+          }
+        },
+
+        // Emergency cleanup function for duplicate folder IDs
+        cleanupDuplicateFolders: () => {
+          const { projectFolders, financialFolders } = get();
+          
+          // Function to remove duplicates and fix bad IDs
+          const cleanupFolders = (folders: ProjectFolder[]) => {
+            const seen = new Set<string>();
+            const cleaned = folders.filter(folder => {
+              // Remove folders with the problematic key pattern
+              if (folder.id.includes('folder-index-1753064508939')) {
+                console.log(`🧹 Removing problematic folder: ${folder.id} (${folder.name})`);
+                return false;
+              }
+              
+              // Remove duplicate IDs
+              if (seen.has(folder.id)) {
+                console.log(`🧹 Removing duplicate folder: ${folder.id} (${folder.name})`);
+                return false;
+              }
+              
+              seen.add(folder.id);
+              return true;
+            });
+            
+            // Regenerate IDs for any remaining folders with old patterns
+            return cleaned.map(folder => {
+              if (folder.id.startsWith('folder-index-') || folder.id.length < 20) {
+                const newId = typeof crypto !== 'undefined' && crypto.randomUUID
+                  ? `folder-${folder.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${crypto.randomUUID()}`
+                  : `folder-${folder.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now()}-${Math.random().toString(36).substring(2, 12)}`;
+                
+                console.log(`🔄 Regenerating ID for folder: ${folder.id} → ${newId} (${folder.name})`);
+                
+                return { ...folder, id: newId };
+              }
+              return folder;
+            });
+          };
+          
+          const cleanedProjectFolders = cleanupFolders(projectFolders);
+          const cleanedFinancialFolders = cleanupFolders(financialFolders);
+          
+          if (cleanedProjectFolders.length !== projectFolders.length || 
+              cleanedFinancialFolders.length !== financialFolders.length) {
+            console.log('🧹 Cleanup completed, updating store...');
+            set({
+              projectFolders: cleanedProjectFolders,
+              financialFolders: cleanedFinancialFolders
             });
           }
         },
@@ -827,6 +924,36 @@ export const useEditorStore = create<EditorState>()(
           newFolders.splice(toIndex, 0, movedFolder);
           
           set({ projectFolders: newFolders });
+        },
+
+        reorderFilesInFolder: (folderId: string, fromIndex: number, toIndex: number, category: 'project' | 'financial') => {
+          const { projectFiles, financialFiles } = get();
+          
+          if (category === 'project') {
+            // Filter files in the specific folder
+            const folderFiles = projectFiles.filter(file => file.folderId === folderId);
+            const otherFiles = projectFiles.filter(file => file.folderId !== folderId);
+            
+            // Reorder files within the folder
+            const reorderedFolderFiles = [...folderFiles];
+            const [movedFile] = reorderedFolderFiles.splice(fromIndex, 1);
+            reorderedFolderFiles.splice(toIndex, 0, movedFile);
+            
+            // Combine with other files
+            const newProjectFiles = [...otherFiles, ...reorderedFolderFiles];
+            set({ projectFiles: newProjectFiles });
+          } else {
+            // Similar logic for financial files
+            const folderFiles = financialFiles.filter(file => file.folderId === folderId);
+            const otherFiles = financialFiles.filter(file => file.folderId !== folderId);
+            
+            const reorderedFolderFiles = [...folderFiles];
+            const [movedFile] = reorderedFolderFiles.splice(fromIndex, 1);
+            reorderedFolderFiles.splice(toIndex, 0, movedFile);
+            
+            const newFinancialFiles = [...otherFiles, ...reorderedFolderFiles];
+            set({ financialFiles: newFinancialFiles });
+          }
         },
 
         saveFile: (tabId: string) => {

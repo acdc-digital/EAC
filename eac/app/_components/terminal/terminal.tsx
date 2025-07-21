@@ -1,14 +1,13 @@
 // Terminal Component
-// /Users/matthewsimon/Projects/EAC/eac/app/_components/terminal/terminal.tsx
+// /Users/matthewsimon/Projects/eac/eac/app/_components/terminal/terminal.tsx
 
 "use client";
 
 import { ResizablePanel } from "@/components/ui/resizable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTerminalStore } from "@/store/terminal";
-import { useChatStore } from "@/store/terminal/chat";
-import { AlertCircle, ChevronDown, ChevronUp, Code, Terminal as TerminalIcon } from "lucide-react";
-import { ChatMessages, RealTerminal } from "./_components";
+import { AlertCircle, ChevronDown, ChevronUp, History, Settings, Terminal as TerminalIcon } from "lucide-react";
+import { ChatMessages } from "./_components";
 
 export function Terminal() {
   const { 
@@ -16,8 +15,6 @@ export function Terminal() {
     toggleCollapse, 
     setSize 
   } = useTerminalStore();
-
-  const { messages, isLoading } = useChatStore();
 
   const handleResize = (size: number) => {
     try {
@@ -32,37 +29,50 @@ export function Terminal() {
     <ResizablePanel
       key={`terminal-${isCollapsed}`}
       id="terminal"
-      defaultSize={isCollapsed ? 2.75 : 40}
-      minSize={isCollapsed ? 2.27 : 15}
-      maxSize={60}
+      defaultSize={isCollapsed ? 3 : 40}
+      minSize={isCollapsed ? 3 : 15}
+      maxSize={isCollapsed ? 3 : 60}
       onResize={handleResize}
+      className={isCollapsed ? "flex-shrink-0" : ""}
     >
-      <div className="flex flex-col h-full bg-[#181818]">
+      <div className={`flex flex-col ${isCollapsed ? 'h-[25px]' : 'h-full bg-[#181818]'}`}>
         {/* Fixed Header */}
-        <div className="h-[30px] bg-[#0e639c] border-b border-[#2d2d2d] flex items-center justify-between px-0 flex-shrink-0">
+        <div className={`h-[25px] bg-[#0e639c] flex items-center justify-between px-0 flex-shrink-0 ${
+          isCollapsed ? '' : 'border-b border-[#2d2d2d]'
+        }`}>
           <Tabs defaultValue="terminal" className="flex-1">
-            <TabsList className="h-[30px] bg-transparent rounded-none border-none justify-start p-0">
+            <TabsList className="h-[25px] bg-transparent rounded-none border-none justify-start p-0">
               <TabsTrigger
                 value="terminal"
-                className="rounded-none text-xs h-[30px] data-[state=active]:bg-[#1a1a1a] data-[state=active]:text-[#cccccc] bg-transparent cursor-pointer"
+                className="rounded-none text-xs h-[25px] data-[state=active]:bg-[#1a1a1a] data-[state=active]:text-[#cccccc] bg-transparent cursor-pointer"
                 onClick={toggleCollapse}
               >
                 <TerminalIcon className="w-3 h-3 mr-1" />
                 Terminal
               </TabsTrigger>
               <TabsTrigger
+                value="history"
+                className="rounded-none text-xs h-[25px] data-[state=active]:bg-[#1a1a1a] data-[state=active]:text-[#cccccc] bg-transparent cursor-not-allowed opacity-60"
+                disabled
+              >
+                <History className="w-3 h-3 mr-1" />
+                History
+              </TabsTrigger>
+              <TabsTrigger
                 value="problems"
-                className="rounded-none text-xs h-[30px] data-[state=active]:bg-[#1a1a1a] data-[state=active]:text-[#cccccc] bg-transparent"
+                className="rounded-none text-xs h-[25px] data-[state=active]:bg-[#1a1a1a] data-[state=active]:text-[#cccccc] bg-transparent cursor-not-allowed opacity-60"
+                disabled
               >
                 <AlertCircle className="w-3 h-3 mr-1" />
                 Problems
               </TabsTrigger>
               <TabsTrigger
-                value="output"
-                className="rounded-none text-xs h-[30px] data-[state=active]:bg-[#1a1a1a] data-[state=active]:text-[#cccccc] bg-transparent"
+                value="settings"
+                className="rounded-none text-xs h-[25px] data-[state=active]:bg-[#1a1a1a] data-[state=active]:text-[#cccccc] bg-transparent cursor-not-allowed opacity-60"
+                disabled
               >
-                <Code className="w-3 h-3 mr-1" />
-                History
+                <Settings className="w-3 h-3 mr-1" />
+                Settings
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -70,13 +80,13 @@ export function Terminal() {
           {/* Collapse/Expand Button */}
           <button
             onClick={toggleCollapse}
-            className="w-5 h-5 bg-white hover:bg-gray-200 rounded-sm border border-[#cccccc] flex items-center justify-center transition-colors ml-4 mr-3 cursor-pointer"
+            className="w-5 h-5 hover:bg-[#ffffff20] rounded-sm flex items-center justify-center transition-colors ml-4 mr-3 cursor-pointer"
             aria-label={isCollapsed ? "Expand terminal" : "Collapse terminal"}
           >
             {isCollapsed ? (
-              <ChevronUp className="w-2.5 h-2.5 text-[#0e639c]" />
+              <ChevronUp className="w-2.5 h-2.5 text-white font-bold stroke-2" />
             ) : (
-              <ChevronDown className="w-2.5 h-2.5 text-[#0e639c]" />
+              <ChevronDown className="w-2.5 h-2.5 text-white font-bold stroke-2" />
             )}
           </button>
         </div>
@@ -85,7 +95,13 @@ export function Terminal() {
         {!isCollapsed && (
           <Tabs defaultValue="terminal" className="flex-1 flex flex-col min-h-0">
             <TabsContent value="terminal" className="flex-1 flex flex-col mt-0 min-h-0">
-              <RealTerminal />
+              <ChatMessages />
+            </TabsContent>
+
+            <TabsContent value="history" className="flex-1 bg-[#0e0e0e] p-2 mt-0 min-h-0">
+              <div className="text-xs text-[#858585]">
+                Command history coming soon...
+              </div>
             </TabsContent>
 
             <TabsContent value="problems" className="flex-1 bg-[#0e0e0e] p-2 mt-0 min-h-0">
@@ -94,8 +110,10 @@ export function Terminal() {
               </div>
             </TabsContent>
 
-            <TabsContent value="output" className="flex-1 flex flex-col mt-0 min-h-0">
-              <ChatMessages messages={messages} isLoading={isLoading} />
+            <TabsContent value="settings" className="flex-1 bg-[#0e0e0e] p-2 mt-0 min-h-0">
+              <div className="text-xs text-[#858585]">
+                Terminal settings coming soon...
+              </div>
             </TabsContent>
           </Tabs>
         )}

@@ -3,21 +3,79 @@
 
 "use client";
 
-import React from "react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { 
-  DollarSign, 
-  TrendingUp, 
-  Users, 
-  Target, 
-  Calendar,
-  AlertTriangle,
-  CheckCircle,
-  Clock
+import { useProjects } from "@/lib/hooks/useProjects";
+import { useEditorStore } from "@/store";
+import {
+    AlertTriangle,
+    Calendar,
+    CheckCircle,
+    Clock,
+    DollarSign,
+    Target,
+    TrendingUp,
+    Users
 } from "lucide-react";
+import React, { useState } from "react";
+import { FilesDatabase } from "./filesDatabase";
 
 export function DashOverview() {
+  const { createProject } = useProjects();
+  const { createFolder } = useEditorStore();
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const handleCreateProject = async () => {
+    if (newProjectName.trim()) {
+      setIsCreatingProject(true);
+      
+      try {
+        // Create folder in the local editor store
+        createFolder(newProjectName.trim(), 'project');
+        
+        // Also create a project in the Convex database
+        const newProject = await createProject({
+          name: newProjectName.trim(),
+          status: 'active',
+        });
+        
+        console.log('Project created in database:', newProject);
+        
+        // Close dialog and reset form
+        setIsDialogOpen(false);
+        setNewProjectName('');
+      } catch (error) {
+        console.error('Failed to create project in database:', error);
+        // You could add error toast here if desired
+      } finally {
+        setIsCreatingProject(false);
+      }
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleCreateProject();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setIsDialogOpen(false);
+      setNewProjectName('');
+    }
+  };
   const metrics = [
     {
       title: "Monthly Revenue",
@@ -227,7 +285,10 @@ export function DashOverview() {
                 <div className="text-[#007acc] font-medium mb-1">Add Expense</div>
                 <div className="text-xs text-[#858585]">Record new expense</div>
               </button>
-              <button className="p-3 bg-[#454545] hover:bg-[#555555] rounded-lg text-left transition-colors">
+              <button
+                className="p-3 bg-[#454545] hover:bg-[#555555] rounded-lg text-left transition-colors"
+                onClick={() => setIsDialogOpen(true)}
+              >
                 <div className="text-[#c586c0] font-medium mb-1">Create Project</div>
                 <div className="text-xs text-[#858585]">Start new project</div>
               </button>
@@ -239,6 +300,63 @@ export function DashOverview() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Files Database Section */}
+      <div className="mt-8">
+        <FilesDatabase />
+      </div>
+
+      {/* Create Project Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={(open) => {
+        setIsDialogOpen(open);
+        if (!open) {
+          setNewProjectName('');
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Project</DialogTitle>
+            <DialogDescription>
+              Enter a name for your new project. This will create both a local folder and a database entry.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="project-name" className="text-right">
+                Project Name
+              </Label>
+              <Input
+                id="project-name"
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="col-span-3"
+                placeholder="Enter project name..."
+                disabled={isCreatingProject}
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsDialogOpen(false);
+                setNewProjectName('');
+              }}
+              disabled={isCreatingProject}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateProject}
+              disabled={isCreatingProject || !newProjectName.trim()}
+            >
+              {isCreatingProject ? 'Creating...' : 'Create Project'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

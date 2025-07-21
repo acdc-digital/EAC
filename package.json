@@ -12,8 +12,9 @@
     "build": "cd eac && pnpm build",
     "start": "cd eac && pnpm start",
     "lint": "cd eac && pnpm lint",
-    "convex:dev": "cd convex && pnpm dev",
-    "convex:deploy": "cd convex && pnpm deploy",
+    "convex:dev": "cd convex && npx convex dev --env-file ../.env.local",
+    "convex:deploy": "cd convex && npx convex deploy --env-file ../.env.local",
+    "convex:dashboard": "cd convex && npx convex dashboard --env-file ../.env.local",
     "install:all": "pnpm install --recursive",
     "clean": "pnpm --recursive --parallel run clean"
   },

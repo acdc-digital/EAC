@@ -1,15 +1,21 @@
 // Main Store Exports
 // /Users/matthewsimon/Projects/EAC/eac/store/index.ts
 
+export { useDailyTrackerStore } from './dailyTracker';
+export type { DailyEntry } from './dailyTracker/types';
 export * from './editor';
 export type { EditorState, EditorTab, ProjectFile } from './editor/types';
 export * from './materials';
-export type { MaterialsStore, ManufacturedProduct, MiscMaterial } from './materials/types';
+export type { ManufacturedProduct, MaterialsStore, MiscMaterial } from './materials/types';
+export { useProjectStore } from './projects';
+export type {
+    CreateProjectArgs, Project,
+    ProjectStats,
+    ProjectStatus, ProjectStoreState, UpdateProjectArgs
+} from './projects/types';
 export { useSidebarStore } from './sidebar';
 export type { SidebarState } from './sidebar/types';
-export { useDailyTrackerStore } from './dailyTracker';
-export type { DailyEntry } from './dailyTracker/types';
 export * from './terminal';
-export type { TerminalState } from './terminal/types';
 export { useChatStore } from './terminal/chat';
 export type { ChatMessage } from './terminal/chat';
+export type { TerminalState } from './terminal/types';

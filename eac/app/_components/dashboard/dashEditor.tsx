@@ -206,7 +206,12 @@ export function DashEditor() {
   return (
     <main className="flex-1 flex flex-col bg-[#1a1a1a]">
       <ResizablePanelGroup direction="vertical" className="flex-1">
-        <ResizablePanel defaultSize={70} minSize={30} className="flex flex-col">
+        <ResizablePanel 
+          id="editor-main" 
+          defaultSize={isTerminalCollapsed ? 97 : 60} 
+          minSize={30} 
+          className="flex flex-col"
+        >
           {/* Tab Bar */}
           <div className="h-[35px] bg-[#181818] border-b border-l border-r border-[#2d2d2d] relative flex-shrink-0">
             {/* Tab Container - Full width with space for buttons */}
@@ -521,9 +526,11 @@ export function DashEditor() {
           </div>
         </ResizablePanel>
 
-        {!isTerminalCollapsed && (
-          <ResizableHandle className="h-[3px] bg-[#2d2d2d] hover:bg-white transition-colors cursor-ns-resize" />
-        )}
+        <ResizableHandle
+          className={`h-[3px] bg-[#2d2d2d] hover:bg-white transition-colors cursor-ns-resize ${
+            isTerminalCollapsed ? 'opacity-0 pointer-events-none h-0' : ''
+          }`}
+        />
 
         <Terminal />
       </ResizablePanelGroup>

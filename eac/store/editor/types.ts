@@ -80,7 +80,9 @@ export interface EditorState {
   deleteProjectsCategory: () => void;
   deleteFinancialCategory: () => void;
   reorderProjectFolders: (fromIndex: number, toIndex: number) => void;
+  reorderFilesInFolder: (folderId: string, fromIndex: number, toIndex: number, category: 'project' | 'financial') => void;
   saveFile: (tabId: string) => void;
   setError: (error: string | null) => void;
+  cleanupDuplicateFolders: () => void;  // Emergency cleanup function
   reset: () => void;
 } 

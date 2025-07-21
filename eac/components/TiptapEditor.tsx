@@ -1,6 +1,6 @@
 'use client'
 
-import { useEditor, EditorContent } from '@tiptap/react'
+import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { useEffect } from 'react'
 import './tiptap-editor.css'
@@ -30,42 +30,48 @@ const TiptapEditor = ({ content, onChange, editable = true }: TiptapEditorProps)
       },
     },
     onUpdate: ({ editor }) => {
-      if (onChange) {
+      if (onChange && editor?.view) {
         onChange(editor.getHTML())
       }
     },
     onCreate: ({ editor }) => {
       // Focus the editor when created
-      setTimeout(() => {
-        editor.commands.focus()
-      }, 100)
+      if (editor?.view) {
+        setTimeout(() => {
+          editor.commands.focus()
+        }, 100)
+      }
     },
     onFocus: ({ editor }) => {
       // Clear placeholder text when user focuses
-      const currentContent = editor.getText().trim();
-      if (isPlaceholderText(currentContent)) {
-        editor.commands.clearContent();
+      if (editor?.view) {
+        const currentContent = editor.getText().trim();
+        if (isPlaceholderText(currentContent)) {
+          editor.commands.clearContent();
+        }
       }
     },
     onBlur: ({ editor }) => {
       // Show placeholder text when editor loses focus and content is empty
-      const currentContent = editor.getText().trim();
-      if (currentContent === '') {
-        editor.commands.setContent('<p>Start writing your content here...</p>');
+      if (editor?.view) {
+        const currentContent = editor.getText().trim();
+        if (currentContent === '') {
+          editor.commands.setContent('<p>Start writing your content here...</p>');
+        }
       }
     },
   })
 
   // Update content when prop changes
   useEffect(() => {
-    if (editor && editor.getHTML() !== content) {
+    if (editor && editor.view && editor.getHTML() !== content) {
       editor.commands.setContent(content)
     }
   }, [content, editor])
 
   // Handle click to focus
   const handleClick = () => {
-    if (editor) {
+    if (editor && editor.view) {
       editor.commands.focus()
       // Clear placeholder text when user clicks
       const currentContent = editor.getText().trim();

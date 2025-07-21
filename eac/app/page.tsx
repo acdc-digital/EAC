@@ -5,14 +5,15 @@
 
 import { useSidebarStore } from "@/store";
 import {
-    AlertCircle,
-    Copyright,
-    Cpu,
-    Wifi
+  AlertCircle,
+  Copyright,
+  Cpu,
+  Wifi
 } from "lucide-react";
 import { DashActivityBar } from "./_components/dashboard/dashActivityBar";
 import { DashEditor } from "./_components/dashboard/dashEditor";
 import { DashSidebar } from "./_components/dashboard/dashSidebar";
+import { FileSync } from "./_components/dashboard/fileSync";
 
 export default function DashboardPage() {
   const { activePanel, setActivePanel } = useSidebarStore();
@@ -21,6 +22,9 @@ export default function DashboardPage() {
 
   return (
     <div className="h-screen w-screen flex flex-col bg-[#0e0e0e] text-[#cccccc] font-mono text-sm overflow-hidden">
+      {/* File Sync Component - Hidden utility for syncing files to database */}
+      <FileSync />
+      
       {/* Title Bar - 32px */}
       <header className="h-8 bg-[#181818] border-b border-[#2d2d2d] flex items-center px-0 select-none">
         {/* Title */}

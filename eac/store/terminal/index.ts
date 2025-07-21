@@ -6,18 +6,28 @@ import { TerminalState } from './types';
 
 export const useTerminalStore = create<TerminalState>((set, get) => ({
   isCollapsed: true,
-  currentSize: 40,
+  currentSize: 2.5, // Start with smaller collapsed size
   lastExpandedSize: 40,
 
   setCollapsed: (collapsed: boolean) => {
+    const state = get();
     set({
       isCollapsed: collapsed,
-      currentSize: collapsed ? 3 : 40
+      currentSize: collapsed ? 2.5 : (state.lastExpandedSize || 40)
     });
   },
 
   setSize: (size: number) => {
-    set({ currentSize: size });
+    const state = get();
+    // Only update lastExpandedSize if we're not collapsed
+    if (!state.isCollapsed && size > 10) {
+      set({ 
+        currentSize: size,
+        lastExpandedSize: size
+      });
+    } else {
+      set({ currentSize: size });
+    }
   },
 
   setLastExpandedSize: (size: number) => {
@@ -26,9 +36,10 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
 
   toggleCollapse: () => {
     const state = get();
+    const newCollapsed = !state.isCollapsed;
     set({
-      isCollapsed: !state.isCollapsed,
-      currentSize: state.isCollapsed ? 40 : 3
+      isCollapsed: newCollapsed,
+      currentSize: newCollapsed ? 2.5 : (state.lastExpandedSize || 40)
     });
   }
 })); 

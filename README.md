@@ -51,10 +51,24 @@
    pnpm install
    ```
 
-3. **Start the development server**
+3. **Start the development servers**
+
+   **Frontend (Next.js):**
 
    ```bash
    pnpm dev
+   ```
+
+   **Backend (Convex):**
+
+   ```bash
+   pnpm convex:dev
+   ```
+
+   **Open Convex Dashboard:**
+
+   ```bash
+   pnpm convex:dashboard
    ```
 
 4. **Open your browser**
@@ -102,7 +116,7 @@ EAC/
 │   │   ├── terminal/             # Terminal store
 │   │   └── index.ts              # Store exports
 │   └── lib/                      # Utility functions
-├── convex/                       # Convex backend (future integration)
+├── convex/                       # Convex backend with environment configuration
 └── docs/                         # Documentation
 ```
 
@@ -139,11 +153,14 @@ The EAC project uses Convex for its backend database and API layer, providing re
 
 ### Development Commands
 
-| Command                | Purpose                           |
-| ---------------------- | --------------------------------- |
-| `npx convex dev`       | Start development with hot reload |
-| `npx convex deploy`    | Deploy to production              |
-| `npx convex dashboard` | Open Convex dashboard             |
+| Command                 | Purpose                                    |
+| ----------------------- | ------------------------------------------ |
+| `pnpm dev`              | Start Next.js development server           |
+| `pnpm convex:dev`       | Start Convex dev server (with correct env) |
+| `pnpm convex:deploy`    | Deploy to Convex (with correct env)        |
+| `pnpm convex:dashboard` | Open Convex dashboard (with correct env)   |
+
+**Note:** All Convex commands automatically use the correct environment file (`.env.local`) to ensure proper deployment targeting.
 
 ### Project Structure
 
@@ -152,7 +169,52 @@ convex/
 ├── _generated/          # Auto-generated types and API
 ├── schema.ts           # Database schema definition
 ├── messages.ts         # Message-related functions
+├── projects.ts         # Project management functions
 └── package.json        # Convex dependencies
+```
+
+### Environment Configuration
+
+The project uses environment files to manage different Convex deployments and API integrations:
+
+- **`.env.local`** (root): Contains `CONVEX_DEPLOYMENT` and `CONVEX_URL`
+- **`eac/.env.local`**: Contains `NEXT_PUBLIC_CONVEX_URL` for the frontend and `OPENAI_API_KEY`
+
+#### Required Environment Variables
+
+Create `eac/.env.local` with the following:
+
+```bash
+# Convex Configuration
+NEXT_PUBLIC_CONVEX_URL=your_convex_deployment_url
+
+# OpenAI API Integration for Terminal Chat
+OPENAI_API_KEY=your_openai_api_key_here
+```
+
+**Important:**
+
+- All Convex commands in `package.json` are configured with `--env-file .env.local` to ensure consistent deployment targeting.
+- The OpenAI API key is required for the AI chat functionality in the terminal interface.
+- Copy `.env.example` to `.env.local` and fill in your actual API keys.
+
+#### AI Chat Terminal
+
+The dashboard includes an integrated AI chat terminal powered by OpenAI GPT-4o-mini:
+
+- **Access**: Click the terminal tab at the bottom of the interface
+- **Format**: Uses terminal-style `$ user:` and `$ system:` prompts
+- **Features**: Project-aware AI assistant with context about your EAC dashboard
+- **Usage**: Ask questions about Next.js, React, Convex, or project-specific functionality
+
+**Chat Commands:**
+
+```bash
+$ user: How do I create a new project?
+$ system: To create a new project, click the "New Project" button in the sidebar...
+
+$ user: What's the current project structure?
+$ system: The EAC dashboard follows a modular architecture with...
 ```
 
 ### MCP Integration
@@ -162,6 +224,37 @@ The project includes Model Context Protocol (MCP) server integration for AI deve
 - **Configuration**: `.vscode/mcp.json` (project-specific)
 - **GitHub Copilot**: Enhanced with Convex-specific instructions
 - **Usage**: Automatically provides database context to AI tools
+- **MCP Server**: Custom implementation in `mcp-server/` directory
+
+#### EAC MCP Server
+
+The EAC project includes a custom MCP server implementation that provides comprehensive project context to AI assistants:
+
+```bash
+# Install and run MCP server
+cd mcp-server
+pnpm install
+pnpm build
+pnpm start
+```
+
+**MCP Server Features:**
+
+- **Project Analysis**: Complete architectural overview
+- **Pattern Recognition**: Identifies coding patterns and conventions
+- **Component Discovery**: Maps React components and their relationships
+- **Store Analysis**: Analyzes Zustand state management patterns
+- **Convex Integration**: Database schema and function analysis
+- **Code Generation**: Scaffolding following EAC patterns (planned)
+
+**Usage with AI Tools:**
+
+- Provides context about project structure and patterns
+- Enables intelligent code suggestions following EAC conventions
+- Assists with architectural decisions and best practices
+- Supports real-time project analysis (planned)
+
+See [`mcp-server/README.md`](mcp-server/README.md) for detailed setup and usage instructions.
 
 ## Deployment
 
