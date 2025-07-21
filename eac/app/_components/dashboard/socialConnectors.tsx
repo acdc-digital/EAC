@@ -155,7 +155,7 @@ export function SocialConnectors() {
       const redirectUri = 'http://localhost:3000/api/auth/reddit/callback'; // Match the actual dev server port
       console.log('🔗 Starting OAuth with redirect URI:', redirectUri);
       
-      const scope = 'submit,identity';
+      const scope = 'submit,identity,read'; // Added 'read' scope for analytics data
       const state = connectionId; // Pass connection ID as state
       
       const authUrl = new URL('https://www.reddit.com/api/v1/authorize');

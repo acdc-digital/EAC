@@ -260,62 +260,14 @@ Created on: ${new Date().toISOString()}`;
   }
 };
 
-// Initial project files
-const initialProjectFiles: ProjectFile[] = [
-  {
-    id: 'project-overview',
-    name: 'Project-Overview.md',
-    icon: FileText,
-    type: 'markdown',
-    category: 'project',
-    content: `# Project Overview
+// Initial project files - empty by default, only created when needed
+const initialProjectFiles: ProjectFile[] = [];
 
-## Current Projects
-- Write your project details here...
-- Track progress and milestones
-- Document requirements and specifications
+// Initial financial files - empty by default, only created when needed  
+const initialFinancialFiles: ProjectFile[] = [];
 
-## Notes
-Start planning your projects here...`,
-    filePath: '/eac-projects/Project-Overview.md',
-    createdAt: new Date(),
-    modifiedAt: new Date(),
-  },
-];
-
-// Initial financial files
-const initialFinancialFiles: ProjectFile[] = [
-  {
-    id: 'financial-notes',
-    name: 'Financial-Notes.md',
-    icon: FileText,
-    type: 'markdown',
-    category: 'financial',
-    content: `# Financial Notes
-
-## Monthly Tracking
-- Track your revenue and expenses here
-- Monitor budget allocations
-- Document financial decisions
-
-## Budget Overview
-Start documenting your financial planning here...`,
-    filePath: '/financial-data/Financial-Notes.md',
-    createdAt: new Date(),
-    modifiedAt: new Date(),
-  },
-];
-
-// Initial project folders
-const initialProjectFolders: ProjectFolder[] = [
-  {
-    id: 'instructions-folder',
-    name: 'Instructions',
-    category: 'project',
-    createdAt: new Date(),
-    pinned: true,
-  },
-];
+// Initial project folders - only created when explicitly needed, not on storage clear
+const initialProjectFolders: ProjectFolder[] = [];
 
 export const useEditorStore = create<EditorState>()(
   devtools(
@@ -330,7 +282,7 @@ export const useEditorStore = create<EditorState>()(
         financialFolders: [],
         trashItems: [],
         showProjectsCategory: true,
-        showFinancialCategory: true,
+        showFinancialCategory: false, // Don't show by default - only show when user creates financial content
         isLoading: false,
         error: null,
 
@@ -538,7 +490,7 @@ export const useEditorStore = create<EditorState>()(
           }
         },
 
-        createFolder: (name: string, category: 'project' | 'financial') => {
+        createFolder: (name: string, category: 'project' | 'financial', convexId?: string) => {
           const { projectFolders, financialFolders } = get();
           
           // Check if folder with this name already exists to prevent duplicates
@@ -577,6 +529,7 @@ export const useEditorStore = create<EditorState>()(
             name,
             category,
             createdAt: new Date(),
+            convexId, // Store the Convex project ID
           };
 
           // Add to appropriate folder array and ensure category is visible
@@ -949,6 +902,10 @@ export const useEditorStore = create<EditorState>()(
           set({ projectFolders: newFolders });
         },
 
+        updateProjectFolders: (folders: ProjectFolder[]) => {
+          set({ projectFolders: folders });
+        },
+
         reorderFilesInFolder: (folderId: string, fromIndex: number, toIndex: number, category: 'project' | 'financial') => {
           const { projectFiles, financialFiles } = get();
           
@@ -1024,7 +981,7 @@ export const useEditorStore = create<EditorState>()(
             projectFolders: [],
             financialFolders: [],
             showProjectsCategory: true,
-            showFinancialCategory: true,
+            showFinancialCategory: false, // Don't auto-show financial category on reset
             isLoading: false,
             error: null,
           });
@@ -1100,8 +1057,9 @@ export const useEditorStore = create<EditorState>()(
           removeItem: (name) => localStorage.removeItem(name),
         },
         onRehydrateStorage: () => (state) => {
-          if (state) {
-            // Ensure the pinned Instructions folder is always present
+          if (state && state.projectFolders && state.projectFolders.length > 0) {
+            // Only ensure the Instructions folder if there are already some project folders
+            // This prevents auto-creation when storage is intentionally cleared
             const hasInstructionsFolder = state.projectFolders.some(folder =>
               folder.id === 'instructions-folder' && folder.pinned
             );
@@ -1119,6 +1077,7 @@ export const useEditorStore = create<EditorState>()(
               ];
             }
           }
+          // If projectFolders is empty, respect that (don't auto-create anything)
         },
       }
     ),

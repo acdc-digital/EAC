@@ -5,6 +5,8 @@
 
 import React, { useEffect, useRef, useState } from "react";
 
+import { Id } from "@/convex/_generated/dataModel";
+import { useFiles } from "@/lib/hooks/useFiles";
 import { useEditorStore } from "@/store";
 import { ProjectFile } from "@/store/editor/types";
 
@@ -17,9 +19,11 @@ interface FileCreationDropdownProps {
 
 export function FileCreationDropdown({ isOpen, onClose, preselectedFolder, buttonRef }: FileCreationDropdownProps) {
   const { createNewFile, projectFolders } = useEditorStore();
+  const { createFile } = useFiles(null); // We'll get the project ID from the selected folder
   const [newFileName, setNewFileName] = useState('');
   const [newFileType, setNewFileType] = useState<ProjectFile['type']>('markdown');
   const [newFileFolderId, setNewFileFolderId] = useState<string>('no-folder');
+  const [isCreatingFile, setIsCreatingFile] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -57,14 +61,101 @@ export function FileCreationDropdown({ isOpen, onClose, preselectedFolder, butto
     };
   }, [isOpen, onClose, buttonRef]);
 
-  const handleCreateFile = () => {
+  const handleCreateFile = async () => {
     if (newFileName.trim()) {
-      createNewFile(newFileName.trim(), newFileType, 'project', newFileFolderId === 'no-folder' ? undefined : newFileFolderId);
+          setIsCreatingFile(true);
+          
+          try {
+            // First create the file locally
+            createNewFile(newFileName.trim(), newFileType, 'project', newFileFolderId === 'no-folder' ? undefined : newFileFolderId);        // If we have a folder with a convexId, also create the file in Convex
+        const selectedFolder = projectFolders.find(f => f.id === newFileFolderId);
+        if (selectedFolder?.convexId) {
+          try {
+            const convexFile = await createFile({
+              name: newFileName.trim(),
+              type: getConvexFileType(newFileType),
+              projectId: selectedFolder.convexId as Id<"projects">,
+              content: getDefaultContentForType(newFileType),
+              extension: getFileExtension(newFileType),
+              size: 0,
+            });
+            
+            console.log(`✅ File "${newFileName.trim()}" created in database:`, convexFile);
+            
+            // TODO: Update the local file with the convexId
+            // This would require updating the editor store to support updating convexId after creation
+            
+          } catch (error) {
+            console.error(`❌ Error creating file "${newFileName.trim()}" in database:`, error);
+          }
+        } else {
+          console.log(`📁 File "${newFileName.trim()}" created locally only (no project Convex ID)`);
+        }
+        
+      } catch (error) {
+        console.error('Error creating file:', error);
+      } finally {
+        setIsCreatingFile(false);
+      }
+      
       // Reset form
       setNewFileName('');
       setNewFileType('markdown');
       setNewFileFolderId('no-folder');
       onClose();
+    }
+  };
+
+  // Helper function to map editor file types to Convex file types
+  const getConvexFileType = (editorType: ProjectFile['type']): "post" | "campaign" | "note" | "document" | "image" | "video" | "other" => {
+    switch (editorType) {
+      case 'facebook':
+      case 'reddit':
+      case 'instagram':
+      case 'x':
+        return 'post';
+      case 'markdown':
+        return 'note';
+      case 'excel':
+      case 'pdf':
+        return 'document';
+      case 'typescript':
+      case 'javascript':
+      case 'json':
+        return 'other';
+      default:
+        return 'other';
+    }
+  };
+
+  // Helper function to get default content
+  const getDefaultContentForType = (type: ProjectFile['type']): string => {
+    switch (type) {
+      case 'markdown':
+        return '# New Document\n\nStart writing here...';
+      case 'reddit':
+        return '# Reddit Post\n\n**Title:** \n\n**Subreddit:** \n\n**Content:**\n\n';
+      case 'facebook':
+        return '# Facebook Post\n\n**Content:**\n\n';
+      default:
+        return '';
+    }
+  };
+
+  // Helper function to get file extension
+  const getFileExtension = (type: ProjectFile['type']): string => {
+    switch (type) {
+      case 'typescript': return '.ts';
+      case 'javascript': return '.js';
+      case 'json': return '.json';
+      case 'excel': return '.xlsx';
+      case 'pdf': return '.pdf';
+      case 'markdown': return '.md';
+      case 'reddit': return '.reddit';
+      case 'facebook': return '.facebook';
+      case 'instagram': return '.instagram';
+      case 'x': return '.x';
+      default: return '.txt';
     }
   };
 

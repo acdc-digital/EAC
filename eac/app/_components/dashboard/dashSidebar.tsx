@@ -4,8 +4,13 @@
 "use client";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Id } from "@/convex/_generated/dataModel";
+import { useFiles } from "@/lib/hooks/useFiles";
 import { useProjects } from "@/lib/hooks/useProjects";
 import { useEditorStore, useSidebarStore } from "@/store";
+// TODO: Re-enable once files have Convex IDs
+// import { useMutation } from "convex/react";
+// import { api } from "@/convex/_generated/api";
 import {
   Braces,
   ChevronDown,
@@ -23,6 +28,7 @@ import {
   X
 } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
+import { DashDebug } from "./dashDebug";
 import { DashTrash } from "./dashTrash";
 
 import {
@@ -50,7 +56,11 @@ interface SidebarProps {
 export function DashSidebar({ activePanel }: SidebarProps) {
   const { openSections, toggleSection, collapseAllSections } = useSidebarStore();
   const { projectFiles, financialFiles, projectFolders, showProjectsCategory, showFinancialCategory, openTab, openSpecialTab, renameFile, renameFolder, createFolder, deleteProjectsCategory, deleteFinancialCategory, reorderProjectFolders, reorderFilesInFolder, closeAllTabs, moveToTrash } = useEditorStore();
-  const { createProject } = useProjects();
+  const { createProject, deleteProject } = useProjects();
+  const { deleteFile } = useFiles(null); // We'll get file-specific functions as needed
+  
+  // TODO: Re-enable once files have Convex IDs
+  // const deleteFile = useMutation(api.files.deleteFile);
   
   const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean; fileId: string; fileName: string }>({
     isOpen: false,
@@ -76,12 +86,29 @@ export function DashSidebar({ activePanel }: SidebarProps) {
     setDeleteConfirmation({ isOpen: true, fileId, fileName });
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (deleteConfirmation.fileId) {
       // Find the file to move to trash
       const file = [...projectFiles, ...financialFiles].find(f => f.id === deleteConfirmation.fileId);
       if (file) {
+        // First move to local trash
         moveToTrash(file, 'file');
+        console.log(`📁 File "${file.name}" moved to local trash`);
+        
+        // If file has a convex ID, also move to database trash
+        if (file.convexId) {
+          try {
+            await deleteFile({
+              id: file.convexId as Id<"files">,
+              deletedBy: 'user',
+            });
+            console.log(`✅ File "${file.name}" moved to database trash`);
+          } catch (error) {
+            console.error(`❌ Error moving file "${file.name}" to database trash:`, error);
+          }
+        } else {
+          console.log(`📁 File "${file.name}" moved to local trash only (no Convex ID)`);
+        }
       }
       setDeleteConfirmation({ isOpen: false, fileId: '', fileName: '' });
     }
@@ -153,11 +180,8 @@ export function DashSidebar({ activePanel }: SidebarProps) {
     if (newFolderName.trim()) {
       setIsCreatingProject(true);
       
-      // Create folder in the local editor store
-      createFolder(newFolderName.trim(), 'project');
-      
-      // Also create a project in the Convex database
       try {
+        // First create the project in the Convex database
         const newProject = await createProject({
           name: newFolderName.trim(),
           status: 'active',
@@ -166,10 +190,14 @@ export function DashSidebar({ activePanel }: SidebarProps) {
         });
         
         console.log('Project created in database:', newProject);
+        
+        // Then create folder in the local editor store with the Convex ID
+        createFolder(newFolderName.trim(), 'project', newProject?._id);
+        
       } catch (error) {
         console.error('Failed to create project in database:', error);
-        // The folder was still created locally, so we don't prevent that
-        // But you could show an error toast here if desired
+        // Create folder locally even if database creation fails
+        createFolder(newFolderName.trim(), 'project');
       } finally {
         setIsCreatingProject(false);
       }
@@ -297,8 +325,8 @@ export function DashSidebar({ activePanel }: SidebarProps) {
     
     const sections = [];
     
-    // Add System section with pinned folders
-    if (showProjectsCategory && pinnedFolders.length > 0) {
+    // Always add System section header when projects category is visible
+    if (showProjectsCategory) {
       sections.push({
         id: 'system-header',
         name: 'System',
@@ -306,28 +334,31 @@ export function DashSidebar({ activePanel }: SidebarProps) {
         isHeader: true,
       });
       
-      sections.push(...pinnedFolders.map(folder => ({
-        id: folder.id,
-        name: folder.name,
-        icon: Folder,
-        type: 'folder' as const,
-        isFolder: true,
-        isPinned: true,
-        children: [
-          // Show files that belong to this folder
-          ...projectFiles.filter(file => file.folderId === folder.id).map(file => ({
-            id: file.id,
-            name: file.name,
-            icon: file.icon,
-            type: file.type,
-            file: file,
-          }))
-        ]
-      })));
+      // Add pinned folders if they exist
+      if (pinnedFolders.length > 0) {
+        sections.push(...pinnedFolders.map(folder => ({
+          id: folder.id,
+          name: folder.name,
+          icon: Folder,
+          type: 'folder' as const,
+          isFolder: true,
+          isPinned: true,
+          children: [
+            // Show files that belong to this folder
+            ...projectFiles.filter(file => file.folderId === folder.id).map(file => ({
+              id: file.id,
+              name: file.name,
+              icon: file.icon,
+              type: file.type,
+              file: file,
+            }))
+          ]
+        })));
+      }
     }
     
-    // Add Projects section with regular folders
-    if (showProjectsCategory && regularFolders.length > 0) {
+    // Always add Projects section header when projects category is visible
+    if (showProjectsCategory) {
       sections.push({
         id: 'projects-header',
         name: 'Projects',
@@ -335,24 +366,27 @@ export function DashSidebar({ activePanel }: SidebarProps) {
         isHeader: true,
       });
       
-      sections.push(...regularFolders.map(folder => ({
-        id: folder.id,
-        name: folder.name,
-        icon: Folder,
-        type: 'folder' as const,
-        isFolder: true,
-        isPinned: false,
-        children: [
-          // Show files that belong to this folder
-          ...projectFiles.filter(file => file.folderId === folder.id).map(file => ({
-            id: file.id,
-            name: file.name,
-            icon: file.icon,
-            type: file.type,
-            file: file,
-          }))
-        ]
-      })));
+      // Add regular folders if they exist
+      if (regularFolders.length > 0) {
+        sections.push(...regularFolders.map(folder => ({
+          id: folder.id,
+          name: folder.name,
+          icon: Folder,
+          type: 'folder' as const,
+          isFolder: true,
+          isPinned: false,
+          children: [
+            // Show files that belong to this folder
+            ...projectFiles.filter(file => file.folderId === folder.id).map(file => ({
+              id: file.id,
+              name: file.name,
+              icon: file.icon,
+              type: file.type,
+              file: file,
+            }))
+          ]
+        })));
+      }
     }
     
     // Add loose project files
@@ -489,6 +523,8 @@ export function DashSidebar({ activePanel }: SidebarProps) {
         );
       case 'trash':
         return <DashTrash />;
+      case 'debug':
+        return <DashDebug />;
       default:
         return (
           <div className="p-2">
@@ -522,36 +558,6 @@ export function DashSidebar({ activePanel }: SidebarProps) {
               </div>
             </div>
             
-            {/* Show new folder input at the top level when creating */}
-            {isCreatingFolder && (
-              <div className="flex items-center w-full hover:bg-[#2d2d2d] px-1 py-0.5 rounded mb-1">
-                <ChevronRight className="w-3 h-3 mr-1 text-[#858585]" />
-                <Folder className="w-4 h-4 mr-1 text-[#c09553]" />
-                <input
-                  type="text"
-                  value={newFolderName}
-                  onChange={(e) => setNewFolderName(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  onBlur={() => {
-                    // Only cancel if we're not in the middle of submitting
-                    setTimeout(() => {
-                      if (isCreatingFolder && !isCreatingProject) {
-                        handleFolderNameCancel();
-                      }
-                    }, 100);
-                  }}
-                  disabled={isCreatingProject}
-                  className={`flex-1 bg-transparent border-none outline-none text-xs text-[#cccccc] placeholder-[#858585] ${
-                    isCreatingProject ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                  placeholder={isCreatingProject ? "Creating project..." : "Project name..."}
-                  title="Enter project name"
-                  aria-label="Enter project name"
-                  autoFocus
-                />
-              </div>
-            )}
-            
             <div className="pt-2">
               {fileStructure.map((section, sectionIndex) => {
               // Check if this is a header section
@@ -567,6 +573,35 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                     <div className="text-[10px] uppercase text-[#858585] px-2 py-1 font-medium tracking-wide">
                       {section.name}
                     </div>
+                    {/* Show new folder input right after Projects header */}
+                    {section.name === 'Projects' && isCreatingFolder && (
+                      <div className="flex items-center w-full hover:bg-[#2d2d2d] px-1 py-0.5 rounded mt-1">
+                        <ChevronRight className="w-3 h-3 mr-1 text-[#858585]" />
+                        <Folder className="w-4 h-4 mr-1 text-[#c09553]" />
+                        <input
+                          type="text"
+                          value={newFolderName}
+                          onChange={(e) => setNewFolderName(e.target.value)}
+                          onKeyDown={handleKeyDown}
+                          onBlur={() => {
+                            // Only cancel if we're not in the middle of submitting
+                            setTimeout(() => {
+                              if (isCreatingFolder && !isCreatingProject) {
+                                handleFolderNameCancel();
+                              }
+                            }, 100);
+                          }}
+                          disabled={isCreatingProject}
+                          className={`flex-1 bg-transparent border-none outline-none text-xs text-[#cccccc] placeholder-[#858585] ${
+                            isCreatingProject ? 'opacity-50 cursor-not-allowed' : ''
+                          }`}
+                          placeholder={isCreatingProject ? "Creating project..." : "Project name..."}
+                          title="Enter project name"
+                          aria-label="Enter project name"
+                          autoFocus
+                        />
+                      </div>
+                    )}
                   </div>
                 );
               }
@@ -663,7 +698,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                       </button>
                       {!isPinnedFolder && (
                         <button
-                          onClick={(e) => {
+                          onClick={async (e) => {
                             e.stopPropagation();
                             if (section.id === 'projects') {
                               // Delete the entire projects category
@@ -675,7 +710,20 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                               // Move user folder to trash (only if not pinned)
                               const folder = [...projectFolders].find(f => f.id === section.id);
                               if (folder && !folder.pinned) {
+                                // First move to local trash
                                 moveToTrash(folder, 'folder');
+                                
+                                // If folder has a convex ID, also move to database trash
+                                if (folder.convexId) {
+                                  try {
+                                    await deleteProject(folder.convexId as Id<"projects">, 'user');
+                                    console.log(`✅ Project "${folder.name}" moved to database trash`);
+                                  } catch (error) {
+                                    console.error(`❌ Error moving project "${folder.name}" to database trash:`, error);
+                                  }
+                                } else {
+                                  console.log(`📁 Project "${folder.name}" moved to local trash only (no Convex ID)`);
+                                }
                               }
                             }
                           }}

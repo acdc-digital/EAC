@@ -183,8 +183,88 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_user", ["userId", "createdAt"])
-    .index("by_connection", ["connectionId", "createdAt"])
     .index("by_status", ["status", "publishAt"])
     .index("by_subreddit", ["subreddit", "createdAt"])
     .index("by_file", ["fileId"]),
+
+  // Deleted projects - soft delete with 30-day retention
+  deletedProjects: defineTable({
+    // Original project data
+    originalId: v.id("projects"), // Reference to original project ID before deletion
+    name: v.string(),
+    description: v.optional(v.string()),
+    status: v.union(v.literal("active"), v.literal("completed"), v.literal("on-hold")),
+    budget: v.optional(v.number()),
+    projectNo: v.optional(v.string()),
+    userId: v.optional(v.string()),
+    originalCreatedAt: v.number(), // Original creation date
+    originalUpdatedAt: v.number(), // Original update date
+    
+    // Deletion metadata
+    deletedAt: v.number(), // When it was moved to trash
+    deletedBy: v.optional(v.string()), // Who deleted it
+    
+    // Associated files data (snapshot at deletion time)
+    associatedFiles: v.optional(v.array(v.object({
+      fileId: v.id("files"),
+      name: v.string(),
+      type: v.string(),
+      size: v.optional(v.number()),
+    }))),
+  })
+    .index("by_deleted_at", ["deletedAt"])
+    .index("by_user", ["userId", "deletedAt"])
+    .index("by_original_id", ["originalId"]),
+
+  // Deleted files - soft delete with 30-day retention
+  deletedFiles: defineTable({
+    // Original file data
+    originalId: v.id("files"), // Reference to original file ID before deletion
+    name: v.string(),
+    type: v.union(
+      v.literal("post"), 
+      v.literal("campaign"), 
+      v.literal("note"), 
+      v.literal("document"), 
+      v.literal("image"), 
+      v.literal("video"),
+      v.literal("other")
+    ),
+    extension: v.optional(v.string()),
+    content: v.optional(v.string()),
+    size: v.optional(v.number()),
+    projectId: v.id("projects"), // Original project reference
+    userId: v.optional(v.string()),
+    path: v.optional(v.string()),
+    mimeType: v.optional(v.string()),
+    originalCreatedAt: v.number(),
+    originalUpdatedAt: v.number(),
+    originalLastModified: v.number(),
+    
+    // Social media fields
+    platform: v.optional(v.union(
+      v.literal("facebook"),
+      v.literal("instagram"), 
+      v.literal("twitter"),
+      v.literal("linkedin"),
+      v.literal("reddit"),
+      v.literal("youtube")
+    )),
+    postStatus: v.optional(v.union(
+      v.literal("draft"),
+      v.literal("scheduled"),
+      v.literal("published"),
+      v.literal("archived")
+    )),
+    scheduledAt: v.optional(v.number()),
+    
+    // Deletion metadata
+    deletedAt: v.number(), // When it was moved to trash
+    deletedBy: v.optional(v.string()), // Who deleted it
+    parentProjectName: v.optional(v.string()), // Name of parent project for reference
+  })
+    .index("by_deleted_at", ["deletedAt"])
+    .index("by_user", ["userId", "deletedAt"])
+    .index("by_project", ["projectId", "deletedAt"])
+    .index("by_original_id", ["originalId"]),
 });

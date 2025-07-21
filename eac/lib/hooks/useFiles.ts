@@ -36,7 +36,7 @@ export function useFiles(projectId: Id<"projects"> | null, includeDeleted = fals
   
   const createFile = useMutation(api.files.createFile);
   const updateFile = useMutation(api.files.updateFile);
-  const deleteFile = useMutation(api.files.deleteFile);
+  const deleteFile = useMutation(api.trash.deleteFile);
   const restoreFile = useMutation(api.files.restoreFile);
 
   const fileStats = useQuery(

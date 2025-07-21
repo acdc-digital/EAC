@@ -164,14 +164,81 @@ export const updateProject = mutation({
   },
 });
 
-// Delete a project
+// Delete a project (soft delete - moves to trash)
 export const deleteProject = mutation({
   args: {
     id: v.id("projects"),
+    deletedBy: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Get the project data before deletion
+    const project = await ctx.db.get(args.id);
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    // Get associated files for this project
+    const projectFiles = await ctx.db
+      .query("files")
+      .filter((q) => q.eq(q.field("projectId"), args.id))
+      .collect();
+
+    // Move to trash (soft delete)
+    const deletedProjectId = await ctx.db.insert("deletedProjects", {
+      originalId: args.id,
+      name: project.name,
+      description: project.description,
+      status: project.status,
+      budget: project.budget,
+      projectNo: project.projectNo,
+      userId: project.userId,
+      originalCreatedAt: project.createdAt,
+      originalUpdatedAt: project.updatedAt,
+      deletedAt: Date.now(),
+      deletedBy: args.deletedBy,
+      associatedFiles: projectFiles.map(file => ({
+        fileId: file._id,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+      })),
+    });
+
+    // Delete the original project
     await ctx.db.delete(args.id);
-    return args.id;
+
+    // Delete associated files and move them to trash as well
+    for (const file of projectFiles) {
+      await ctx.db.insert("deletedFiles", {
+        originalId: file._id,
+        name: file.name,
+        type: file.type,
+        extension: file.extension,
+        content: file.content,
+        size: file.size,
+        projectId: args.id,
+        userId: file.userId,
+        path: file.path,
+        mimeType: file.mimeType,
+        originalCreatedAt: file.createdAt,
+        originalUpdatedAt: file.updatedAt,
+        originalLastModified: file.lastModified || file.updatedAt,
+        platform: file.platform,
+        postStatus: file.postStatus,
+        scheduledAt: file.scheduledAt,
+        deletedAt: Date.now(),
+        deletedBy: args.deletedBy,
+        parentProjectName: project.name,
+      });
+      
+      await ctx.db.delete(file._id);
+    }
+
+    return {
+      deletedProjectId,
+      deletedFilesCount: projectFiles.length,
+      message: `Project "${project.name}" moved to trash with ${projectFiles.length} associated files`,
+    };
   },
 });
 

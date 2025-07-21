@@ -2,8 +2,9 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAddScheduledPost, useCalendarStore, useGetPostsByDate, useLoadScheduledPosts, useScheduledPosts, useSetSelectedDate } from "@/store";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface CalendarProps {
   className?: string;
@@ -28,11 +29,25 @@ const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function CalendarPage({ className }: CalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  
+  // Calendar store integration using individual hooks for stable references
+  const scheduledPosts = useScheduledPosts();
+  const selectedDate = useCalendarStore(state => state.selectedDate);
+  const loadScheduledPosts = useLoadScheduledPosts();
+  const addScheduledPost = useAddScheduledPost();
+  const setSelectedDate = useSetSelectedDate();
+  const getPostsByDate = useGetPostsByDate();
 
   const daysInMonth = getDaysInMonth(currentDate);
   const firstDay = getFirstDayOfMonth(currentDate);
   const today = new Date();
+
+  // Load scheduled posts when component mounts
+  useEffect(() => {
+    // For now, using a mock userId - this should come from your auth system
+    loadScheduledPosts('current-user');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
 
   const navigateMonth = (direction: 'prev' | 'next') => {
     setCurrentDate(prev => {
@@ -63,6 +78,51 @@ export default function CalendarPage({ className }: CalendarProps) {
     setSelectedDate(newDate);
   };
 
+  // Get posts for a specific day
+  const getPostsForDay = (day: number) => {
+    const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+    return getPostsByDate(date);
+  };
+
+  // Demo function to create a sample scheduled post
+  const handleSchedulePost = async () => {
+    try {
+      const samplePost = {
+        userId: 'current-user',
+        platform: 'reddit' as const,
+        title: 'Sample Scheduled Post',
+        content: 'This is a sample post created from the calendar.',
+        scheduledAt: Date.now() + (24 * 60 * 60 * 1000), // Tomorrow
+        status: 'scheduled' as const,
+        postId: `post_${Date.now()}`,
+        fileId: `file_${Date.now()}`,
+      };
+      
+      await addScheduledPost(samplePost);
+      alert('Sample post scheduled successfully! Check the calendar.');
+    } catch (error) {
+      console.error('Failed to schedule sample post:', error);
+      alert('Failed to schedule post. Please try again.');
+    }
+  };
+
+  // Get platform color for post indicators
+  const getPlatformColor = (platform: string) => {
+    switch (platform) {
+      case 'facebook':
+        return 'bg-blue-500';
+      case 'instagram':
+        return 'bg-pink-500';
+      case 'twitter':
+      case 'x':
+        return 'bg-blue-400';
+      case 'reddit':
+        return 'bg-orange-500';
+      default:
+        return 'bg-gray-500';
+    }
+  };
+
   // Generate calendar days array
   const calendarDays = [];
   
@@ -91,6 +151,7 @@ export default function CalendarPage({ className }: CalendarProps) {
             <Button
               size="sm"
               className="bg-[#007acc] hover:bg-[#005a9e] text-white"
+              onClick={() => handleSchedulePost()}
             >
               <Plus className="w-4 h-4 mr-2" />
               Schedule Post
@@ -164,21 +225,15 @@ export default function CalendarPage({ className }: CalendarProps) {
                         {day}
                       </span>
                       
-                      {/* Placeholder for scheduled posts indicators */}
+                      {/* Dynamic scheduled posts indicators */}
                       <div className="flex-1 flex flex-col gap-1">
-                        {/* Example scheduled posts - these will come from your data later */}
-                        {day === 15 && (
-                          <div className="w-full h-1.5 bg-blue-500 rounded-sm opacity-60" title="Facebook post scheduled" />
-                        )}
-                        {day === 20 && (
-                          <>
-                            <div className="w-full h-1.5 bg-pink-500 rounded-sm opacity-60" title="Instagram post scheduled" />
-                            <div className="w-full h-1.5 bg-blue-400 rounded-sm opacity-60" title="Twitter post scheduled" />
-                          </>
-                        )}
-                        {day === 25 && (
-                          <div className="w-full h-1.5 bg-orange-500 rounded-sm opacity-60" title="Reddit post scheduled" />
-                        )}
+                        {getPostsForDay(day).map((post) => (
+                          <div 
+                            key={post._id}
+                            className={`w-full h-1.5 rounded-sm opacity-60 ${getPlatformColor(post.platform)}`}
+                            title={`${post.platform.charAt(0).toUpperCase() + post.platform.slice(1)} post: ${post.title} (${new Date(post.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})`}
+                          />
+                        ))}
                       </div>
                     </div>
                   )}
@@ -203,17 +258,88 @@ export default function CalendarPage({ className }: CalendarProps) {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-[#858585] text-center py-8">
-                <CalendarIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>No scheduled posts for this date</p>
-                <Button
-                  size="sm"
-                  className="mt-4 bg-[#007acc] hover:bg-[#005a9e] text-white"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Schedule Post
-                </Button>
-              </div>
+              {(() => {
+                const dayPosts = getPostsByDate(selectedDate);
+                if (dayPosts.length === 0) {
+                  return (
+                    <div className="text-[#858585] text-center py-8">
+                      <CalendarIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>No scheduled posts for this date</p>
+                      <Button
+                        size="sm"
+                        className="mt-4 bg-[#007acc] hover:bg-[#005a9e] text-white"
+                        onClick={() => handleSchedulePost()}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Schedule Post
+                      </Button>
+                    </div>
+                  );
+                }
+                
+                return (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-[#858585]">
+                        {dayPosts.length} post{dayPosts.length !== 1 ? 's' : ''} scheduled
+                      </p>
+                      <Button
+                        size="sm"
+                        className="bg-[#007acc] hover:bg-[#005a9e] text-white"
+                        onClick={() => handleSchedulePost()}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Schedule Post
+                      </Button>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {dayPosts.map((post) => (
+                        <div 
+                          key={post._id}
+                          className="flex items-center gap-3 p-3 bg-[#1e1e1e] rounded-lg border border-[#454545]"
+                        >
+                          <div className={`w-3 h-3 rounded-full ${getPlatformColor(post.platform).replace('bg-', 'bg-')}`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-medium text-[#cccccc] capitalize">
+                                {post.platform}
+                              </span>
+                              <span className="text-xs text-[#858585]">
+                                {new Date(post.scheduledAt).toLocaleTimeString([], { 
+                                  hour: '2-digit', 
+                                  minute: '2-digit' 
+                                })}
+                              </span>
+                            </div>
+                            <p className="text-sm text-[#cccccc] truncate">
+                              {post.title}
+                            </p>
+                            {post.content && (
+                              <p className="text-xs text-[#858585] mt-1 line-clamp-2">
+                                {post.content}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className={`px-2 py-1 text-xs rounded ${
+                              post.status === 'scheduled' 
+                                ? 'bg-blue-900/30 text-blue-400 border border-blue-500/20'
+                                : post.status === 'published'
+                                ? 'bg-green-900/30 text-green-400 border border-green-500/20'
+                                : post.status === 'failed'
+                                ? 'bg-red-900/30 text-red-400 border border-red-500/20'
+                                : 'bg-gray-900/30 text-gray-400 border border-gray-500/20'
+                            }`}>
+                              {post.status.charAt(0).toUpperCase() + post.status.slice(1)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         )}

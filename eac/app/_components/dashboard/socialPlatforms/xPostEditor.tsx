@@ -11,8 +11,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar, Clock, Globe, Heart, ImageIcon, MessageCircle, Repeat2, Users } from "lucide-react";
-import React, { useEffect, useRef, useState } from 'react';
+import { useEditorStore } from "@/store";
+import {
+    Calendar,
+    Clock,
+    Users
+} from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
 
 interface XPostEditorProps {
   fileName: string;
@@ -31,6 +36,9 @@ export function XPostEditor({ fileName, onChange }: XPostEditorProps) {
   const [pollOptions, setPollOptions] = useState(['', '']);
   const [pollDuration, setPollDuration] = useState('1440'); // 24 hours in minutes
   const [hasPoll, setHasPoll] = useState(false);
+
+  // Get editor store functions
+  const { updateFileStatus, openTabs } = useEditorStore();
 
   // Use ref to store the onChange callback to avoid infinite loops
   const onChangeRef = useRef(onChange);
@@ -85,6 +93,69 @@ export function XPostEditor({ fileName, onChange }: XPostEditorProps) {
   const removeThreadTweet = (index: number) => {
     if (threadTweets.length > 1) {
       setThreadTweets(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  // Handle scheduling the post
+  const handleSchedulePost = () => {
+    if (!scheduledDate || !scheduledTime) {
+      console.error('Schedule date and time are required');
+      return;
+    }
+
+    // Find the current file tab to get the tab id
+    const currentTab = openTabs.find(tab => tab.name === fileName || tab.filePath.includes(fileName));
+    if (currentTab) {
+      // Update file status to scheduled - use the tab id as the file id
+      updateFileStatus(currentTab.id, 'scheduled');
+      
+      // Log scheduling action (in a real app, this would make an API call)
+      const scheduledDateTime = new Date(`${scheduledDate}T${scheduledTime}`);
+      console.log('🚀 Post scheduled successfully!', {
+        tabId: currentTab.id,
+        fileName,
+        content: isThread ? threadTweets.join('\\n\\n') : postContent,
+        scheduledFor: scheduledDateTime,
+        platform: 'x',
+        mediaCount: mediaFiles.length,
+        hasPoll
+      });
+      
+      // In a real implementation, you would also save this to your backend/API
+      // For now, we'll just update the file content with scheduling info
+      const schedulingInfo = `\\n\\n// SCHEDULED FOR: ${scheduledDateTime.toLocaleString()}\\n// STATUS: SCHEDULED`;
+      if (onChangeRef.current) {
+        const updatedContent = `${JSON.stringify({
+          fileName,
+          platform: 'x',
+          content: {
+            text: postContent,
+            replySettings,
+            scheduledDate,
+            scheduledTime,
+            isThread,
+            threadTweets: isThread ? threadTweets : [postContent],
+            mediaCount: mediaFiles.length,
+            hasPoll,
+            pollOptions: hasPoll ? pollOptions.filter(Boolean) : [],
+            pollDuration: hasPoll ? parseInt(pollDuration) : null
+          },
+          timestamp: new Date().toISOString(),
+          status: 'scheduled',
+          scheduledFor: scheduledDateTime.toISOString()
+        }, null, 2)}${schedulingInfo}`;
+        
+        onChangeRef.current(updatedContent);
+      }
+    }
+  };
+
+  // Handle saving as draft
+  const handleSaveDraft = () => {
+    const currentTab = openTabs.find(tab => tab.name === fileName || tab.filePath.includes(fileName));
+    if (currentTab) {
+      updateFileStatus(currentTab.id, 'draft');
+      console.log('💾 Post saved as draft');
     }
   };
 
@@ -437,10 +508,17 @@ export function XPostEditor({ fileName, onChange }: XPostEditorProps) {
 
         {/* Action Buttons */}
         <div className="flex gap-3 pt-4 border-t border-[#454545]">
-          <Button className="bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white flex-1">
+          <Button 
+            className="bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white flex-1"
+            onClick={scheduledDate && scheduledTime ? handleSchedulePost : () => console.log('Post immediately clicked')}
+          >
             {scheduledDate && scheduledTime ? 'Schedule Tweet' : isThread ? 'Post Thread' : 'Post Tweet'}
           </Button>
-          <Button variant="outline" className="border-[#454545] text-[#cccccc] hover:bg-[#2d2d2d]">
+          <Button 
+            variant="outline" 
+            className="border-[#454545] text-[#cccccc] hover:bg-[#2d2d2d]"
+            onClick={handleSaveDraft}
+          >
             Save Draft
           </Button>
           <Button variant="outline" className="border-[#454545] text-[#cccccc] hover:bg-[#2d2d2d]">

@@ -3,9 +3,9 @@
 
 "use client";
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X, Settings, User, Bell } from "lucide-react";
+import { Bell, Menu, Settings, User, X } from "lucide-react";
+import { useState } from "react";
 
 export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);

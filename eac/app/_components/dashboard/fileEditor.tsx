@@ -4,10 +4,8 @@
 "use client";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { api } from "@/convex/_generated/api";
 import { useEditorStore } from "@/store";
 import { ProjectFile } from "@/store/editor/types";
-import { useQuery } from "convex/react";
 import { AtSign, Camera, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, FileText, Folder, Hash, MessageSquare } from "lucide-react";
 import { useState } from 'react';
 
@@ -20,20 +18,6 @@ export function FileEditor() {
     openTab,
     updateFileStatus
   } = useEditorStore();
-
-  // Get Reddit posts for status checking
-  const redditPosts = useQuery(api.reddit.getAllRedditPosts);
-
-  // Helper function to get Reddit post status for a file
-  const getFileRedditStatus = (fileName: string) => {
-    if (!redditPosts) return null;
-    
-    const postWithFile = redditPosts.find(postData => 
-      postData.file && postData.file.name === fileName
-    );
-    
-    return postWithFile?.status || null;
-  };
 
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
 
@@ -61,32 +45,7 @@ export function FileEditor() {
       return <div className="w-20"></div>; // Empty space for non-social files
     }
     
-    // For Reddit files, check actual Reddit post status
-    if (file.type === 'reddit') {
-      const redditStatus = getFileRedditStatus(file.name);
-      if (redditStatus === 'published') {
-        return (
-          <span className="px-2 py-0.5 text-xs rounded-full bg-[#10b981] text-white">
-            Submitted
-          </span>
-        );
-      }
-      if (redditStatus === 'scheduled') {
-        return (
-          <span className="px-2 py-0.5 text-xs rounded-full bg-[#f59e0b] text-white">
-            Scheduled
-          </span>
-        );
-      }
-      // If no Reddit post exists or it's not published/scheduled, show as Draft
-      return (
-        <span className="px-2 py-0.5 text-xs rounded-full bg-[#4a4a4a] text-[#cccccc]">
-          Draft
-        </span>
-      );
-    }
-    
-    // For other social media files, use the local file status
+    // Use the local file status for all social media files (including Reddit)
     const status = file.status || 'draft';
     const statusConfig = {
       draft: { label: 'Draft', color: 'bg-[#4a4a4a] text-[#cccccc]', next: 'scheduled' as const },
@@ -154,7 +113,7 @@ export function FileEditor() {
     setExpandedFolders(newExpanded);
   };
 
-  const renderFiles = (files: typeof filteredProjectFiles, folders: typeof projectFolders) => {
+  const renderFiles = (files: typeof filteredProjectFiles, folders: typeof projectFolders, keyPrefix: string) => {
     const filesWithoutFolder = files.filter(file => !file.folderId);
     const filesInFolders = folders.map(folder => ({
       folder,
@@ -177,7 +136,7 @@ export function FileEditor() {
           const IconComponent = getFileIcon(file.type);
           return (
             <div
-              key={file.id}
+              key={`${keyPrefix}-file-${file.id}`}
               onClick={() => openTab(file)}
               className="flex items-center gap-2 px-3 py-2 hover:bg-[#2d2d2d] cursor-pointer text-[#cccccc] text-sm group border-b border-[#2d2d2d]/30"
             >
@@ -188,7 +147,7 @@ export function FileEditor() {
               <div className="w-24 text-center text-xs text-[#858585]">
                 {getFileTypeLabel(file.type)}
               </div>
-              <div className="w-20 text-center">
+              <div className="w-20 flex justify-end">
                 {getStatusBadge(file)}
               </div>
             </div>
@@ -196,10 +155,10 @@ export function FileEditor() {
         })}
 
         {/* Files in folders */}
-        {filesInFolders.map(({ folder, files }) => {
+        {filesInFolders.map(({ folder, files }, folderIndex) => {
           const isExpanded = expandedFolders.has(folder.id);
           return (
-            <div key={folder.id}>
+            <div key={`${keyPrefix}-folder-${folder.id}-${folderIndex}`}>
               <div
                 onClick={() => toggleFolder(folder.id)}
                 className="flex items-center gap-1 px-3 py-2 hover:bg-[#2d2d2d] cursor-pointer text-[#cccccc] text-sm border-b border-[#2d2d2d]/30"
@@ -221,11 +180,11 @@ export function FileEditor() {
               
               {isExpanded && (
                 <div className="bg-[#1a1a1a]">
-                  {files.map(file => {
+                  {files.map((file, fileIndex) => {
                     const IconComponent = getFileIcon(file.type);
                     return (
                       <div
-                        key={file.id}
+                        key={`${keyPrefix}-folder-${folderIndex}-file-${file.id}-${fileIndex}`}
                         onClick={() => openTab(file)}
                         className="flex items-center gap-2 px-6 py-2 hover:bg-[#2d2d2d] cursor-pointer text-[#cccccc] text-sm group border-b border-[#2d2d2d]/20"
                       >
@@ -236,7 +195,7 @@ export function FileEditor() {
                         <div className="w-24 text-center text-xs text-[#858585]">
                           {getFileTypeLabel(file.type)}
                         </div>
-                        <div className="w-20 text-center">
+                        <div className="w-20 flex justify-end">
                           {getStatusBadge(file)}
                         </div>
                       </div>
@@ -280,7 +239,7 @@ export function FileEditor() {
                   <ChevronsUp className="w-3 h-3" />
                 </button>
               </div>
-              {renderFiles(filteredProjectFiles, projectFolders)}
+              {renderFiles(filteredProjectFiles, projectFolders, "project")}
             </div>
           )}
 
@@ -304,7 +263,7 @@ export function FileEditor() {
                   <ChevronsUp className="w-3 h-3" />
                 </button>
               </div>
-              {renderFiles(filteredFinancialFiles, financialFolders)}
+              {renderFiles(filteredFinancialFiles, financialFolders, "financial")}
             </div>
           )}
 

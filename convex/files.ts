@@ -198,26 +198,59 @@ export const updateFile = mutation({
   },
 });
 
-// Soft delete a file
+// Delete a file (soft delete - moves to trash)
 export const deleteFile = mutation({
   args: { 
     fileId: v.id("files"),
+    deletedBy: v.optional(v.string()),
     permanent: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     if (args.permanent) {
-      // Permanent deletion
+      // Permanent deletion (skip trash)
       await ctx.db.delete(args.fileId);
       return { success: true, message: "File permanently deleted" };
     } else {
-      // Soft delete
-      const now = Date.now();
-      await ctx.db.patch(args.fileId, {
-        isDeleted: true,
-        updatedAt: now,
-        lastModified: now,
+      // Soft delete - use our new trash system
+      const file = await ctx.db.get(args.fileId);
+      if (!file) {
+        throw new Error("File not found");
+      }
+
+      // Get project name for reference
+      const project = file.projectId ? await ctx.db.get(file.projectId) : null;
+
+      // Move to trash using the correct schema structure
+      const deletedFileId = await ctx.db.insert("deletedFiles", {
+        originalId: args.fileId,
+        name: file.name,
+        type: file.type,
+        extension: file.extension,
+        content: file.content,
+        size: file.size,
+        projectId: file.projectId!,
+        userId: file.userId,
+        path: file.path,
+        mimeType: file.mimeType,
+        originalCreatedAt: file.createdAt,
+        originalUpdatedAt: file.updatedAt,
+        originalLastModified: file.lastModified || file.updatedAt,
+        platform: file.platform,
+        postStatus: file.postStatus,
+        scheduledAt: file.scheduledAt,
+        deletedAt: Date.now(),
+        deletedBy: args.deletedBy,
+        parentProjectName: project?.name,
       });
-      return { success: true, message: "File moved to trash" };
+
+      // Delete the original file
+      await ctx.db.delete(args.fileId);
+
+      return {
+        success: true,
+        message: `File "${file.name}" moved to trash`,
+        deletedFileId
+      };
     }
   },
 });

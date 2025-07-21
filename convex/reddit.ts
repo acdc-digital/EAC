@@ -76,16 +76,24 @@ export const getSocialConnections = query({
     )),
   },
   handler: async (ctx, args) => {
-    let query = ctx.db
-      .query("socialConnections")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
-      .filter((q) => q.eq(q.field("isActive"), true));
-    
     if (args.platform) {
-      query = query.filter((q) => q.eq(q.field("platform"), args.platform));
+      // Use the compound index when platform is specified
+      return await ctx.db
+        .query("socialConnections")
+        .withIndex("by_user", (q) =>
+          q.eq("userId", args.userId).eq("platform", args.platform!)
+        )
+        .filter((q) => q.eq(q.field("isActive"), true))
+        .collect();
+    } else {
+      // Use the by_active index when no platform is specified
+      return await ctx.db
+        .query("socialConnections")
+        .withIndex("by_active", (q) =>
+          q.eq("isActive", true).eq("userId", args.userId)
+        )
+        .collect();
     }
-    
-    return await query.collect();
   },
 });
 

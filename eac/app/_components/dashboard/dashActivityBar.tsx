@@ -6,12 +6,13 @@
 import { Button } from "@/components/ui/button";
 import { useEditorStore } from "@/store/editor";
 import {
-  Calendar,
-  Edit3,
-  FileText,
-  Settings,
-  Trash2,
-  Users
+    Bug,
+    Calendar,
+    Edit3,
+    FileText,
+    Settings,
+    Trash2,
+    Users
 } from "lucide-react";
 
 interface ActivityBarProps {
@@ -28,20 +29,24 @@ export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps
     { id: "file-editor", icon: Edit3, label: "File Editor" },
     { id: "calendar", icon: Calendar, label: "Content Calendar" },
     { id: "trash", icon: Trash2, label: "Trash" },
+    { id: "debug", icon: Bug, label: "Debug Tools" },
   ];
 
   const handleActivityClick = (id: string) => {
     // For social connectors and file editor, open tabs directly
     if (id === 'social-connectors') {
       openSpecialTab('social-connectors', 'Social Media Connectors', 'social-connect');
+      onPanelChange('explorer'); // Reset to explorer panel
       return;
     }
     if (id === 'file-editor') {
       openSpecialTab('file-editor', 'File Editor', 'post-creator');
+      onPanelChange('explorer'); // Reset to explorer panel
       return;
     }
     if (id === 'calendar') {
       openSpecialTab('calendar', 'Content Calendar', 'calendar');
+      onPanelChange('explorer'); // Reset to explorer panel
       return;
     }
     

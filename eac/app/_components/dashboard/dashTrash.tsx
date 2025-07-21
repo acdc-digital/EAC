@@ -9,7 +9,7 @@ import { TrashItem } from "@/store/editor/types";
 import { FileText, Folder, RotateCcw, Trash2 } from "lucide-react";
 
 export function DashTrash() {
-  const { trashItems, restoreFromTrash, permanentlyDelete, emptyTrash } = useEditorStore();
+  const { trashItems, restoreFromTrash, permanentlyDelete } = useEditorStore();
 
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleDateString('en-US', {
@@ -29,50 +29,38 @@ export function DashTrash() {
   };
 
   return (
-    <div className="h-full bg-[#1e1e1e] text-[#cccccc] flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-[#2d2d2d]">
-        <div className="flex items-center gap-2">
-          <Trash2 className="w-5 h-5 text-[#858585]" />
-          <h2 className="text-sm font-medium">Trash</h2>
-          <span className="text-xs text-[#858585] bg-[#2d2d2d] px-2 py-1 rounded">
-            {trashItems.length}
-          </span>
+    <div className="h-full bg-[#181818] text-[#cccccc] flex flex-col">
+      <div className="p-2">
+        <div className="flex items-center justify-between text-xs uppercase text-[#858585] px-2 py-1">
+          <span>Trash</span>
+          <span>{trashItems.length} {trashItems.length === 1 ? 'item' : 'items'}</span>
         </div>
-        {trashItems.length > 0 && (
-          <Button
-            onClick={emptyTrash}
-            variant="ghost"
-            size="sm"
-            className="text-xs text-[#858585] hover:text-[#cccccc] hover:bg-[#2d2d2d]"
-          >
-            Empty Trash
-          </Button>
-        )}
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-auto">
         {trashItems.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-[#858585]">
-            <Trash2 className="w-12 h-12 mb-4 opacity-50" />
+          <div className="flex flex-col items-center justify-center h-full text-[#858585] px-6">
+            <Trash2 className="w-12 h-12 mb-4 opacity-50 mt-8" />
             <p className="text-sm">Trash is empty</p>
-            <p className="text-xs mt-1">Deleted files and folders will appear here</p>
+            <p className="text-xs mt-1 text-center leading-relaxed">
+              Deleted files and folders will appear here
+            </p>
           </div>
         ) : (
-          <div className="p-2 space-y-1">
+          <div className="p-3 space-y-1">
             {trashItems.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between p-2 rounded hover:bg-[#2d2d2d] group"
+                className="flex items-center justify-between p-3 rounded hover:bg-[#2d2d2d] group"
               >
-                <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
                   {getIcon(item)}
                   <div className="flex-1 min-w-0">
                     <div className="text-sm text-[#cccccc] truncate">
                       {item.name}
                     </div>
-                    <div className="text-xs text-[#858585]">
+                    <div className="text-xs text-[#858585] mt-1">
                       Deleted {formatDate(item.deletedAt)} • {item.category}
                     </div>
                   </div>

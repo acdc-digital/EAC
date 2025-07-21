@@ -15,6 +15,8 @@ import type {
 } from "convex/server";
 import type * as chat from "../chat.js";
 import type * as chatActions from "../chatActions.js";
+import type * as convex__generated_api from "../convex/_generated/api.js";
+import type * as convex__generated_server from "../convex/_generated/server.js";
 import type * as crons from "../crons.js";
 import type * as files from "../files.js";
 import type * as messages from "../messages.js";
@@ -24,6 +26,7 @@ import type * as projects_simple from "../projects_simple.js";
 import type * as reddit from "../reddit.js";
 import type * as redditApi from "../redditApi.js";
 import type * as test from "../test.js";
+import type * as trash from "../trash.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -36,6 +39,8 @@ import type * as test from "../test.js";
 declare const fullApi: ApiFromModules<{
   chat: typeof chat;
   chatActions: typeof chatActions;
+  "convex/_generated/api": typeof convex__generated_api;
+  "convex/_generated/server": typeof convex__generated_server;
   crons: typeof crons;
   files: typeof files;
   messages: typeof messages;
@@ -45,6 +50,7 @@ declare const fullApi: ApiFromModules<{
   reddit: typeof reddit;
   redditApi: typeof redditApi;
   test: typeof test;
+  trash: typeof trash;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

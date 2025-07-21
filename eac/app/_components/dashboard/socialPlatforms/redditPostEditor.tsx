@@ -12,7 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/convex/_generated/api";
+import { useCalendarSync } from "@/lib/hooks/useCalendarSync";
 import { useRedditPostState } from "@/lib/hooks/useRedditPostState";
+import { useEditorStore } from "@/store";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { AlertCircle, BarChart3, Calendar, Clock, Eye, FileText, Hash, ImageIcon, Link, RefreshCw, Send, TrendingUp, Video } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -23,6 +25,12 @@ interface RedditPostEditorProps {
 }
 
 export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) {
+  // Calendar sync integration
+  const { syncPostToCalendar, updatePostStatusInCalendar } = useCalendarSync();
+
+  // Get editor store functions
+  const { updateFileStatus, openTabs, activeTab } = useEditorStore();
+
   // Get Reddit connection from Convex
   const redditConnections = useQuery(api.reddit.getSocialConnections, {
     userId: 'temp-user-id', // TODO: Replace with actual user ID
@@ -181,6 +189,17 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
             postId: existingPost._id,
             ...draftData
           });
+          
+          // Update file status in editor store (auto-save)
+          const currentTab = openTabs.find(tab => tab.id === activeTab);
+          console.log('🔍 Reddit Editor (Auto-save) - activeTab ID:', activeTab);
+          console.log('🔍 Reddit Editor (Auto-save) - Found currentTab:', currentTab);
+          
+          if (currentTab?.id) {
+            const newStatus = draftData.publishAt ? 'scheduled' : 'draft';
+            console.log('🔄 Reddit Editor (Auto-save) - Updating file status to:', newStatus, 'for tab:', currentTab.id);
+            updateFileStatus(currentTab.id, newStatus);
+          }
         } else if (fileRecord && redditConnection) {
           // Create new post
           const newPostId = await createRedditPost({
@@ -190,6 +209,14 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
             fileId: fileRecord._id
           });
           setLastCreatedPostId(newPostId);
+          
+          // Update file status in editor store (auto-save create)
+          const currentTab = openTabs.find(tab => tab.id === activeTab);
+          if (currentTab?.id) {
+            const newStatus = draftData.publishAt ? 'scheduled' : 'draft';
+            console.log('🔄 Reddit Editor (Auto-save Create) - Updating file status to:', newStatus, 'for tab:', currentTab.id);
+            updateFileStatus(currentTab.id, newStatus);
+          }
         }
       } catch (error) {
         console.error('Failed to save draft:', error);
@@ -198,7 +225,8 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
     }
   }, [
     hasLoadedInitialData, getFormData,
-    existingPost, fileRecord, redditConnection, updateRedditPost, createRedditPost
+    existingPost, fileRecord, redditConnection, updateRedditPost, createRedditPost,
+    activeTab, openTabs, updateFileStatus
   ]);  // Debounced auto-save effect
   useEffect(() => {
     if (!hasLoadedInitialData) return; // Don't save during initial load
@@ -326,6 +354,39 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
       // Store the post ID for potential publishing
       setLastCreatedPostId(postId);
 
+      // Sync scheduled post to calendar
+      if (formData.publishAt) {
+        try {
+          await syncPostToCalendar({
+            platform: 'reddit',
+            title: formData.title,
+            content: formData.text,
+            scheduledAt: formData.publishAt,
+            postId: postId,
+            fileId: fileRecord?._id,
+            userId: 'temp-user-id', // TODO: Replace with actual user ID
+          });
+          console.log('Post synced to calendar successfully');
+        } catch (calendarError) {
+          console.error('Failed to sync post to calendar:', calendarError);
+          // Don't fail the main operation if calendar sync fails
+        }
+      }
+
+      // Update file status in editor store
+      const currentTab = openTabs.find(tab => tab.id === activeTab);
+      console.log('🔍 Reddit Editor - activeTab ID:', activeTab);
+      console.log('🔍 Reddit Editor - Found currentTab:', currentTab);
+      console.log('🔍 Reddit Editor - fileName:', fileName);
+      
+      if (currentTab?.id) {
+        const newStatus = formData.publishAt ? 'scheduled' : 'draft';
+        console.log('🔄 Reddit Editor - Updating file status to:', newStatus, 'for tab:', currentTab.id);
+        updateFileStatus(currentTab.id, newStatus);
+      } else {
+        console.warn('⚠️ Reddit Editor - No matching tab found for activeTab:', activeTab);
+      }
+
       // Show success message
       if (formData.publishAt) {
         alert(existingPost ? 'Post updated and scheduled successfully!' : 'Post scheduled successfully!');
@@ -356,6 +417,28 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
 
     try {
       await submitRedditPost({ postId: lastCreatedPostId });
+      
+      // Update post status in calendar
+      try {
+        await updatePostStatusInCalendar(lastCreatedPostId, 'published');
+        console.log('Post status updated in calendar successfully');
+      } catch (calendarError) {
+        console.error('Failed to update post status in calendar:', calendarError);
+        // Don't fail the main operation if calendar sync fails
+      }
+      
+      // Update file status in editor store
+      const currentTab = openTabs.find(tab => tab.id === activeTab);
+      console.log('🔍 Reddit Editor (Publish) - activeTab ID:', activeTab);
+      console.log('🔍 Reddit Editor (Publish) - Found currentTab:', currentTab);
+      
+      if (currentTab?.id) {
+        console.log('🔄 Reddit Editor (Publish) - Updating file status to: complete for tab:', currentTab.id);
+        updateFileStatus(currentTab.id, 'complete');
+      } else {
+        console.warn('⚠️ Reddit Editor (Publish) - No matching tab found for activeTab:', activeTab);
+      }
+      
       alert('Post published to Reddit successfully!');
       setLastCreatedPostId(null); // Clear after successful publish
     } catch (error) {
@@ -401,6 +484,18 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
         sendReplies: sendReplies,
         // No publishAt means it's a draft
       });
+
+      // Update file status in editor store
+      const currentTab = openTabs.find(tab => tab.id === activeTab);
+      console.log('🔍 Reddit Editor (Draft) - activeTab ID:', activeTab);
+      console.log('🔍 Reddit Editor (Draft) - Found currentTab:', currentTab);
+      
+      if (currentTab?.id) {
+        console.log('🔄 Reddit Editor (Draft) - Updating file status to: draft for tab:', currentTab.id);
+        updateFileStatus(currentTab.id, 'draft');
+      } else {
+        console.warn('⚠️ Reddit Editor (Draft) - No matching tab found for activeTab:', activeTab);
+      }
 
       alert('Draft saved successfully!');
 
@@ -448,24 +543,19 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
             <TabsTrigger value="settings" className="text-[#cccccc] data-[state=active]:bg-[#007acc] data-[state=active]:text-white">
               Settings
             </TabsTrigger>
-            <TabsTrigger value="preview" className="text-[#cccccc] data-[state=active]:bg-[#007acc] data-[state=active]:text-white flex items-center gap-1">
-              <Eye className="w-3 h-3" />
+            <TabsTrigger value="preview" className="text-[#cccccc] data-[state=active]:bg-[#007acc] data-[state=active]:text-white">
               Preview
             </TabsTrigger>
             <TabsTrigger
               value="analytics"
               disabled={existingPost?.status !== 'published'}
-              className={`flex items-center gap-1 ${
+              className={`${
                 existingPost?.status !== 'published'
                   ? 'text-[#555555] cursor-not-allowed opacity-50'
                   : 'text-[#cccccc] data-[state=active]:bg-[#007acc] data-[state=active]:text-white'
               }`}
             >
-              <TrendingUp className="w-3 h-3" />
               Analytics
-              {existingPost?.status !== 'published' && (
-                <span className="text-xs ml-1">(Published only)</span>
-              )}
             </TabsTrigger>
           </TabsList>
 
@@ -1088,15 +1178,15 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
                       </div>
                     )}
 
-                    {/* Views */}
-                    {existingPost.viewCount !== undefined && (
-                      <div className="bg-[#1e1e1e] p-4 rounded border border-[#454545]">
-                        <div className="text-2xl font-bold text-[#cccccc]">
-                          {existingPost.viewCount.toLocaleString()}
-                        </div>
-                        <div className="text-xs text-[#858585]">Views</div>
+                    {/* Views - Always show this section */}
+                    <div className="bg-[#1e1e1e] p-4 rounded border border-[#454545]">
+                      <div className="text-2xl font-bold text-[#cccccc]">
+                        {existingPost.viewCount !== undefined && existingPost.viewCount !== null
+                          ? existingPost.viewCount.toLocaleString()
+                          : '0'}
                       </div>
-                    )}
+                      <div className="text-xs text-[#858585]">Views</div>
+                    </div>
                   </div>
 
                   {/* Last Updated */}
@@ -1163,6 +1253,13 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
               disabled
             >
               ✓ Submitted to Reddit
+            </Button>
+          ) : existingPost?.status === 'scheduled' || (existingPost?.publishAt && existingPost.publishAt > Date.now()) ? (
+            <Button
+              className="bg-[#4a4a4a] text-[#cccccc] flex-1 cursor-not-allowed opacity-60"
+              disabled
+            >
+              ✓ Scheduled
             </Button>
           ) : (
             <>

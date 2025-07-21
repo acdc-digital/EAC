@@ -1,6 +1,6 @@
-/*!****************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
-  !*** css ../node_modules/.pnpm/next@15.3.5_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[13].oneOf[2].use[1]!../node_modules/.pnpm/next@15.3.5_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/build/webpack/loaders/next-font-loader/index.js??ruleSet[1].rules[13].oneOf[2].use[2]!../node_modules/.pnpm/next@15.3.5_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/font/google/target.css?{"path":"app/layout.tsx","import":"Inter","arguments":[{"subsets":["latin"]}],"variableName":"inter"} ***!
-  \****************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+/*!*******************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ../node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[13].oneOf[2].use[1]!../node_modules/next/dist/build/webpack/loaders/next-font-loader/index.js??ruleSet[1].rules[13].oneOf[2].use[2]!../node_modules/next/font/google/target.css?{"path":"app/layout.tsx","import":"Inter","arguments":[{"subsets":["latin"]}],"variableName":"inter"} ***!
+  \*******************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
 /* cyrillic-ext */
 @font-face {
   font-family: 'Inter';
@@ -67,9 +67,9 @@
 }.__className_e8ce0c {font-family: 'Inter', 'Inter Fallback';font-style: normal
 }
 
-/*!*********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
-  !*** css ../node_modules/.pnpm/next@15.3.5_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[13].oneOf[10].use[2]!../node_modules/.pnpm/next@15.3.5_react-dom@18.3.1_react@18.3.1__react@18.3.1/node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[13].oneOf[10].use[3]!./app/globals.css ***!
-  \*********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+/*!***************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ../node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[13].oneOf[10].use[2]!../node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[13].oneOf[10].use[3]!./app/globals.css ***!
+  \***************************************************************************************************************************************************************************************************************************************************************/
 /*! tailwindcss v4.1.11 | MIT License | https://tailwindcss.com */
 @layer properties;
 @layer theme, base, components, utilities;
@@ -87,10 +87,15 @@
     --color-red-950: oklch(25.8% 0.092 26.042);
     --color-orange-500: oklch(70.5% 0.213 47.604);
     --color-orange-900: oklch(40.8% 0.123 38.172);
+    --color-yellow-50: oklch(98.7% 0.026 102.212);
+    --color-yellow-200: oklch(94.5% 0.129 101.54);
     --color-yellow-400: oklch(85.2% 0.199 91.936);
     --color-yellow-500: oklch(79.5% 0.184 86.047);
     --color-yellow-600: oklch(68.1% 0.162 75.834);
     --color-yellow-700: oklch(55.4% 0.135 66.442);
+    --color-yellow-800: oklch(47.6% 0.114 61.907);
+    --color-green-50: oklch(98.2% 0.018 155.826);
+    --color-green-200: oklch(92.5% 0.084 155.995);
     --color-green-400: oklch(79.2% 0.209 151.711);
     --color-green-500: oklch(72.3% 0.219 149.579);
     --color-green-600: oklch(62.7% 0.194 149.214);
@@ -104,12 +109,16 @@
     --color-blue-900: oklch(37.9% 0.146 265.522);
     --color-purple-500: oklch(62.7% 0.265 303.9);
     --color-pink-500: oklch(65.6% 0.241 354.308);
+    --color-gray-400: oklch(70.7% 0.022 261.325);
     --color-gray-500: oklch(55.1% 0.027 264.364);
     --color-gray-600: oklch(44.6% 0.03 256.802);
+    --color-gray-900: oklch(21% 0.034 264.665);
     --color-black: #000;
     --color-white: #fff;
     --spacing: 0.25rem;
+    --container-md: 28rem;
     --container-lg: 32rem;
+    --container-2xl: 42rem;
     --container-4xl: 56rem;
     --container-6xl: 72rem;
     --text-xs: 0.75rem;
@@ -421,6 +430,9 @@
   .-mx-1 {
     margin-inline: calc(var(--spacing) * -1);
   }
+  .mx-4 {
+    margin-inline: calc(var(--spacing) * 4);
+  }
   .mx-auto {
     margin-inline: auto;
   }
@@ -577,6 +589,9 @@
   .h-3 {
     height: calc(var(--spacing) * 3);
   }
+  .h-3\.5 {
+    height: calc(var(--spacing) * 3.5);
+  }
   .h-4 {
     height: calc(var(--spacing) * 4);
   }
@@ -606,6 +621,9 @@
   }
   .h-64 {
     height: calc(var(--spacing) * 64);
+  }
+  .h-\[1\.15rem\] {
+    height: 1.15rem;
   }
   .h-\[1px\] {
     height: 1px;
@@ -700,6 +718,9 @@
   .w-3 {
     width: calc(var(--spacing) * 3);
   }
+  .w-3\.5 {
+    width: calc(var(--spacing) * 3.5);
+  }
   .w-4 {
     width: calc(var(--spacing) * 4);
   }
@@ -772,6 +793,9 @@
   .w-screen {
     width: 100vw;
   }
+  .max-w-2xl {
+    max-width: var(--container-2xl);
+  }
   .max-w-4xl {
     max-width: var(--container-4xl);
   }
@@ -786,6 +810,9 @@
   }
   .max-w-full {
     max-width: 100%;
+  }
+  .max-w-md {
+    max-width: var(--container-md);
   }
   .max-w-none {
     max-width: none;
@@ -1225,6 +1252,12 @@
   .border-black {
     border-color: var(--color-black);
   }
+  .border-blue-500\/20 {
+    border-color: color-mix(in srgb, oklch(62.3% 0.214 259.815) 20%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in oklab, var(--color-blue-500) 20%, transparent);
+    }
+  }
   .border-blue-500\/50 {
     border-color: color-mix(in srgb, oklch(62.3% 0.214 259.815) 50%, transparent);
     @supports (color: color-mix(in lab, red, red)) {
@@ -1234,13 +1267,22 @@
   .border-border {
     border-color: var(--border);
   }
+  .border-gray-500\/20 {
+    border-color: color-mix(in srgb, oklch(55.1% 0.027 264.364) 20%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in oklab, var(--color-gray-500) 20%, transparent);
+    }
+  }
+  .border-green-200 {
+    border-color: var(--color-green-200);
+  }
   .border-green-500 {
     border-color: var(--color-green-500);
   }
-  .border-green-500\/30 {
-    border-color: color-mix(in srgb, oklch(72.3% 0.219 149.579) 30%, transparent);
+  .border-green-500\/20 {
+    border-color: color-mix(in srgb, oklch(72.3% 0.219 149.579) 20%, transparent);
     @supports (color: color-mix(in lab, red, red)) {
-      border-color: color-mix(in oklab, var(--color-green-500) 30%, transparent);
+      border-color: color-mix(in oklab, var(--color-green-500) 20%, transparent);
     }
   }
   .border-green-500\/50 {
@@ -1278,6 +1320,9 @@
   }
   .border-white {
     border-color: var(--color-white);
+  }
+  .border-yellow-200 {
+    border-color: var(--color-yellow-200);
   }
   .border-yellow-400 {
     border-color: var(--color-yellow-400);
@@ -1447,6 +1492,15 @@
   .bg-gray-500 {
     background-color: var(--color-gray-500);
   }
+  .bg-gray-900\/30 {
+    background-color: color-mix(in srgb, oklch(21% 0.034 264.665) 30%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-gray-900) 30%, transparent);
+    }
+  }
+  .bg-green-50 {
+    background-color: var(--color-green-50);
+  }
   .bg-green-500 {
     background-color: var(--color-green-500);
   }
@@ -1454,12 +1508,6 @@
     background-color: color-mix(in srgb, oklch(72.3% 0.219 149.579) 10%, transparent);
     @supports (color: color-mix(in lab, red, red)) {
       background-color: color-mix(in oklab, var(--color-green-500) 10%, transparent);
-    }
-  }
-  .bg-green-500\/20 {
-    background-color: color-mix(in srgb, oklch(72.3% 0.219 149.579) 20%, transparent);
-    @supports (color: color-mix(in lab, red, red)) {
-      background-color: color-mix(in oklab, var(--color-green-500) 20%, transparent);
     }
   }
   .bg-green-600 {
@@ -1537,6 +1585,12 @@
       background-color: color-mix(in oklab, var(--color-red-900) 20%, transparent);
     }
   }
+  .bg-red-900\/30 {
+    background-color: color-mix(in srgb, oklch(39.6% 0.141 25.723) 30%, transparent);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--color-red-900) 30%, transparent);
+    }
+  }
   .bg-secondary {
     background-color: var(--secondary);
   }
@@ -1545,6 +1599,9 @@
   }
   .bg-transparent {
     background-color: transparent;
+  }
+  .bg-yellow-50 {
+    background-color: var(--color-yellow-50);
   }
   .bg-yellow-400 {
     background-color: var(--color-yellow-400);
@@ -1638,9 +1695,6 @@
   .px-6 {
     padding-inline: calc(var(--spacing) * 6);
   }
-  .py-0 {
-    padding-block: calc(var(--spacing) * 0);
-  }
   .py-0\.5 {
     padding-block: calc(var(--spacing) * 0.5);
   }
@@ -1676,6 +1730,9 @@
   }
   .pt-2 {
     padding-top: calc(var(--spacing) * 2);
+  }
+  .pt-3 {
+    padding-top: calc(var(--spacing) * 3);
   }
   .pt-4 {
     padding-top: calc(var(--spacing) * 4);
@@ -1881,11 +1938,23 @@
   .text-black {
     color: var(--color-black);
   }
+  .text-blue-400 {
+    color: var(--color-blue-400);
+  }
+  .text-blue-500 {
+    color: var(--color-blue-500);
+  }
   .text-card-foreground {
     color: var(--card-foreground);
   }
   .text-foreground {
     color: var(--foreground);
+  }
+  .text-gray-400 {
+    color: var(--color-gray-400);
+  }
+  .text-gray-500 {
+    color: var(--color-gray-500);
   }
   .text-gray-600 {
     color: var(--color-gray-600);
@@ -1898,6 +1967,9 @@
   }
   .text-green-600 {
     color: var(--color-green-600);
+  }
+  .text-green-700 {
+    color: var(--color-green-700);
   }
   .text-muted-foreground {
     color: var(--muted-foreground);
@@ -1914,6 +1986,9 @@
   .text-primary-foreground {
     color: var(--primary-foreground);
   }
+  .text-purple-500 {
+    color: var(--color-purple-500);
+  }
   .text-red-400 {
     color: var(--color-red-400);
   }
@@ -1922,6 +1997,12 @@
   }
   .text-red-600 {
     color: var(--color-red-600);
+  }
+  .text-red-700 {
+    color: var(--color-red-700);
+  }
+  .text-red-800 {
+    color: var(--color-red-800);
   }
   .text-secondary-foreground {
     color: var(--secondary-foreground);
@@ -1935,6 +2016,12 @@
   .text-yellow-500 {
     color: var(--color-yellow-500);
   }
+  .text-yellow-700 {
+    color: var(--color-yellow-700);
+  }
+  .text-yellow-800 {
+    color: var(--color-yellow-800);
+  }
   .capitalize {
     text-transform: capitalize;
   }
@@ -1946,6 +2033,9 @@
   }
   .underline {
     text-decoration-line: underline;
+  }
+  .underline-offset-2 {
+    text-underline-offset: 2px;
   }
   .underline-offset-4 {
     text-underline-offset: 4px;
@@ -1994,6 +2084,10 @@
   }
   .shadow-xs {
     --tw-shadow: 0 1px 2px 0 var(--tw-shadow-color, rgb(0 0 0 / 0.05));
+    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
+  }
+  .ring-0 {
+    --tw-ring-shadow: var(--tw-ring-inset,) 0 0 0 calc(0px + var(--tw-ring-offset-width)) var(--tw-ring-color, currentcolor);
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
   .ring-offset-background {
@@ -2267,6 +2361,13 @@
       }
     }
   }
+  .hover\:bg-\[\#2d2d2d\]\/30 {
+    &:hover {
+      @media (hover: hover) {
+        background-color: color-mix(in oklab, #2d2d2d 30%, transparent);
+      }
+    }
+  }
   .hover\:bg-\[\#3d3d3d\] {
     &:hover {
       @media (hover: hover) {
@@ -2519,6 +2620,13 @@
     &:hover {
       @media (hover: hover) {
         background-color: var(--color-yellow-700);
+      }
+    }
+  }
+  .hover\:text-\[\#1e90ff\] {
+    &:hover {
+      @media (hover: hover) {
+        color: #1e90ff;
       }
     }
   }
@@ -3018,6 +3126,17 @@
       box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
     }
   }
+  .data-\[state\=checked\]\:translate-x-\[calc\(100\%-2px\)\] {
+    &[data-state="checked"] {
+      --tw-translate-x: calc(100% - 2px);
+      translate: var(--tw-translate-x) var(--tw-translate-y);
+    }
+  }
+  .data-\[state\=checked\]\:bg-primary {
+    &[data-state="checked"] {
+      background-color: var(--primary);
+    }
+  }
   .data-\[state\=closed\]\:animate-out {
     &[data-state="closed"] {
       animation: exit var(--tw-animation-duration,var(--tw-duration,.15s))var(--tw-ease,ease)var(--tw-animation-delay,0s)var(--tw-animation-iteration-count,1)var(--tw-animation-direction,normal)var(--tw-animation-fill-mode,none);
@@ -3065,6 +3184,17 @@
     &[data-state="open"] {
       --tw-enter-scale: calc(95*1%);
       --tw-enter-scale: .95;
+    }
+  }
+  .data-\[state\=unchecked\]\:translate-x-0 {
+    &[data-state="unchecked"] {
+      --tw-translate-x: calc(var(--spacing) * 0);
+      translate: var(--tw-translate-x) var(--tw-translate-y);
+    }
+  }
+  .data-\[state\=unchecked\]\:bg-input {
+    &[data-state="unchecked"] {
+      background-color: var(--input);
     }
   }
   .data-\[variant\=destructive\]\:text-destructive {
@@ -3298,6 +3428,30 @@
     &:is(.dark *) {
       &[data-state="active"] {
         color: var(--foreground);
+      }
+    }
+  }
+  .dark\:data-\[state\=checked\]\:bg-primary-foreground {
+    &:is(.dark *) {
+      &[data-state="checked"] {
+        background-color: var(--primary-foreground);
+      }
+    }
+  }
+  .dark\:data-\[state\=unchecked\]\:bg-foreground {
+    &:is(.dark *) {
+      &[data-state="unchecked"] {
+        background-color: var(--foreground);
+      }
+    }
+  }
+  .dark\:data-\[state\=unchecked\]\:bg-input\/80 {
+    &:is(.dark *) {
+      &[data-state="unchecked"] {
+        background-color: var(--input);
+        @supports (color: color-mix(in lab, red, red)) {
+          background-color: color-mix(in oklab, var(--input) 80%, transparent);
+        }
       }
     }
   }

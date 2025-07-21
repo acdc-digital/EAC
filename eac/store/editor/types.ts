@@ -18,6 +18,7 @@ export interface ProjectFolder {
   category: 'project' | 'financial';
   createdAt: Date;
   pinned?: boolean;
+  convexId?: string; // Database project ID for syncing with Convex
 }
 
 export interface TrashItem {
@@ -41,6 +42,7 @@ export interface ProjectFile {
   modifiedAt: Date;
   folderId?: string; // Optional folder reference
   status?: 'draft' | 'scheduled' | 'complete'; // Post status for social media files
+  convexId?: string; // Database file ID for syncing with Convex
 }
 
 export interface EditorState {
@@ -67,7 +69,7 @@ export interface EditorState {
   updateFileContent: (tabId: string, content: string) => void;
   updateFileStatus: (fileId: string, status: 'draft' | 'scheduled' | 'complete') => void;
   createNewFile: (name: string, type: ProjectFile['type'], category?: ProjectFile['category'], folderId?: string) => void;
-  createFolder: (name: string, category: 'project' | 'financial') => void;
+  createFolder: (name: string, category: 'project' | 'financial', convexId?: string) => void;
   deleteFile: (fileId: string) => void;
   renameFile: (fileId: string, newName: string) => void;
   deleteFolder: (folderId: string) => void;
@@ -81,6 +83,7 @@ export interface EditorState {
   deleteProjectsCategory: () => void;
   deleteFinancialCategory: () => void;
   reorderProjectFolders: (fromIndex: number, toIndex: number) => void;
+  updateProjectFolders: (folders: ProjectFolder[]) => void;
   reorderFilesInFolder: (folderId: string, fromIndex: number, toIndex: number, category: 'project' | 'financial') => void;
   saveFile: (tabId: string) => void;
   setError: (error: string | null) => void;

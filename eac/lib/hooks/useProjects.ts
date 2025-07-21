@@ -27,6 +27,7 @@ export const useProjects = () => {
 
   // Convex mutations
   const createProjectMutation = useMutation(api.projects.createProject);
+  const deleteProjectMutation = useMutation(api.trash.deleteProject);
   const generateProjectNumberQuery = useQuery(api.projects.generateProjectNumber, {});
 
   // Convex queries  
@@ -136,21 +137,25 @@ export const useProjects = () => {
   };
 
   /**
-   * Delete a project
+   * Delete a project (moves to trash)
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const deleteProject = async (_projectId: Id<"projects">) => {
+  const deleteProject = async (projectId: Id<"projects">, deletedBy?: string) => {
     try {
       setIsUpdating(true);
       clearError();
 
-      // Note: Delete functionality not available in current API
-      // Would need to implement api.projects.deleteProject
-      throw new Error("Delete functionality not implemented");
+      // Call the trash system to soft delete the project
+      await deleteProjectMutation({
+        id: projectId,
+        deletedBy: deletedBy || 'user',
+      });
+
+      console.log(`✅ Project moved to database trash successfully`);
       
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to delete project";
       setError(errorMessage);
+      console.error('❌ Error moving project to database trash:', error);
       throw error;
     } finally {
       setIsUpdating(false);
