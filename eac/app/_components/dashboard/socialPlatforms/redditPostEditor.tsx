@@ -11,7 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar, Clock, FileText, Hash, ImageIcon, Link } from "lucide-react";
+import { api } from "@/convex/_generated/api";
+import { useAction, useMutation, useQuery } from "convex/react";
+import { AlertCircle, Calendar, Clock, FileText, Hash, ImageIcon, Link, Send } from "lucide-react";
 import React, { useEffect, useRef, useState } from 'react';
 
 interface RedditPostEditorProps {
@@ -20,9 +22,26 @@ interface RedditPostEditorProps {
 }
 
 export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) {
+  // Get Reddit connection from Convex
+  const redditConnections = useQuery(api.reddit.getSocialConnections, {
+    userId: 'temp-user-id', // TODO: Replace with actual user ID
+    platform: 'reddit'
+  });
+  
+  const redditConnection = redditConnections?.[0]; // Get the first Reddit connection
+  
+  // TODO: Fix social store import
+  // const clearError = useSocialStore(state => state.clearError);
+  const clearError = () => setError(null); // Temporary fix
+  
+  // Convex mutations
+  const createRedditPost = useMutation(api.reddit.createRedditPost);
+  const submitRedditPost = useAction(api.redditApi.submitRedditPost);
+  
+  // Form state
   const [postTitle, setPostTitle] = useState('');
   const [postContent, setPostContent] = useState('');
-  const [postType, setPostType] = useState('text');
+  const [postType, setPostType] = useState<'self' | 'link' | 'image' | 'video'>('self');
   const [subreddit, setSubreddit] = useState('');
   const [flair, setFlair] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
@@ -32,6 +51,10 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lastCreatedPostId, setLastCreatedPostId] = useState<string | null>(null);
 
   // Use ref to store the onChange callback to avoid infinite loops
   const onChangeRef = useRef(onChange);
@@ -77,6 +100,163 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
 
   const removeMedia = () => {
     setMediaFiles([]);
+  };
+
+  // Handle post submission
+  const handleSubmitPost = async () => {
+    if (!redditConnection) {
+      alert('Please connect your Reddit account first in Social Connectors.');
+      return;
+    }
+
+    if (!redditConnection.accessToken) {
+      alert('Please authorize your Reddit account in Social Connectors before posting.');
+      return;
+    }
+
+    if (!postTitle.trim()) {
+      alert('Please enter a post title.');
+      return;
+    }
+
+    if (!subreddit.trim()) {
+      alert('Please enter a subreddit.');
+      return;
+    }
+
+    if (postType === 'self' && !postContent.trim()) {
+      alert('Please enter post content for text posts.');
+      return;
+    }
+
+    if (postType === 'link' && !linkUrl.trim()) {
+      alert('Please enter a URL for link posts.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+    clearError();
+
+    try {
+      let publishAt: number | undefined;
+      if (scheduledDate && scheduledTime) {
+        publishAt = new Date(`${scheduledDate}T${scheduledTime}`).getTime();
+        if (publishAt <= Date.now()) {
+          alert('Scheduled time must be in the future.');
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      // Call Convex mutation directly
+      const postId = await createRedditPost({
+        userId: 'temp-user-id', // TODO: Replace with actual user ID
+        connectionId: redditConnection._id,
+        subreddit: subreddit.trim(),
+        title: postTitle.trim(),
+        kind: postType,
+        text: postType === 'self' ? postContent.trim() : undefined,
+        url: postType === 'link' ? linkUrl.trim() : undefined,
+        nsfw: isNsfw,
+        spoiler: isSpoiler,
+        flairText: flair.trim() || undefined,
+        sendReplies: sendReplies,
+        publishAt: publishAt,
+      });
+
+      console.log('Reddit post created successfully:', postId);
+      
+      // Store the post ID for potential publishing
+      setLastCreatedPostId(postId);
+      
+      // Reset form or show success message
+      alert(publishAt ? 'Post scheduled successfully!' : 'Post created successfully!');
+      
+      // Reset form
+      setPostTitle('');
+      setPostContent('');
+      setSubreddit('');
+      setFlair('');
+      setLinkUrl('');
+      setScheduledDate('');
+      setScheduledTime('');
+      
+    } catch (error) {
+      console.error('Failed to submit Reddit post:', error);
+      setError(error instanceof Error ? error.message : 'Failed to submit post');
+      alert('Failed to submit post. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle publishing to Reddit
+  const handlePublishNow = async () => {
+    if (!lastCreatedPostId) {
+      alert('No post to publish. Please create a draft first.');
+      return;
+    }
+
+    setIsPublishing(true);
+    setError(null);
+
+    try {
+      await submitRedditPost({ postId: lastCreatedPostId });
+      alert('Post published to Reddit successfully!');
+      setLastCreatedPostId(null); // Clear after successful publish
+    } catch (error) {
+      console.error('Failed to publish Reddit post:', error);
+      setError(error instanceof Error ? error.message : 'Failed to publish to Reddit');
+      alert('Failed to publish to Reddit. Please try again.');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    if (!redditConnection) {
+      alert('Please connect your Reddit account first in Social Connectors.');
+      return;
+    }
+
+    if (!redditConnection.accessToken) {
+      alert('Please authorize your Reddit account in Social Connectors before saving drafts.');
+      return;
+    }
+
+    if (!postTitle.trim() || !subreddit.trim()) {
+      alert('Please enter at least a title and subreddit to save draft.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    clearError();
+
+    try {
+      await createRedditPost({
+        userId: 'temp-user-id', // TODO: Replace with actual user ID
+        connectionId: redditConnection._id,
+        subreddit: subreddit.trim(),
+        title: postTitle.trim(),
+        kind: postType,
+        text: postType === 'self' ? postContent.trim() : undefined,
+        url: postType === 'link' ? linkUrl.trim() : undefined,
+        nsfw: isNsfw,
+        spoiler: isSpoiler,
+        flairText: flair.trim() || undefined,
+        sendReplies: sendReplies,
+        // No publishAt means it's a draft
+      });
+
+      alert('Draft saved successfully!');
+      
+    } catch (error) {
+      console.error('Failed to save draft:', error);
+      alert('Failed to save draft. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -133,12 +313,12 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[#cccccc]">Post Type</Label>
-                    <Select value={postType} onValueChange={setPostType}>
+                    <Select value={postType} onValueChange={(value: 'self' | 'link' | 'image' | 'video') => setPostType(value)}>
                       <SelectTrigger className="bg-[#1e1e1e] border-[#454545] text-[#cccccc]">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-[#2d2d2d] border-[#454545]">
-                        <SelectItem value="text">
+                        <SelectItem value="self">
                           <div className="flex items-center gap-2">
                             <FileText className="w-4 h-4" />
                             Text Post
@@ -197,7 +377,7 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
             </Card>
 
             {/* Content Based on Post Type */}
-            {postType === 'text' && (
+            {postType === 'self' && (
               <Card className="bg-[#2d2d2d] border-[#454545]">
                 <CardHeader>
                   <CardTitle className="text-[#cccccc]">Text Content</CardTitle>
@@ -369,17 +549,90 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
           </TabsContent>
         </Tabs>
 
+        {/* Connection Status & Error Display */}
+        {!redditConnection && (
+          <div className="flex items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded">
+            <AlertCircle className="w-4 h-4 text-yellow-500" />
+            <span className="text-sm text-yellow-500">
+              Reddit account not connected. Please connect your account in Social Connectors to post.
+            </span>
+          </div>
+        )}
+
+        {redditConnection && !redditConnection.accessToken && (
+          <div className="flex items-center gap-2 p-3 bg-orange-500/10 border border-orange-500/20 rounded">
+            <AlertCircle className="w-4 h-4 text-orange-500" />
+            <span className="text-sm text-orange-500">
+              Reddit account connected but not authenticated. Please authorize your Reddit account in Social Connectors.
+            </span>
+          </div>
+        )}
+
+        {error && (
+          <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded">
+            <AlertCircle className="w-4 h-4 text-red-500" />
+            <span className="text-sm text-red-500">{error}</span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={clearError}
+              className="ml-auto h-6 px-2 text-xs"
+            >
+              Dismiss
+            </Button>
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="flex gap-3 pt-4 border-t border-[#454545]">
-          <Button 
+          <Button
+            onClick={handleSubmitPost}
             className="bg-[#ff4500] hover:bg-[#e03d00] text-white flex-1"
-            disabled={!postTitle.trim() || (postType === 'link' && !linkUrl.trim())}
+            disabled={
+              !redditConnection ||
+              !redditConnection.accessToken ||
+              isSubmitting ||
+              !postTitle.trim() ||
+              !subreddit.trim() ||
+              (postType === 'link' && !linkUrl.trim()) ||
+              (postType === 'self' && !postContent.trim())
+            }
           >
-            {scheduledDate && scheduledTime ? 'Schedule Post' : 'Submit Post'}
+            {isSubmitting
+              ? 'Submitting...'
+              : scheduledDate && scheduledTime
+                ? 'Schedule Post'
+                : 'Save Draft'
+            }
           </Button>
-          <Button variant="outline" className="border-[#454545] text-[#cccccc] hover:bg-[#2d2d2d]">
-            Save Draft
+          
+          {/* Publish to Reddit Button */}
+          {lastCreatedPostId && (
+            <Button
+              onClick={handlePublishNow}
+              className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
+              disabled={isPublishing || isSubmitting}
+            >
+              <Send className="w-4 h-4" />
+              {isPublishing ? 'Publishing...' : 'Publish to Reddit'}
+            </Button>
+          )}
+          
+          <Button
+            onClick={handleSaveDraft}
+            variant="outline"
+            className="border-[#454545] text-[#cccccc] hover:bg-[#2d2d2d]"
+            disabled={
+              !redditConnection ||
+              !redditConnection.accessToken ||
+              isSubmitting ||
+              !postTitle.trim() ||
+              !subreddit.trim()
+            }
+          >
+            {isSubmitting ? 'Saving...' : 'Save Draft'}
           </Button>
+          
           <Button variant="outline" className="border-[#454545] text-[#cccccc] hover:bg-[#2d2d2d]">
             Preview
           </Button>

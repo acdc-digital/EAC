@@ -552,14 +552,17 @@ export function DashSidebar({ activePanel }: SidebarProps) {
             )}
             
             <div className="pt-2">
-              {fileStructure.map((section) => {
+              {fileStructure.map((section, sectionIndex) => {
               // Check if this is a header section
               const isHeader = 'isHeader' in section && section.isHeader;
+              
+              // Create unique key that combines section ID with index to prevent duplicates
+              const uniqueKey = `${section.id}-${sectionIndex}`;
               
               // Render header sections differently
               if (isHeader) {
                 return (
-                  <div key={section.id} className="mb-2 mt-4 first:mt-0">
+                  <div key={uniqueKey} className="mb-2 mt-4 first:mt-0">
                     <div className="text-[10px] uppercase text-[#858585] px-2 py-1 font-medium tracking-wide">
                       {section.name}
                     </div>
@@ -687,7 +690,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
               );
               
               return (
-                <div key={section.id} className="mb-1">
+                <div key={uniqueKey} className="mb-1">
                   {isUserFolder ? (
                     <ContextMenu>
                       <ContextMenuTrigger asChild>

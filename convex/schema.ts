@@ -93,4 +93,86 @@ export default defineSchema({
     emailVerificationTime: v.optional(v.number()),
     createdAt: v.optional(v.number()),
   }).index("by_email", ["email"]),
+
+  // Social media connections for API credentials
+  socialConnections: defineTable({
+    userId: v.string(),
+    platform: v.union(
+      v.literal("facebook"),
+      v.literal("instagram"),
+      v.literal("twitter"),
+      v.literal("reddit")
+    ),
+    username: v.string(),
+    
+    // Reddit-specific fields
+    clientId: v.optional(v.string()),
+    clientSecret: v.optional(v.string()), // Encrypted
+    accessToken: v.optional(v.string()), // Encrypted
+    refreshToken: v.optional(v.string()), // Encrypted
+    userAgent: v.optional(v.string()),
+    
+    // Generic OAuth fields for other platforms
+    apiKey: v.optional(v.string()), // Encrypted
+    apiSecret: v.optional(v.string()), // Encrypted
+    
+    isActive: v.boolean(),
+    lastSync: v.optional(v.number()),
+    tokenExpiry: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId", "platform"])
+    .index("by_platform", ["platform", "isActive"])
+    .index("by_active", ["isActive", "userId"]),
+
+  // Reddit posts with all necessary fields for API posting
+  redditPosts: defineTable({
+    userId: v.string(),
+    connectionId: v.id("socialConnections"),
+    fileId: v.optional(v.id("files")), // Link to file if created from editor
+    
+    // Required Reddit API fields
+    subreddit: v.string(),
+    title: v.string(),
+    kind: v.union(v.literal("self"), v.literal("link"), v.literal("image"), v.literal("video")),
+    
+    // Content fields (conditional based on kind)
+    text: v.optional(v.string()), // For self posts
+    url: v.optional(v.string()), // For link posts
+    
+    // Optional Reddit API fields
+    nsfw: v.boolean(),
+    spoiler: v.boolean(),
+    flairId: v.optional(v.string()),
+    flairText: v.optional(v.string()),
+    sendReplies: v.boolean(),
+    
+    // Scheduling and status
+    status: v.union(
+      v.literal("draft"),
+      v.literal("scheduled"),
+      v.literal("publishing"),
+      v.literal("published"),
+      v.literal("failed")
+    ),
+    publishAt: v.optional(v.number()), // Unix timestamp for scheduling
+    publishedAt: v.optional(v.number()),
+    publishedUrl: v.optional(v.string()), // Reddit URL after successful post
+    redditId: v.optional(v.string()), // Reddit post ID (t3_xxx)
+    
+    // Error handling
+    error: v.optional(v.string()), // Error message if failed
+    retryCount: v.optional(v.number()),
+    lastRetryAt: v.optional(v.number()),
+    
+    // Metadata
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId", "createdAt"])
+    .index("by_connection", ["connectionId", "createdAt"])
+    .index("by_status", ["status", "publishAt"])
+    .index("by_subreddit", ["subreddit", "createdAt"])
+    .index("by_file", ["fileId"]),
 });

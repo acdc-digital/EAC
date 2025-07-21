@@ -7,24 +7,41 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { api } from "@/convex/_generated/api";
+import { useMutation, useQuery } from "convex/react";
 import { AlertCircle, CheckCircle, Facebook, Instagram, MessageSquare, Twitter } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface SocialAccount {
   platform: 'facebook' | 'instagram' | 'twitter' | 'reddit';
   username: string;
   connected: boolean;
   lastSync?: Date;
+  accessToken?: string;
+  _id?: string;
 }
 
 type SocialFormData = {
   facebook: { username: string; apiKey: string; accessToken: string };
   instagram: { username: string; apiKey: string; accessToken: string };
   twitter: { username: string; apiKey: string; accessToken: string };
-  reddit: { username: string; clientId: string; clientSecret: string };
+  reddit: { username: string; clientId: string; clientSecret: string; userAgent: string };
 };
 
 export function SocialConnectors() {
+  // Get connections from Convex
+  const connections = useQuery(api.reddit.getSocialConnections, {
+    userId: 'temp-user-id'
+  });
+  
+  // Convex mutations
+  const createSocialConnection = useMutation(api.reddit.createSocialConnection);
+  const disconnectSocialConnection = useMutation(api.reddit.deleteSocialConnection);
+  
+  // Local state
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const [accounts, setAccounts] = useState<SocialAccount[]>([
     { platform: 'facebook', username: '', connected: false },
     { platform: 'instagram', username: '', connected: false },
@@ -32,11 +49,31 @@ export function SocialConnectors() {
     { platform: 'reddit', username: '', connected: false },
   ]);
 
+  // Handle OAuth callback success
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('auth') === 'success') {
+      // Clear the URL parameter
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      setError(null);
+      
+      // Show success message and note that connection should update
+      console.log('✅ OAuth authentication successful! Connection should update automatically.');
+    }
+    
+    if (urlParams.get('error')) {
+      const errorType = urlParams.get('error');
+      setError(`Authentication failed: ${errorType}`);
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   const [formData, setFormData] = useState<SocialFormData>({
     facebook: { username: '', apiKey: '', accessToken: '' },
     instagram: { username: '', apiKey: '', accessToken: '' },
     twitter: { username: '', apiKey: '', accessToken: '' },
-    reddit: { username: '', clientId: '', clientSecret: '' },
+    reddit: { username: '', clientId: '', clientSecret: '', userAgent: '' },
   });
 
   const platformIcons = {
@@ -53,25 +90,118 @@ export function SocialConnectors() {
     reddit: 'Reddit',
   };
 
-  const handleConnect = (platform: keyof typeof formData) => {
-    // Simulate connection logic
-    setAccounts(prev => 
-      prev.map(acc => 
-        acc.platform === platform 
-          ? { ...acc, connected: true, username: formData[platform].username, lastSync: new Date() }
-          : acc
-      )
-    );
+  const handleConnect = async (platform: keyof typeof formData) => {
+    if (platform === 'reddit') {
+      try {
+        setIsConnecting(true);
+        setError(null);
+        
+        const redditData = formData.reddit;
+        
+        // Generate user agent if not provided
+        const userAgent = redditData.userAgent || `EACDashboard/1.0 by ${redditData.username}`;
+        
+        // Call Convex mutation directly
+        const connectionId = await createSocialConnection({
+          userId: 'temp-user-id', // TODO: Replace with actual user ID
+          platform: 'reddit',
+          username: redditData.username,
+          clientId: redditData.clientId,
+          clientSecret: redditData.clientSecret,
+          userAgent: userAgent,
+        });
+        
+        console.log('Reddit connection created successfully:', connectionId);
+        
+        // Update local UI state
+        setAccounts(prev =>
+          prev.map(acc =>
+            acc.platform === platform
+              ? { ...acc, connected: true, username: redditData.username, lastSync: new Date() }
+              : acc
+          )
+        );
+        
+      } catch (error) {
+        console.error('Failed to connect Reddit:', error);
+        setError(error instanceof Error ? error.message : 'Failed to connect Reddit');
+      } finally {
+        setIsConnecting(false);
+      }
+    } else {
+      // Simulate connection for other platforms
+      setAccounts(prev =>
+        prev.map(acc =>
+          acc.platform === platform
+            ? { ...acc, connected: true, username: formData[platform].username, lastSync: new Date() }
+            : acc
+        )
+      );
+    }
   };
 
-  const handleDisconnect = (platform: keyof typeof formData) => {
-    setAccounts(prev => 
-      prev.map(acc => 
-        acc.platform === platform 
-          ? { ...acc, connected: false, username: '', lastSync: undefined }
-          : acc
-      )
-    );
+  const handleStartRedditOAuth = async (connectionId: string) => {
+    try {
+      // Get Reddit connection from Convex to get the client ID
+      const connection = connections?.find(c => c._id === connectionId);
+      const clientId = connection?.clientId || formData.reddit.clientId;
+      
+      if (!clientId) {
+        alert('Please enter your Reddit Client ID first');
+        return;
+      }
+
+      // Use environment variable to ensure consistency with backend
+      const redirectUri = 'http://localhost:3000/api/auth/reddit/callback'; // Match the actual dev server port
+      console.log('🔗 Starting OAuth with redirect URI:', redirectUri);
+      
+      const scope = 'submit,identity';
+      const state = connectionId; // Pass connection ID as state
+      
+      const authUrl = new URL('https://www.reddit.com/api/v1/authorize');
+      authUrl.searchParams.set('client_id', clientId);
+      authUrl.searchParams.set('response_type', 'code');
+      authUrl.searchParams.set('state', state);
+      authUrl.searchParams.set('redirect_uri', redirectUri);
+      authUrl.searchParams.set('duration', 'permanent');
+      authUrl.searchParams.set('scope', scope);
+      
+      // Redirect to Reddit authorization
+      window.location.href = authUrl.toString();
+
+    } catch (error) {
+      console.error('Failed to start Reddit OAuth:', error);
+      setError(error instanceof Error ? error.message : 'Failed to start OAuth');
+    }
+  };
+
+  const handleDisconnect = async (platform: keyof typeof formData) => {
+    if (platform === 'reddit') {
+      try {
+        // Find the connection to disconnect
+        const connection = connections?.find(c => c.platform === 'reddit');
+        if (connection) {
+          await disconnectSocialConnection({ connectionId: connection._id });
+        }
+        
+        // Clear the form data for Reddit
+        setFormData(prev => ({
+          ...prev,
+          reddit: { username: '', clientId: '', clientSecret: '', userAgent: '' }
+        }));
+      } catch (error) {
+        console.error('Failed to disconnect Reddit:', error);
+      }
+    } else {
+      // For other platforms, just update local UI state
+      setAccounts(prev =>
+        prev.map(acc =>
+          acc.platform === platform
+            ? { ...acc, connected: false, username: '', lastSync: undefined }
+            : acc
+        )
+      );
+    }
   };
 
   const updateFormData = (platform: keyof typeof formData, field: string, value: string) => {
@@ -93,11 +223,38 @@ export function SocialConnectors() {
             Connect your social media accounts to manage posts and analytics from one dashboard.
           </p>
         </div>
+        
+        {/* Error Display */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-red-500" />
+              <span className="text-red-500 text-sm">{error}</span>
+              <button
+                onClick={() => setError(null)}
+                className="ml-auto text-red-500 hover:text-red-400 text-sm"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {Object.entries(formData).map(([platform, data]) => {
             const typedPlatform = platform as keyof typeof formData;
-            const account = accounts.find(acc => acc.platform === typedPlatform);
+            // Use Convex data for Reddit, local state for others
+            const convexConnection = connections?.find(c => c.platform === typedPlatform);
+            const account = typedPlatform === 'reddit' && convexConnection
+              ? {
+                  platform: typedPlatform,
+                  username: convexConnection.username,
+                  connected: true,
+                  accessToken: convexConnection.accessToken,
+                  _id: convexConnection._id,
+                  lastSync: convexConnection.updatedAt ? new Date(convexConnection.updatedAt) : undefined
+                }
+              : accounts.find(acc => acc.platform === typedPlatform);
             const Icon = platformIcons[typedPlatform];
             
             return (
@@ -105,10 +262,13 @@ export function SocialConnectors() {
                 <div className="flex items-center gap-3 mb-4">
                   <Icon className="w-6 h-6 text-[#4a9eff]" />
                   <h3 className="text-lg font-semibold">{platformNames[typedPlatform]}</h3>
-                  {account?.connected && (
-                    <CheckCircle className="w-5 h-5 text-green-500 ml-auto" />
-                  )}
-                  {!account?.connected && (
+                  {account?.connected ? (
+                    account.accessToken ? (
+                      <CheckCircle className="w-5 h-5 text-green-500 ml-auto" />
+                    ) : (
+                      <AlertCircle className="w-5 h-5 text-orange-500 ml-auto" />
+                    )
+                  ) : (
                     <AlertCircle className="w-5 h-5 text-[#858585] ml-auto" />
                   )}
                 </div>
@@ -119,12 +279,52 @@ export function SocialConnectors() {
                       <p className="text-sm text-[#cccccc]">
                         <strong>Connected as:</strong> @{account.username}
                       </p>
+                      <p className="text-xs text-[#858585] mt-1">
+                        <strong>Status:</strong>{' '}
+                        {account.accessToken ? (
+                          <span className="text-green-500">Authorized for posting</span>
+                        ) : (
+                          <span className="text-orange-500">Connection created, authorization required</span>
+                        )}
+                      </p>
                       {account.lastSync && (
                         <p className="text-xs text-[#858585] mt-1">
                           Last sync: {account.lastSync.toLocaleString()}
                         </p>
                       )}
                     </div>
+                    
+                    {/* Show OAuth authorization button if not yet authorized */}
+                    {!account?.accessToken && typedPlatform === 'reddit' && account?._id && (
+                      <Button
+                        onClick={() => handleStartRedditOAuth(account._id)}
+                        className="w-full bg-[#ff4500] hover:bg-[#e03d00] text-white"
+                        disabled={isConnecting}
+                      >
+                        Authorize Reddit Access
+                      </Button>
+                    )}
+                    
+                    {/* Show authenticated status if authorized */}
+                    {account?.accessToken && typedPlatform === 'reddit' && (
+                      <div className="space-y-2">
+                        <Button
+                          disabled
+                          className="w-full bg-green-600 text-white opacity-60 cursor-not-allowed"
+                        >
+                          ✓ Authenticated
+                        </Button>
+                        <Button
+                          onClick={() => handleStartRedditOAuth(account._id)}
+                          variant="outline"
+                          className="w-full text-xs border-[#454545] text-[#cccccc] hover:bg-[#2d2d2d]"
+                          disabled={isConnecting}
+                        >
+                          Re-authorize Access
+                        </Button>
+                      </div>
+                    )}
+                    
                     <Button
                       onClick={() => handleDisconnect(typedPlatform)}
                       variant="outline"
@@ -175,6 +375,18 @@ export function SocialConnectors() {
                             className="mt-1 bg-[#1e1e1e] border-[#454545] text-[#cccccc]"
                           />
                         </div>
+                        <div>
+                          <Label htmlFor={`${platform}-user-agent`} className="text-sm text-[#cccccc]">
+                            User Agent (Optional)
+                          </Label>
+                          <Input
+                            id={`${platform}-user-agent`}
+                            value={(data as { userAgent: string }).userAgent}
+                            onChange={(e) => updateFormData(typedPlatform, 'userAgent', e.target.value)}
+                            placeholder="EACDashboard/1.0 by your_username"
+                            className="mt-1 bg-[#1e1e1e] border-[#454545] text-[#cccccc]"
+                          />
+                        </div>
                       </>
                     ) : (
                       <>
@@ -207,19 +419,50 @@ export function SocialConnectors() {
                       </>
                     )}
 
-                    <Button
-                      onClick={() => handleConnect(typedPlatform)}
-                      className="w-full bg-[#4a9eff] hover:bg-[#357abd] text-white"
-                      disabled={
-                        !data.username || 
-                        (platform === 'reddit' 
-                          ? !(data as { clientId: string }).clientId 
-                          : !(data as { apiKey: string }).apiKey
-                        )
-                      }
-                    >
-                      Connect {platformNames[typedPlatform]}
-                    </Button>
+                    {/* Special handling for Reddit OAuth flow */}
+                    {platform === 'reddit' ? (
+                      <div className="space-y-3">
+                        <Button
+                          onClick={() => handleConnect(typedPlatform)}
+                          className="w-full bg-[#4a9eff] hover:bg-[#357abd] text-white"
+                          disabled={
+                            isConnecting ||
+                            !data.username ||
+                            !(data as { clientId: string }).clientId ||
+                            !(data as { clientSecret: string }).clientSecret
+                          }
+                        >
+                          {isConnecting ? 'Creating...' : 'Create Reddit Connection'}
+                        </Button>
+                        
+                        {/* OAuth Authorization Button - only show after connection is created */}
+                        {connections?.find(c => c.platform === 'reddit') && (
+                          <Button
+                            onClick={() => {
+                              const redditConnection = connections.find(c => c.platform === 'reddit');
+                              if (redditConnection) {
+                                handleStartRedditOAuth(redditConnection._id);
+                              }
+                            }}
+                            className="w-full bg-[#ff4500] hover:bg-[#e03d00] text-white"
+                            disabled={isConnecting}
+                          >
+                            Authorize Reddit Access
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <Button
+                        onClick={() => handleConnect(typedPlatform)}
+                        className="w-full bg-[#4a9eff] hover:bg-[#357abd] text-white"
+                        disabled={
+                          !data.username ||
+                          !(data as { apiKey: string }).apiKey
+                        }
+                      >
+                        Connect {platformNames[typedPlatform]}
+                      </Button>
+                    )}
                   </div>
                 )}
               </Card>
