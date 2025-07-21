@@ -13,6 +13,8 @@ export function ChatMessages() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState("");
   const [showCommandHints, setShowCommandHints] = useState(false);
+  const [showMCPTools, setShowMCPTools] = useState(false);
+  const [selectedToolIndex, setSelectedToolIndex] = useState(-1);
   
   const { messages, isLoading: chatLoading, sendMessage, sessionId } = useChat();
   const {
@@ -24,6 +26,29 @@ export function ChatMessages() {
   } = useMCP();
 
   const isLoading = chatLoading || mcpLoading;
+
+  // Helper function to strip markdown formatting and convert to plain text
+  const stripMarkdown = (text: string): string => {
+    return text
+      .replace(/^#{1,6}\s+/gm, '') // Remove # headers
+      .replace(/\*\*(.*?)\*\*/g, '$1') // Remove **bold**
+      .replace(/\*(.*?)\*/g, '$1') // Remove *italic*
+      .replace(/`([^`]+)`/g, '$1') // Remove `code`
+      .replace(/^\s*[-*+]\s+/gm, '• ') // Convert markdown lists to bullet points
+      .replace(/^\s*\d+\.\s+/gm, '• ') // Convert numbered lists to bullet points
+      .replace(/\n\s*\n\s*\n/g, '\n\n') // Reduce multiple blank lines to double
+      .split('\n') // Split into lines for processing
+      .map(line => {
+        // Add spacing after section headers (lines that don't start with bullet points)
+        if (line.trim() && !line.startsWith('•') && !line.startsWith(' ') && line.length > 0) {
+          return line + '\n'; // Add extra newline after headers
+        }
+        return line;
+      })
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n') // Clean up excessive newlines
+      .trim();
+  };
 
   // Show command hints when user types '/'
   useEffect(() => {
@@ -49,8 +74,13 @@ export function ChatMessages() {
     }
   }, [isLoading, messages]);
 
-  // Helper function to detect MCP-related queries
+  // Helper function to detect MCP-related queries (excluding direct tool commands)
   const isMCPQuery = (input: string): boolean => {
+    // Don't treat direct tool commands as NLP queries
+    if (input.startsWith('/') && input.includes('eac_')) {
+      return false;
+    }
+    
     const mcpKeywords = [
       'reddit', 'analyze', 'generate', 'optimize', 'workflow', 'integration',
       'component', 'project', 'architecture', 'post', 'social'
@@ -68,15 +98,80 @@ export function ChatMessages() {
     if (message.trim() && !isLoading) {
       const messageContent = message.trim();
       setMessage("");
+      setShowMCPTools(false);
+      setSelectedToolIndex(-1);
       
-      // Check if this looks like an MCP-related query
-      if (mcpConnected && isMCPQuery(messageContent)) {
+      // Check if message starts with MCP tool command (e.g., /eac_project_analyze)
+      if (mcpConnected && messageContent.startsWith('/') && messageContent.includes('eac_')) {
+        try {
+          // Extract tool name and arguments from the command
+          const parts = messageContent.slice(1).split(' ');
+          const toolName = parts[0];
+          const query = parts.slice(1).join(' ') || `Execute ${toolName} with default parameters`;
+          
+          // Create a direct tool call request instead of using natural language processing
+          const response = await fetch('/api/mcp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'call-tool',
+              data: {
+                name: toolName,
+                arguments: {
+                  query: query,
+                  includePatterns: true,
+                  includeRecommendations: true,
+                  includeProps: true,
+                  includeHooks: true,
+                  includeUsage: true,
+                  includeSchema: true,
+                  includeFunctions: true
+                }
+              }
+            })
+          });
+          
+          const mcpResponse = await response.json();
+          
+          if (mcpResponse.success && mcpResponse.result) {
+            // Extract text content from the direct tool result
+            let textContent = '';
+            if (mcpResponse.result.content && Array.isArray(mcpResponse.result.content)) {
+              textContent = mcpResponse.result.content
+                .filter((item: { type: string; text?: string }) => item.type === 'text')
+                .map((item: { type: string; text?: string }) => item.text || '')
+                .join('\n');
+            } else if (typeof mcpResponse.result === 'string') {
+              textContent = mcpResponse.result;
+            } else {
+              textContent = JSON.stringify(mcpResponse.result, null, 2);
+            }
+            
+            // Strip markdown formatting and convert to plain text
+            const plainText = stripMarkdown(textContent);
+            
+            await sendMessage(`🔧 ${toolName} Results:\n\n${plainText}`);
+          } else {
+            await sendMessage(`❌ Failed to execute ${toolName}: ${mcpResponse.error || 'Unknown error'}`);
+          }
+        } catch (error) {
+          console.error('MCP Tool Error:', error);
+          await sendMessage(`❌ Error executing MCP tool: ${error}`);
+        }
+      } else if (mcpConnected && isMCPQuery(messageContent)) {
+        // Check if this looks like a natural language MCP query
         try {
           const mcpResponse = await processNaturalLanguage(messageContent);
           
-          if (mcpResponse.success && mcpResponse.content.length > 0) {
-            // Send the MCP response as a system message
-            await sendMessage(`MCP Response: ${mcpResponse.content[0].text}`);
+          if (mcpResponse.success && mcpResponse.content && mcpResponse.content.length > 0) {
+            // Extract the actual text content from the MCP response
+            const textContent = mcpResponse.content[0].text;
+            
+            // Strip markdown formatting and convert to plain text
+            const plainText = stripMarkdown(textContent);
+            
+            // Send the MCP response with clean text content
+            await sendMessage(`🤖 MCP Analysis:\n\n${plainText}`);
           } else {
             await sendMessage(messageContent);
           }
@@ -93,11 +188,79 @@ export function ChatMessages() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (showMCPTools && filteredMCPTools.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedToolIndex(prev =>
+          prev < filteredMCPTools.length - 1 ? prev + 1 : 0
+        );
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedToolIndex(prev =>
+          prev > 0 ? prev - 1 : filteredMCPTools.length - 1
+        );
+      } else if (e.key === 'Tab' || e.key === 'Enter') {
+        e.preventDefault();
+        if (selectedToolIndex >= 0 && selectedToolIndex < filteredMCPTools.length) {
+          const selectedTool = filteredMCPTools[selectedToolIndex];
+          setMessage(`/${selectedTool.name} `);
+          setShowMCPTools(false);
+          setSelectedToolIndex(-1);
+          inputRef.current?.focus();
+        }
+      } else if (e.key === 'Escape') {
+        setShowMCPTools(false);
+        setSelectedToolIndex(-1);
+      }
+    } else if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
     }
   };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setMessage(value);
+    
+    // Show MCP tools menu when message starts with '/' and is just one character or when typing tool name
+    if (value === '/' || (value.startsWith('/') && !value.includes(' '))) {
+      setShowMCPTools(true);
+      setShowCommandHints(false);
+      // Auto-select first matching tool if typing
+      if (value.length > 1) {
+        const searchTerm = value.slice(1).toLowerCase();
+        const currentFiltered = availableTools.filter(tool =>
+          tool.name.toLowerCase().includes(searchTerm)
+        );
+        setSelectedToolIndex(currentFiltered.length > 0 ? 0 : -1);
+      } else {
+        setSelectedToolIndex(0);
+      }
+    } else if (value.startsWith('/') && value.includes(' ')) {
+      // Hide menu once user has selected a tool and added space
+      setShowMCPTools(false);
+      setSelectedToolIndex(-1);
+    } else if (!value.startsWith('/')) {
+      setShowMCPTools(false);
+      setSelectedToolIndex(-1);
+      // Show regular command hints for other commands (keep existing logic)
+      setShowCommandHints(value.startsWith('/') && value.length > 1);
+    }
+  };
+
+  const handleToolSelect = (tool: { name: string; description: string }) => {
+    setMessage(`/${tool.name} `);
+    setShowMCPTools(false);
+    setSelectedToolIndex(-1);
+    inputRef.current?.focus();
+  };
+
+  // Filter MCP tools based on input
+  const filteredMCPTools = availableTools.filter(tool => {
+    if (!message.startsWith('/') || message.length === 1) return true;
+    const searchTerm = message.slice(1).split(' ')[0].toLowerCase();
+    return tool.name.toLowerCase().includes(searchTerm);
+  });
 
   return (
     <div 
@@ -121,7 +284,7 @@ export function ChatMessages() {
           <div className="text-[#858585] text-xs">Session: {sessionId.slice(-8)}</div>
           <div className="text-[#858585] border-t border-[#333] pt-2 mt-3">
             Type your questions about projects, financials, Reddit integration, or development below.
-            {mcpConnected && <div className="text-xs text-[#4ec9b0] mt-1">Enhanced: Try "analyze my reddit integration" or "optimize my workflow"</div>}
+            {mcpConnected && <div className="text-xs text-[#4ec9b0] mt-1">Enhanced: Try &ldquo;analyze my reddit integration&rdquo; or &ldquo;optimize my workflow&rdquo;</div>}
           </div>
         </div>
 
@@ -157,6 +320,30 @@ export function ChatMessages() {
 
         {/* Inline Input */}
         <div className="flex flex-col pt-2">
+          {/* MCP Tools Menu */}
+          {showMCPTools && availableTools && availableTools.length > 0 && (
+            <div className="mb-2 p-2 bg-[#1a1a1a] border border-[#333] rounded text-xs max-h-48 overflow-y-auto">
+              <div className="text-[#4ec9b0] mb-1">
+                MCP Tools ({filteredMCPTools.length} of {availableTools.length} available):
+              </div>
+              {filteredMCPTools.map((tool, index) => (
+                <div
+                  key={tool.name}
+                  className={`text-[#cccccc] py-1 px-2 rounded cursor-pointer hover:bg-[#2a2a2a] ${
+                    selectedToolIndex === index ? 'bg-[#0e639c] text-white' : ''
+                  }`}
+                  onClick={() => handleToolSelect(tool)}
+                >
+                  <div className="font-semibold">/{tool.name}</div>
+                  <div className="text-[#858585] text-xs mt-0.5">{tool.description}</div>
+                </div>
+              ))}
+              <div className="text-[#858585] text-xs mt-2 border-t border-[#333] pt-1">
+                ↑↓ navigate • Enter/Tab select • Esc cancel
+              </div>
+            </div>
+          )}
+
           {/* Command Hints */}
           {showCommandHints && filteredCommands.length > 0 && (
             <div className="mb-2 p-2 bg-[#1a1a1a] border border-[#333] rounded text-xs">
@@ -176,9 +363,9 @@ export function ChatMessages() {
                 ref={inputRef}
                 type="text"
                 value={message}
-                onChange={(e) => setMessage(e.target.value)}
+                onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
-                placeholder={isLoading ? "AI is thinking..." : "Ask about your EAC project or type /help for commands..."}
+                placeholder={isLoading ? "AI is thinking..." : "Type / for MCP tools or ask about your EAC project..."}
                 disabled={isLoading}
                 className="w-full bg-transparent text-[#cccccc] border-none outline-none placeholder:text-[#858585] disabled:opacity-50 disabled:cursor-not-allowed caret-[#cccccc]"
               />

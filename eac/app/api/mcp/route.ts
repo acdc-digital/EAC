@@ -243,9 +243,25 @@ export async function POST(request: NextRequest) {
 
           const result = await mcpConnection.callTool(toolName, toolArgs);
           
+          // Extract the actual text content from MCP tool result
+          let textContent = '';
+          if (result && result.content && Array.isArray(result.content)) {
+            // If the result has a content array, extract the text
+            textContent = result.content
+              .filter((item: { type: string; text?: string }) => item.type === 'text')
+              .map((item: { type: string; text?: string }) => item.text || '')
+              .join('\n');
+          } else if (typeof result === 'string') {
+            // If it's already a string, use it directly
+            textContent = result;
+          } else {
+            // Fallback: stringify the object but try to make it readable
+            textContent = JSON.stringify(result, null, 2);
+          }
+          
           return NextResponse.json({
             success: true,
-            content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+            content: [{ type: 'text', text: textContent }],
             toolCalls: [{ name: toolName, arguments: toolArgs }]
           });
         } catch (error) {
@@ -271,7 +287,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Initialize connection if needed
     if (!mcpConnection) {

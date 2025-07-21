@@ -14,6 +14,11 @@ const openai = new OpenAI({
 function detectMCPIntent(message: string): { tool: string; confidence: number; params?: any } | null {
   const msg = message.toLowerCase();
 
+  // Skip direct tool commands - these are handled by the terminal chat directly
+  if (message.startsWith('/') && message.includes('eac_')) {
+    return null;
+  }
+
   // Project creation triggers  
   if ((msg.includes("create") || msg.includes("new") || msg.includes("make")) && 
       (msg.includes("project"))) {
