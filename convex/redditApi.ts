@@ -15,14 +15,16 @@ interface RedditAuthResponse {
 }
 
 interface RedditSubmitResponse {
-  json: {
-    errors: string[][];
-    data: {
-      url: string;
-      id: string;
-      name: string;
+  json?: {
+    errors?: string[][];
+    data?: {
+      url?: string;
+      id?: string;
+      name?: string;
     };
   };
+  // Reddit API sometimes returns different structures
+  [key: string]: any;
 }
 
 // OAuth2 flow for Reddit authentication
@@ -273,10 +275,49 @@ async function submitRedditPostHandler(ctx: any, postId: Id<"redditPosts">) {
     
     const result: RedditSubmitResponse = await response.json();
     
-    // Check for Reddit API errors
-    if (result.json.errors && result.json.errors.length > 0) {
+    console.log('📡 Reddit API response:', JSON.stringify(result, null, 2));
+    
+    // Check for Reddit API errors - handle different response formats
+    if (result.json && result.json.errors && result.json.errors.length > 0) {
       const errorMessages = result.json.errors.map(err => err.join(": ")).join(", ");
       throw new Error(`Reddit submission error: ${errorMessages}`);
+    }
+    
+    // Reddit often returns jQuery-style responses, extract URL from jQuery commands
+    let extractedUrl = "unknown";
+    let extractedId = "unknown";
+    
+    // Try to extract URL from jQuery response format
+    if (result.jquery && Array.isArray(result.jquery)) {
+      for (const command of result.jquery) {
+        if (Array.isArray(command) && command[2] === "call" && Array.isArray(command[3])) {
+          const arg = command[3][0];
+          if (typeof arg === "string" && arg.includes("reddit.com/r/")) {
+            extractedUrl = arg;
+            // Extract post ID from URL like: /r/subreddit/comments/POST_ID/title/
+            const idMatch = arg.match(/\/comments\/([a-zA-Z0-9]+)\//);
+            if (idMatch) {
+              extractedId = idMatch[1];
+            }
+            console.log('🔗 Extracted from jQuery response:', { url: extractedUrl, id: extractedId });
+            break;
+          }
+        }
+      }
+    }
+    
+    // Handle standard JSON response format (if it exists)
+    if (result.json && result.json.data) {
+      if (result.json.data.url) extractedUrl = result.json.data.url;
+      if (result.json.data.id) extractedId = result.json.data.id;
+      console.log('🔗 Extracted from JSON response:', { url: extractedUrl, id: extractedId });
+    }
+    
+    // Check if we have a success indicator
+    const isSuccess = result.success === true || response.ok;
+    
+    if (!isSuccess) {
+      throw new Error(`Reddit submission failed: ${JSON.stringify(result)}`);
     }
     
     // Update post with success data
@@ -284,14 +325,14 @@ async function submitRedditPostHandler(ctx: any, postId: Id<"redditPosts">) {
       postId: postId,
       status: "published",
       publishedAt: Date.now(),
-      publishedUrl: result.json.data.url,
-      redditId: result.json.data.id,
+      publishedUrl: extractedUrl,
+      redditId: extractedId,
     });
     
     return {
       success: true,
-      url: result.json.data.url,
-      redditId: result.json.data.id,
+      url: extractedUrl,
+      redditId: extractedId,
     };
     
   } catch (error) {

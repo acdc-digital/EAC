@@ -309,3 +309,19 @@ export const searchFiles = query({
     return filteredFiles;
   },
 });
+
+// Get file by name (for linking posts to files)
+export const getFileByName = query({
+  args: {
+    name: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const file = await ctx.db
+      .query("files")
+      .withIndex("by_name", (q) => q.eq("name", args.name))
+      .filter((q) => q.neq(q.field("isDeleted"), true))
+      .first();
+
+    return file;
+  },
+});

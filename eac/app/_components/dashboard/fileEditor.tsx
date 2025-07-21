@@ -4,9 +4,11 @@
 "use client";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { api } from "@/convex/_generated/api";
 import { useEditorStore } from "@/store";
 import { ProjectFile } from "@/store/editor/types";
-import { AtSign, Camera, ChevronDown, ChevronRight, FileText, Folder, Hash, MessageSquare } from "lucide-react";
+import { useQuery } from "convex/react";
+import { AtSign, Camera, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, FileText, Folder, Hash, MessageSquare } from "lucide-react";
 import { useState } from 'react';
 
 export function FileEditor() {
@@ -19,7 +21,31 @@ export function FileEditor() {
     updateFileStatus
   } = useEditorStore();
 
+  // Get Reddit posts for status checking
+  const redditPosts = useQuery(api.reddit.getAllRedditPosts);
+
+  // Helper function to get Reddit post status for a file
+  const getFileRedditStatus = (fileName: string) => {
+    if (!redditPosts) return null;
+    
+    const postWithFile = redditPosts.find(postData => 
+      postData.file && postData.file.name === fileName
+    );
+    
+    return postWithFile?.status || null;
+  };
+
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+
+  // Functions to expand/collapse all folders
+  const expandAllFolders = () => {
+    const allFolderIds = new Set([...projectFolders, ...financialFolders].map(folder => folder.id));
+    setExpandedFolders(allFolderIds);
+  };
+
+  const collapseAllFolders = () => {
+    setExpandedFolders(new Set());
+  };
 
   // Filter to show only social media and markdown files
   const filteredProjectFiles = projectFiles.filter(file => 
@@ -35,6 +61,25 @@ export function FileEditor() {
       return <div className="w-20"></div>; // Empty space for non-social files
     }
     
+    // For Reddit files, check actual Reddit post status
+    if (file.type === 'reddit') {
+      const redditStatus = getFileRedditStatus(file.name);
+      if (redditStatus === 'published') {
+        return (
+          <span className="px-2 py-0.5 text-xs rounded-full bg-[#10b981] text-white">
+            Submitted
+          </span>
+        );
+      }
+      // If no Reddit post exists or it's not published, show as Draft
+      return (
+        <span className="px-2 py-0.5 text-xs rounded-full bg-[#4a4a4a] text-[#cccccc]">
+          Draft
+        </span>
+      );
+    }
+    
+    // For other social media files, use the local file status
     const status = file.status || 'draft';
     const statusConfig = {
       draft: { label: 'Draft', color: 'bg-[#4a4a4a] text-[#cccccc]', next: 'scheduled' as const },
@@ -211,8 +256,22 @@ export function FileEditor() {
           {/* Project Files Section */}
           {(filteredProjectFiles.length > 0 || projectFolders.length > 0) && (
             <div className="mb-4">
-              <div className="px-3 py-2 text-xs font-medium text-[#858585] uppercase tracking-wide">
-                Projects ({filteredProjectFiles.length} files)
+              <div className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-[#858585] uppercase tracking-wide">
+                <span>Projects ({filteredProjectFiles.length} files)</span>
+                <button
+                  onClick={expandAllFolders}
+                  className="p-1 hover:bg-[#2d2d2d] rounded transition-colors"
+                  title="Expand all folders"
+                >
+                  <ChevronsDown className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={collapseAllFolders}
+                  className="p-1 hover:bg-[#2d2d2d] rounded transition-colors"
+                  title="Collapse all folders"
+                >
+                  <ChevronsUp className="w-3 h-3" />
+                </button>
               </div>
               {renderFiles(filteredProjectFiles, projectFolders)}
             </div>
@@ -221,8 +280,22 @@ export function FileEditor() {
           {/* Financial Files Section */}
           {(filteredFinancialFiles.length > 0 || financialFolders.length > 0) && (
             <div className="mb-4">
-              <div className="px-3 py-2 text-xs font-medium text-[#858585] uppercase tracking-wide">
-                Financial ({filteredFinancialFiles.length} files)
+              <div className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-[#858585] uppercase tracking-wide">
+                <span>Financial ({filteredFinancialFiles.length} files)</span>
+                <button
+                  onClick={expandAllFolders}
+                  className="p-1 hover:bg-[#2d2d2d] rounded transition-colors"
+                  title="Expand all folders"
+                >
+                  <ChevronsDown className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={collapseAllFolders}
+                  className="p-1 hover:bg-[#2d2d2d] rounded transition-colors"
+                  title="Collapse all folders"
+                >
+                  <ChevronsUp className="w-3 h-3" />
+                </button>
               </div>
               {renderFiles(filteredFinancialFiles, financialFolders)}
             </div>

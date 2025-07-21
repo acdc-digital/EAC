@@ -30,6 +30,16 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
   
   const redditConnection = redditConnections?.[0]; // Get the first Reddit connection
   
+  // Get existing Reddit post for this file (if any)
+  const existingPost = useQuery(api.reddit.getRedditPostByFileName, {
+    fileName: fileName
+  });
+  
+  // Get the file record to link the post to it
+  const fileRecord = useQuery(api.files.getFileByName, {
+    name: fileName
+  });
+  
   // TODO: Fix social store import
   // const clearError = useSocialStore(state => state.clearError);
   const clearError = () => setError(null); // Temporary fix
@@ -60,11 +70,31 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
+  // Determine if the form should be readonly (post is published)
+  const isReadonly = existingPost?.status === 'published';
+  const isSubmitted = existingPost?.status === 'published';
+
   // Character limits
   const titleMaxChars = 300;
   const textMaxChars = 40000;
   const titleRemainingChars = titleMaxChars - postTitle.length;
   const textRemainingChars = textMaxChars - postContent.length;
+
+  // Load existing post data when available
+  useEffect(() => {
+    if (existingPost) {
+      setPostTitle(existingPost.title || '');
+      setPostContent(existingPost.text || '');
+      setPostType(existingPost.kind || 'self');
+      setSubreddit(existingPost.subreddit || '');
+      setFlair(existingPost.flairText || '');
+      setLinkUrl(existingPost.url || '');
+      setIsNsfw(existingPost.nsfw || false);
+      setIsSpoiler(existingPost.spoiler || false);
+      setSendReplies(existingPost.sendReplies ?? true);
+      setLastCreatedPostId(existingPost._id);
+    }
+  }, [existingPost]);
 
   // Update parent when content changes
   useEffect(() => {
@@ -153,6 +183,7 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
       const postId = await createRedditPost({
         userId: 'temp-user-id', // TODO: Replace with actual user ID
         connectionId: redditConnection._id,
+        fileId: fileRecord?._id, // Link to the file
         subreddit: subreddit.trim(),
         title: postTitle.trim(),
         kind: postType,
@@ -273,8 +304,14 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
               <p className="text-sm text-[#858585]">{fileName}</p>
             </div>
           </div>
-          <Badge variant="outline" className="text-[#ff4500] border-[#ff4500]">
-            Draft
+          <Badge variant="outline" className={
+            isSubmitted 
+              ? "text-green-500 border-green-500 bg-green-500/10" 
+              : existingPost?.status === 'draft' 
+                ? "text-yellow-500 border-yellow-500 bg-yellow-500/10"
+                : "text-[#ff4500] border-[#ff4500]"
+          }>
+            {isSubmitted ? 'Submitted' : existingPost?.status === 'draft' ? 'Draft' : 'New Post'}
           </Badge>
         </div>
 
@@ -308,13 +345,14 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
                       value={subreddit}
                       onChange={(e) => setSubreddit(e.target.value)}
                       placeholder="r/subredditname"
-                      className="bg-[#1e1e1e] border-[#454545] text-[#cccccc] placeholder-[#858585]"
+                      className={`bg-[#1e1e1e] border-[#454545] text-[#cccccc] placeholder-[#858585] ${isReadonly ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      readOnly={isReadonly}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-[#cccccc]">Post Type</Label>
-                    <Select value={postType} onValueChange={(value: 'self' | 'link' | 'image' | 'video') => setPostType(value)}>
-                      <SelectTrigger className="bg-[#1e1e1e] border-[#454545] text-[#cccccc]">
+                    <Select value={postType} onValueChange={(value: 'self' | 'link' | 'image' | 'video') => setPostType(value)} disabled={isReadonly}>
+                      <SelectTrigger className={`bg-[#1e1e1e] border-[#454545] text-[#cccccc] ${isReadonly ? 'opacity-60 cursor-not-allowed' : ''}`}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-[#2d2d2d] border-[#454545]">
@@ -347,7 +385,8 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
                     value={flair}
                     onChange={(e) => setFlair(e.target.value)}
                     placeholder="Post flair"
-                    className="bg-[#1e1e1e] border-[#454545] text-[#cccccc] placeholder-[#858585]"
+                    className={`bg-[#1e1e1e] border-[#454545] text-[#cccccc] placeholder-[#858585] ${isReadonly ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    readOnly={isReadonly}
                   />
                 </div>
               </CardContent>
@@ -365,8 +404,9 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
                     value={postTitle}
                     onChange={(e) => setPostTitle(e.target.value)}
                     placeholder="An interesting title"
-                    className="bg-[#1e1e1e] border-[#454545] text-[#cccccc] placeholder-[#858585]"
+                    className={`bg-[#1e1e1e] border-[#454545] text-[#cccccc] placeholder-[#858585] ${isReadonly ? 'opacity-60 cursor-not-allowed' : ''}`}
                     maxLength={titleMaxChars}
+                    readOnly={isReadonly}
                   />
                   <div className="flex justify-between text-xs text-[#858585]">
                     <span>Characters remaining: {titleRemainingChars}</span>
@@ -389,8 +429,9 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
                       value={postContent}
                       onChange={(e) => setPostContent(e.target.value)}
                       placeholder="Write your post content here... You can use **bold**, *italic*, and other Markdown formatting."
-                      className="min-h-48 bg-[#1e1e1e] border-[#454545] text-[#cccccc] placeholder-[#858585] resize-none font-mono text-sm"
+                      className={`min-h-48 bg-[#1e1e1e] border-[#454545] text-[#cccccc] placeholder-[#858585] resize-none font-mono text-sm ${isReadonly ? 'opacity-60 cursor-not-allowed' : ''}`}
                       maxLength={textMaxChars}
+                      readOnly={isReadonly}
                     />
                     <div className="flex justify-between text-xs text-[#858585]">
                       <span>Characters remaining: {textRemainingChars.toLocaleString()}</span>
@@ -416,8 +457,9 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
                       value={linkUrl}
                       onChange={(e) => setLinkUrl(e.target.value)}
                       placeholder="https://example.com"
-                      className="bg-[#1e1e1e] border-[#454545] text-[#cccccc] placeholder-[#858585]"
+                      className={`bg-[#1e1e1e] border-[#454545] text-[#cccccc] placeholder-[#858585] ${isReadonly ? 'opacity-60 cursor-not-allowed' : ''}`}
                       type="url"
+                      readOnly={isReadonly}
                     />
                   </div>
                 </CardContent>
@@ -480,7 +522,8 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
                       value={scheduledDate}
                       onChange={(e) => setScheduledDate(e.target.value)}
                       min={new Date().toISOString().split('T')[0]}
-                      className="bg-[#1e1e1e] border-[#454545] text-[#cccccc]"
+                      className={`bg-[#1e1e1e] border-[#454545] text-[#cccccc] ${isReadonly ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      readOnly={isReadonly}
                     />
                   </div>
                   <div className="space-y-2">
@@ -489,7 +532,8 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
                       type="time"
                       value={scheduledTime}
                       onChange={(e) => setScheduledTime(e.target.value)}
-                      className="bg-[#1e1e1e] border-[#454545] text-[#cccccc]"
+                      className={`bg-[#1e1e1e] border-[#454545] text-[#cccccc] ${isReadonly ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      readOnly={isReadonly}
                     />
                   </div>
                 </div>
@@ -518,7 +562,9 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
                     id="isNsfw"
                     checked={isNsfw}
                     onChange={(e) => setIsNsfw(e.target.checked)}
-                    className="rounded border-[#454545] bg-[#1e1e1e] text-[#ff4500]"
+                    disabled={isReadonly}
+                    className={`rounded border-[#454545] bg-[#1e1e1e] text-[#ff4500] ${isReadonly ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    title="NSFW checkbox"
                   />
                   <Label htmlFor="isNsfw" className="text-[#cccccc]">NSFW (Not Safe for Work)</Label>
                 </div>
@@ -529,7 +575,9 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
                     id="isSpoiler"
                     checked={isSpoiler}
                     onChange={(e) => setIsSpoiler(e.target.checked)}
-                    className="rounded border-[#454545] bg-[#1e1e1e] text-[#ff4500]"
+                    disabled={isReadonly}
+                    className={`rounded border-[#454545] bg-[#1e1e1e] text-[#ff4500] ${isReadonly ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    title="Spoiler checkbox"
                   />
                   <Label htmlFor="isSpoiler" className="text-[#cccccc]">Spoiler</Label>
                 </div>
@@ -540,7 +588,9 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
                     id="sendReplies"
                     checked={sendReplies}
                     onChange={(e) => setSendReplies(e.target.checked)}
-                    className="rounded border-[#454545] bg-[#1e1e1e] text-[#ff4500]"
+                    disabled={isReadonly}
+                    className={`rounded border-[#454545] bg-[#1e1e1e] text-[#ff4500] ${isReadonly ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    title="Send replies checkbox"
                   />
                   <Label htmlFor="sendReplies" className="text-[#cccccc]">Send me reply notifications</Label>
                 </div>
@@ -585,57 +635,69 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
 
         {/* Action Buttons */}
         <div className="flex gap-3 pt-4 border-t border-[#454545]">
-          <Button
-            onClick={handleSubmitPost}
-            className="bg-[#ff4500] hover:bg-[#e03d00] text-white flex-1"
-            disabled={
-              !redditConnection ||
-              !redditConnection.accessToken ||
-              isSubmitting ||
-              !postTitle.trim() ||
-              !subreddit.trim() ||
-              (postType === 'link' && !linkUrl.trim()) ||
-              (postType === 'self' && !postContent.trim())
-            }
-          >
-            {isSubmitting
-              ? 'Submitting...'
-              : scheduledDate && scheduledTime
-                ? 'Schedule Post'
-                : 'Save Draft'
-            }
-          </Button>
-          
-          {/* Publish to Reddit Button */}
-          {lastCreatedPostId && (
+          {isSubmitted ? (
             <Button
-              onClick={handlePublishNow}
-              className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
-              disabled={isPublishing || isSubmitting}
+              className="bg-green-600 text-white flex-1 cursor-not-allowed opacity-60"
+              disabled
             >
-              <Send className="w-4 h-4" />
-              {isPublishing ? 'Publishing...' : 'Publish to Reddit'}
+              ✓ Submitted to Reddit
             </Button>
+          ) : (
+            <>
+              <Button
+                onClick={handleSubmitPost}
+                className="bg-[#ff4500] hover:bg-[#e03d00] text-white flex-1"
+                disabled={
+                  !redditConnection ||
+                  !redditConnection.accessToken ||
+                  isSubmitting ||
+                  !postTitle.trim() ||
+                  !subreddit.trim() ||
+                  (postType === 'link' && !linkUrl.trim()) ||
+                  (postType === 'self' && !postContent.trim()) ||
+                  isReadonly
+                }
+              >
+                {isSubmitting
+                  ? 'Submitting...'
+                  : scheduledDate && scheduledTime
+                    ? 'Schedule Post'
+                    : existingPost ? 'Update Draft' : 'Save Draft'
+                }
+              </Button>
+              
+              {/* Publish to Reddit Button */}
+              {lastCreatedPostId && (
+                <Button
+                  onClick={handlePublishNow}
+                  className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
+                  disabled={isPublishing || isSubmitting}
+                >
+                  {isPublishing ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Publishing...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      Publish to Reddit
+                    </>
+                  )}
+                </Button>
+              )}
+              
+              {/* Save Draft Button */}
+              <Button
+                variant="outline"
+                onClick={handleSaveDraft}
+                className="bg-transparent border-[#454545] text-[#cccccc] hover:bg-[#2d2d2d]"
+                disabled={isSubmitting || !postTitle.trim() || !subreddit.trim() || isReadonly}
+              >
+                {isSubmitting ? 'Saving...' : 'Save Draft'}
+              </Button>
+            </>
           )}
-          
-          <Button
-            onClick={handleSaveDraft}
-            variant="outline"
-            className="border-[#454545] text-[#cccccc] hover:bg-[#2d2d2d]"
-            disabled={
-              !redditConnection ||
-              !redditConnection.accessToken ||
-              isSubmitting ||
-              !postTitle.trim() ||
-              !subreddit.trim()
-            }
-          >
-            {isSubmitting ? 'Saving...' : 'Save Draft'}
-          </Button>
-          
-          <Button variant="outline" className="border-[#454545] text-[#cccccc] hover:bg-[#2d2d2d]">
-            Preview
-          </Button>
         </div>
       </div>
     </div>

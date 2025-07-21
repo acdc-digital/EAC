@@ -354,3 +354,56 @@ export const getRedditPostWithConnection = query({
     };
   },
 });
+
+// Get Reddit post by file name (for editor integration)
+export const getRedditPostByFileName = query({
+  args: {
+    fileName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // First, find the file by name
+    const file = await ctx.db
+      .query("files")
+      .withIndex("by_name", (q) => q.eq("name", args.fileName))
+      .first();
+    
+    if (!file) return null;
+    
+    // Then find any Reddit post linked to this file
+    const post = await ctx.db
+      .query("redditPosts")
+      .withIndex("by_file", (q) => q.eq("fileId", file._id))
+      .first();
+    
+    return post;
+  },
+});
+
+// Get all Reddit posts with their statuses (for sidebar integration)
+export const getAllRedditPosts = query({
+  args: {},
+  handler: async (ctx) => {
+    const posts = await ctx.db
+      .query("redditPosts")
+      .collect();
+    
+    // Return posts with their file information
+    const postsWithFiles = await Promise.all(
+      posts.map(async (post) => {
+        if (post.fileId) {
+          const file = await ctx.db.get(post.fileId);
+          return {
+            ...post,
+            file: file,
+          };
+        }
+        return {
+          ...post,
+          file: null,
+        };
+      })
+    );
+    
+    return postsWithFiles;
+  },
+});

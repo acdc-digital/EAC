@@ -51,6 +51,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
   const { openSections, toggleSection, collapseAllSections } = useSidebarStore();
   const { projectFiles, financialFiles, projectFolders, showProjectsCategory, showFinancialCategory, openTab, openSpecialTab, renameFile, renameFolder, createFolder, deleteProjectsCategory, deleteFinancialCategory, reorderProjectFolders, reorderFilesInFolder, closeAllTabs, moveToTrash } = useEditorStore();
   const { createProject } = useProjects();
+  
   const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean; fileId: string; fileName: string }>({
     isOpen: false,
     fileId: '',
