@@ -68,9 +68,17 @@ export default function CalendarPage({ className }: CalendarProps) {
   };
 
   const isSelected = (day: number) => {
-    return selectedDate?.getDate() === day &&
-           selectedDate?.getMonth() === currentDate.getMonth() &&
-           selectedDate?.getFullYear() === currentDate.getFullYear();
+    if (!selectedDate) return false;
+    
+    // Handle case where selectedDate might be serialized as string
+    const date = selectedDate instanceof Date ? selectedDate : new Date(selectedDate);
+    
+    // Check if the date is valid
+    if (isNaN(date.getTime())) return false;
+    
+    return date.getDate() === day &&
+           date.getMonth() === currentDate.getMonth() &&
+           date.getFullYear() === currentDate.getFullYear();
   };
 
   const handleDateClick = (day: number) => {
@@ -249,17 +257,21 @@ export default function CalendarPage({ className }: CalendarProps) {
             <CardHeader>
               <CardTitle className="text-[#cccccc] flex items-center gap-2">
                 <CalendarIcon className="w-5 h-5" />
-                {selectedDate.toLocaleDateString('en-US', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}
+                {(() => {
+                  const date = selectedDate instanceof Date ? selectedDate : new Date(selectedDate);
+                  return date.toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  });
+                })()}
               </CardTitle>
             </CardHeader>
             <CardContent>
               {(() => {
-                const dayPosts = getPostsByDate(selectedDate);
+                const date = selectedDate instanceof Date ? selectedDate : new Date(selectedDate);
+                const dayPosts = getPostsByDate(date);
                 if (dayPosts.length === 0) {
                   return (
                     <div className="text-[#858585] text-center py-8">

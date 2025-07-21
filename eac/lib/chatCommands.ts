@@ -42,6 +42,27 @@ export const chatCommands: ChatCommand[] = [
     command: "/generate",
     description: "Generate code (or ask: 'create a new analytics component')",
     example: "$ user: /generate ComponentName"
+  },
+  // Enhanced MCP Commands
+  {
+    command: "/reddit-analyze",
+    description: "Analyze Reddit integration (or ask: 'analyze my reddit integration')",
+    example: "$ user: /reddit-analyze"
+  },
+  {
+    command: "/reddit-post",
+    description: "Generate Reddit post (or ask: 'create a reddit post about dashboards')",
+    example: "$ user: /reddit-post topic=dashboard subreddit=programming"
+  },
+  {
+    command: "/workflow-optimize",
+    description: "Optimize workflows (or ask: 'optimize my social media workflow')",
+    example: "$ user: /workflow-optimize platform=reddit focus=automation"
+  },
+  {
+    command: "/mcp-tools",
+    description: "List all MCP server tools and capabilities",
+    example: "$ user: /mcp-tools"
   }
 ];
 

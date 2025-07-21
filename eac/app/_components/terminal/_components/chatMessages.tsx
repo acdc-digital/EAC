@@ -1,10 +1,11 @@
-// Chat Messages Component with Convex Integration
+// Chat Messages Component with Convex and MCP Integration
 // /Users/matthewsimon/Projects/eac/eac/app/_components/terminal/_components/chatMessages.tsx
 
 "use client";
 
 import { chatCommands } from "@/lib/chatCommands";
 import { useChat } from "@/lib/hooks/useChat";
+import { useMCP } from "@/lib/hooks/useMCP";
 import React, { useEffect, useRef, useState } from "react";
 
 export function ChatMessages() {
@@ -13,7 +14,16 @@ export function ChatMessages() {
   const [message, setMessage] = useState("");
   const [showCommandHints, setShowCommandHints] = useState(false);
   
-  const { messages, isLoading, sendMessage, sessionId } = useChat();
+  const { messages, isLoading: chatLoading, sendMessage, sessionId } = useChat();
+  const {
+    isConnected: mcpConnected,
+    isLoading: mcpLoading,
+    error: mcpError,
+    processNaturalLanguage,
+    availableTools
+  } = useMCP();
+
+  const isLoading = chatLoading || mcpLoading;
 
   // Show command hints when user types '/'
   useEffect(() => {
@@ -39,13 +49,46 @@ export function ChatMessages() {
     }
   }, [isLoading, messages]);
 
+  // Helper function to detect MCP-related queries
+  const isMCPQuery = (input: string): boolean => {
+    const mcpKeywords = [
+      'reddit', 'analyze', 'generate', 'optimize', 'workflow', 'integration',
+      'component', 'project', 'architecture', 'post', 'social'
+    ];
+    
+    const lowerInput = input.toLowerCase();
+    return mcpKeywords.some(keyword => lowerInput.includes(keyword)) ||
+           input.startsWith('/reddit') ||
+           input.startsWith('/mcp') ||
+           input.startsWith('/workflow');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim() && !isLoading) {
       const messageContent = message.trim();
       setMessage("");
       
-      await sendMessage(messageContent);
+      // Check if this looks like an MCP-related query
+      if (mcpConnected && isMCPQuery(messageContent)) {
+        try {
+          const mcpResponse = await processNaturalLanguage(messageContent);
+          
+          if (mcpResponse.success && mcpResponse.content.length > 0) {
+            // Send the MCP response as a system message
+            await sendMessage(`MCP Response: ${mcpResponse.content[0].text}`);
+          } else {
+            await sendMessage(messageContent);
+          }
+        } catch (error) {
+          console.error('MCP Error:', error);
+          // Fall back to regular chat
+          await sendMessage(messageContent);
+        }
+      } else {
+        // Regular chat message
+        await sendMessage(messageContent);
+      }
     }
   };
 
@@ -67,10 +110,18 @@ export function ChatMessages() {
           <div>EAC Financial Dashboard - AI Assistant</div>
           <div className="text-[#4ec9b0]">▲ Next.js 15.0.0 + Convex Backend</div>
           <div>- OpenAI GPT-4o-mini Integration</div>
+          <div className={`text-xs ${mcpConnected ? 'text-[#4ec9b0]' : 'text-[#f48771]'}`}>
+            🔌 MCP Server: {mcpConnected ? 'Connected' : 'Disconnected'}
+            {mcpConnected && ` (${availableTools.length} tools)`}
+          </div>
+          {mcpError && (
+            <div className="text-[#f48771] text-xs">MCP Error: {mcpError}</div>
+          )}
           <div className="text-[#858585] mt-2">AI Assistant ready for EAC project questions.</div>
           <div className="text-[#858585] text-xs">Session: {sessionId.slice(-8)}</div>
           <div className="text-[#858585] border-t border-[#333] pt-2 mt-3">
-            Type your questions about projects, financials, or development below.
+            Type your questions about projects, financials, Reddit integration, or development below.
+            {mcpConnected && <div className="text-xs text-[#4ec9b0] mt-1">Enhanced: Try "analyze my reddit integration" or "optimize my workflow"</div>}
           </div>
         </div>
 
@@ -137,4 +188,4 @@ export function ChatMessages() {
       </div>
     </div>
   );
-} 
+}

@@ -8,16 +8,21 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
-  CallToolRequestSchema,
-  ListResourcesRequestSchema,
-  ListToolsRequestSchema,
-  ReadResourceRequestSchema,
+    CallToolRequest,
+    CallToolRequestSchema,
+    ListResourcesRequestSchema,
+    ListToolsRequestSchema,
+    ReadResourceRequest,
+    ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { EACProjectAnalyzer } from './tools/project-analyzer.js';
-import { EACComponentFinder } from './tools/component-finder.js';
-import { EACStoreInspector } from './tools/store-inspector.js';
-import { EACConvexAnalyzer } from './tools/convex-analyzer.js';
 import { EACCodeGenerator } from './tools/code-generator.js';
+import { EACComponentFinder } from './tools/component-finder.js';
+import { EACConvexAnalyzer } from './tools/convex-analyzer.js';
+import { EACProjectAnalyzer } from './tools/project-analyzer.js';
+import { EACRedditAnalyzer } from './tools/reddit-analyzer.js';
+import { EACRedditPostGenerator } from './tools/reddit-post-generator.js';
+import { EACSocialWorkflowOptimizer } from './tools/social-workflow-optimizer.js';
+import { EACStoreInspector } from './tools/store-inspector.js';
 
 class EACMCPServer {
   private server: Server;
@@ -26,6 +31,9 @@ class EACMCPServer {
   private storeInspector: EACStoreInspector;
   private convexAnalyzer: EACConvexAnalyzer;
   private codeGenerator: EACCodeGenerator;
+  private redditAnalyzer: EACRedditAnalyzer;
+  private redditPostGenerator: EACRedditPostGenerator;
+  private socialWorkflowOptimizer: EACSocialWorkflowOptimizer;
 
   constructor() {
     this.server = new Server(
@@ -48,6 +56,9 @@ class EACMCPServer {
     this.storeInspector = new EACStoreInspector(projectRoot);
     this.convexAnalyzer = new EACConvexAnalyzer(projectRoot);
     this.codeGenerator = new EACCodeGenerator(projectRoot);
+    this.redditAnalyzer = new EACRedditAnalyzer(projectRoot);
+    this.redditPostGenerator = new EACRedditPostGenerator(projectRoot);
+    this.socialWorkflowOptimizer = new EACSocialWorkflowOptimizer(projectRoot);
 
     this.setupToolHandlers();
     this.setupResourceHandlers();
@@ -177,34 +188,111 @@ class EACMCPServer {
             required: ['type', 'name'],
           },
         },
+        {
+          name: 'eac_reddit_analyzer',
+          description: 'Analyze Reddit integration patterns, performance, and architecture',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              analysisType: {
+                type: 'string',
+                enum: ['integration', 'performance', 'recommendations', 'all'],
+                description: 'Type of analysis to perform',
+                default: 'all',
+              },
+              includeMetrics: {
+                type: 'boolean',
+                description: 'Include performance metrics and analytics',
+                default: true,
+              },
+            },
+          },
+        },
+        {
+          name: 'eac_reddit_post_generator',
+          description: 'Generate Reddit posts and templates following EAC patterns',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              type: {
+                type: 'string',
+                enum: ['post', 'template', 'optimization'],
+                description: 'Type of generation to perform',
+              },
+              subreddit: {
+                type: 'string',
+                description: 'Target subreddit for post generation',
+              },
+              topic: {
+                type: 'string',
+                description: 'Topic or theme for the generated content',
+              },
+              options: {
+                type: 'object',
+                description: 'Additional options for content generation',
+              },
+            },
+            required: ['type'],
+          },
+        },
+        {
+          name: 'eac_social_workflow_optimizer',
+          description: 'Optimize social media workflows and automation strategies',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              platform: {
+                type: 'string',
+                enum: ['reddit', 'twitter', 'facebook', 'instagram', 'all'],
+                description: 'Social media platform to optimize',
+                default: 'reddit',
+              },
+              focus: {
+                type: 'string',
+                enum: ['automation', 'time', 'engagement', 'quality'],
+                description: 'Optimization focus area',
+              },
+            },
+          },
+        },
       ],
     }));
 
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    this.server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest) => {
       const { name, arguments: args } = request.params;
 
       try {
         switch (name) {
           case 'eac_project_analyze':
-            return await this.projectAnalyzer.analyze(args);
+            return await this.projectAnalyzer.analyze(args || {});
           
           case 'eac_component_finder':
-            return await this.componentFinder.findComponents(args);
+            return await this.componentFinder.findComponents(args || {});
           
           case 'eac_store_inspector':
-            return await this.storeInspector.inspectStores(args);
+            return await this.storeInspector.inspectStores(args || {});
           
           case 'eac_convex_analyzer':
-            return await this.convexAnalyzer.analyzeConvex(args);
+            return await this.convexAnalyzer.analyzeConvex(args || {});
           
           case 'eac_code_generator':
-            return await this.codeGenerator.generateCode(args);
+            return await this.codeGenerator.generateCode(args || {});
+          
+          case 'eac_reddit_analyzer':
+            return await this.redditAnalyzer.analyzeRedditIntegration(args || {});
+          
+          case 'eac_reddit_post_generator':
+            return await this.redditPostGenerator.generateRedditPost(args || {});
+          
+          case 'eac_social_workflow_optimizer':
+            return await this.socialWorkflowOptimizer.optimizeWorkflow(args || {});
           
           default:
             throw new Error(`Unknown tool: ${name}`);
         }
       } catch (error) {
-        throw new Error(`Tool execution failed: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        throw new Error(`Tool execution failed: ${errorMessage}`);
       }
     });
   }
@@ -230,10 +318,22 @@ class EACMCPServer {
           description: 'Established patterns and best practices for the EAC project',
           mimeType: 'text/markdown',
         },
+        {
+          uri: 'eac://reddit-integration',
+          name: 'Reddit Integration Guide',
+          description: 'Complete Reddit API integration patterns and best practices',
+          mimeType: 'text/markdown',
+        },
+        {
+          uri: 'eac://social-workflow-templates',
+          name: 'Social Media Workflow Templates',
+          description: 'Pre-built workflow templates and optimization strategies',
+          mimeType: 'application/json',
+        },
       ],
     }));
 
-    this.server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+    this.server.setRequestHandler(ReadResourceRequestSchema, async (request: ReadResourceRequest) => {
       const { uri } = request.params;
 
       switch (uri) {
@@ -266,6 +366,28 @@ class EACMCPServer {
                 uri,
                 mimeType: 'text/markdown',
                 text: await this.generatePatternsGuide(),
+              },
+            ],
+          };
+
+        case 'eac://reddit-integration':
+          return {
+            contents: [
+              {
+                uri,
+                mimeType: 'text/markdown',
+                text: await this.redditAnalyzer.generateIntegrationGuide(),
+              },
+            ],
+          };
+
+        case 'eac://social-workflow-templates':
+          return {
+            contents: [
+              {
+                uri,
+                mimeType: 'application/json',
+                text: JSON.stringify(await this.socialWorkflowOptimizer.getWorkflowTemplates(), null, 2),
               },
             ],
           };
