@@ -157,6 +157,7 @@ export default defineSchema({
       v.literal("failed")
     ),
     publishAt: v.optional(v.number()), // Unix timestamp for scheduling
+    scheduledFunctionId: v.optional(v.id("_scheduled_functions")), // ID of scheduled function for cancellation
     publishedAt: v.optional(v.number()),
     publishedUrl: v.optional(v.string()), // Reddit URL after successful post
     redditId: v.optional(v.string()), // Reddit post ID (t3_xxx)
@@ -165,6 +166,17 @@ export default defineSchema({
     error: v.optional(v.string()), // Error message if failed
     retryCount: v.optional(v.number()),
     lastRetryAt: v.optional(v.number()),
+    
+    // Analytics data from Reddit API
+    score: v.optional(v.number()), // Net upvotes (upvotes - downvotes)
+    upvotes: v.optional(v.number()), // Total upvotes
+    downvotes: v.optional(v.number()), // Total downvotes
+    upvoteRatio: v.optional(v.number()), // Ratio of upvotes to total votes (0.0-1.0)
+    totalAwardsReceived: v.optional(v.number()), // Number of awards
+    numComments: v.optional(v.number()), // Number of comments
+    numCrossposts: v.optional(v.number()), // Number of crossposts
+    viewCount: v.optional(v.number()), // Views (if available)
+    lastAnalyticsUpdate: v.optional(v.number()), // When analytics were last fetched
     
     // Metadata
     createdAt: v.number(),

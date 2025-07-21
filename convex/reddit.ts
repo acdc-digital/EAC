@@ -2,6 +2,7 @@
 // convex/reddit.ts
 
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { mutation, query } from "./_generated/server";
 
 // Social Connections Management
@@ -163,7 +164,7 @@ export const createRedditPost = mutation({
     // Determine initial status
     const status = args.publishAt && args.publishAt > now ? "scheduled" : "draft";
     
-    return await ctx.db.insert("redditPosts", {
+    const postId = await ctx.db.insert("redditPosts", {
       userId: args.userId,
       connectionId: args.connectionId,
       fileId: args.fileId,
@@ -183,6 +184,26 @@ export const createRedditPost = mutation({
       createdAt: now,
       updatedAt: now,
     });
+
+        // Schedule the post if publishAt is provided
+    let scheduledFunctionId = undefined;
+    if (args.publishAt) {
+      console.log(`Scheduling post for ${new Date(args.publishAt).toLocaleString()}`);
+      scheduledFunctionId = await ctx.scheduler.runAt(
+        args.publishAt,
+        internal.redditApi.submitScheduledRedditPost,
+        { postId }
+      );
+      console.log(`Scheduled with function ID: ${scheduledFunctionId}`);
+    }
+
+    // Update the post with the scheduled function ID
+    await ctx.db.patch(postId, {
+      scheduledFunctionId,
+      status: args.publishAt && args.publishAt > Date.now() ? "scheduled" : "draft"
+    });
+
+    return postId;
   },
 });
 
@@ -217,7 +238,7 @@ export const getScheduledRedditPosts = query({
     
     return await ctx.db
       .query("redditPosts")
-      .withIndex("by_scheduled", (q) => 
+      .withIndex("by_status", (q) =>
         q.eq("status", "scheduled").lte("publishAt", now)
       )
       .collect();
@@ -247,23 +268,79 @@ export const updateRedditPost = mutation({
     )),
   },
   handler: async (ctx, args) => {
-    const { postId, ...updates } = args;
+    const { postId, publishAt, ...updates } = args;
     const now = Date.now();
+    
+    // Get the existing post
+    const existingPost = await ctx.db.get(postId);
+    if (!existingPost) {
+      throw new Error("Post not found");
+    }
     
     // Clean subreddit name if provided
     if (updates.subreddit) {
       updates.subreddit = updates.subreddit.replace(/^r\//, "");
     }
     
-    // Update status based on publishAt if scheduling
-    if (updates.publishAt && updates.publishAt > now && !updates.status) {
-      updates.status = "scheduled";
+    // Cancel existing scheduled function if there was one
+    if (existingPost.scheduledFunctionId) {
+      console.log(`Cancelling existing scheduled function: ${existingPost.scheduledFunctionId}`);
+      await ctx.scheduler.cancel(existingPost.scheduledFunctionId);
+    }
+
+    // Schedule new function if publishAt is provided
+    let scheduledFunctionId = undefined;
+    let status = updates.status || existingPost.status;
+    
+    if (publishAt) {
+      console.log(`Rescheduling post for ${new Date(publishAt).toLocaleString()}`);
+      scheduledFunctionId = await ctx.scheduler.runAt(
+        publishAt,
+        internal.redditApi.submitScheduledRedditPost,
+        { postId }
+      );
+      console.log(`Rescheduled with function ID: ${scheduledFunctionId}`);
+      status = publishAt > now ? "scheduled" : "draft";
+    } else if (existingPost.scheduledFunctionId && publishAt === undefined) {
+      // If we had a scheduled function but publishAt is being cleared, return to draft
+      status = "draft";
     }
     
     await ctx.db.patch(postId, {
       ...updates,
+      publishAt,
+      scheduledFunctionId,
+      status,
       updatedAt: now,
     });
+  },
+});
+
+export const cancelScheduledPost = mutation({
+  args: {
+    postId: v.id("redditPosts"),
+  },
+  handler: async (ctx, args) => {
+    const post = await ctx.db.get(args.postId);
+    if (!post) {
+      throw new Error("Post not found");
+    }
+
+    // Cancel the scheduled function if it exists
+    if (post.scheduledFunctionId) {
+      console.log(`Cancelling scheduled function: ${post.scheduledFunctionId}`);
+      await ctx.scheduler.cancel(post.scheduledFunctionId);
+    }
+
+    // Update the post status
+    await ctx.db.patch(args.postId, {
+      status: "draft",
+      scheduledFunctionId: undefined,
+      publishAt: undefined,
+      updatedAt: Date.now(),
+    });
+
+    return args.postId;
   },
 });
 
@@ -405,5 +482,66 @@ export const getAllRedditPosts = query({
     );
     
     return postsWithFiles;
+  },
+});
+
+// Fetch analytics data for a published Reddit post
+export const fetchPostAnalytics = mutation({
+  args: {
+    postId: v.id("redditPosts"),
+  },
+  handler: async (ctx, args): Promise<string> => {
+    const post = await ctx.db.get(args.postId);
+    if (!post) {
+      throw new Error("Post not found");
+    }
+    
+    if (post.status !== "published" || !post.redditId) {
+      throw new Error("Post must be published and have a Reddit ID to fetch analytics");
+    }
+
+    // Get the social connection for API credentials
+    const connection = await ctx.db.get(post.connectionId);
+    if (!connection || !connection.isActive) {
+      throw new Error("No active Reddit connection found");
+    }
+
+    // Call the internal action to fetch analytics
+    await ctx.scheduler.runAfter(0, internal.redditApi.fetchRedditAnalytics, {
+      redditId: post.redditId,
+      postId: args.postId,
+      connectionId: post.connectionId,
+    });
+
+    return "Analytics fetch initiated";
+  },
+});
+
+// Update post analytics (called by internal action)
+export const updatePostAnalytics = mutation({
+  args: {
+    postId: v.id("redditPosts"),
+    score: v.number(),
+    upvotes: v.optional(v.number()),
+    downvotes: v.optional(v.number()),
+    upvoteRatio: v.number(),
+    totalAwardsReceived: v.number(),
+    numComments: v.number(),
+    numCrossposts: v.number(),
+    viewCount: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const { postId, ...analyticsData } = args;
+    
+    await ctx.db.patch(postId, {
+      ...analyticsData,
+      // Calculate upvotes/downvotes if not provided
+      upvotes: args.upvotes || Math.round(args.score * args.upvoteRatio + args.score),
+      downvotes: args.downvotes || Math.round(args.score * (1 - args.upvoteRatio)),
+      lastAnalyticsUpdate: Date.now(),
+      updatedAt: Date.now(),
+    });
+    
+    return await ctx.db.get(postId);
   },
 });

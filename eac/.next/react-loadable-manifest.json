@@ -83,5 +83,11 @@
       "static/css/_app-pages-browser_app__components_editor__components_TiptapEditor_tsx.css",
       "static/chunks/_app-pages-browser_app__components_editor__components_TiptapEditor_tsx.js"
     ]
+  },
+  "store/editor/index.ts -> @/lib/hooks/useRedditPostState": {
+    "id": "store/editor/index.ts -> @/lib/hooks/useRedditPostState",
+    "files": [
+      "static/chunks/_app-pages-browser_lib_hooks_useRedditPostState_ts.js"
+    ]
   }
 }

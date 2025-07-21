@@ -71,7 +71,14 @@ export function FileEditor() {
           </span>
         );
       }
-      // If no Reddit post exists or it's not published, show as Draft
+      if (redditStatus === 'scheduled') {
+        return (
+          <span className="px-2 py-0.5 text-xs rounded-full bg-[#f59e0b] text-white">
+            Scheduled
+          </span>
+        );
+      }
+      // If no Reddit post exists or it's not published/scheduled, show as Draft
       return (
         <span className="px-2 py-0.5 text-xs rounded-full bg-[#4a4a4a] text-[#cccccc]">
           Draft
@@ -260,14 +267,14 @@ export function FileEditor() {
                 <span>Projects ({filteredProjectFiles.length} files)</span>
                 <button
                   onClick={expandAllFolders}
-                  className="p-1 hover:bg-[#2d2d2d] rounded transition-colors"
+                  className="p-1 hover:bg-[#404040] border border-[#454545] rounded transition-colors"
                   title="Expand all folders"
                 >
                   <ChevronsDown className="w-3 h-3" />
                 </button>
                 <button
                   onClick={collapseAllFolders}
-                  className="p-1 hover:bg-[#2d2d2d] rounded transition-colors"
+                  className="p-1 hover:bg-[#404040] border border-[#454545] rounded transition-colors"
                   title="Collapse all folders"
                 >
                   <ChevronsUp className="w-3 h-3" />
@@ -284,14 +291,14 @@ export function FileEditor() {
                 <span>Financial ({filteredFinancialFiles.length} files)</span>
                 <button
                   onClick={expandAllFolders}
-                  className="p-1 hover:bg-[#2d2d2d] rounded transition-colors"
+                  className="p-1 hover:bg-[#404040] border border-[#454545] rounded transition-colors"
                   title="Expand all folders"
                 >
                   <ChevronsDown className="w-3 h-3" />
                 </button>
                 <button
                   onClick={collapseAllFolders}
-                  className="p-1 hover:bg-[#2d2d2d] rounded transition-colors"
+                  className="p-1 hover:bg-[#404040] border border-[#454545] rounded transition-colors"
                   title="Collapse all folders"
                 >
                   <ChevronsUp className="w-3 h-3" />

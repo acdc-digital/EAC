@@ -15,6 +15,7 @@ import type {
 } from "convex/server";
 import type * as chat from "../chat.js";
 import type * as chatActions from "../chatActions.js";
+import type * as crons from "../crons.js";
 import type * as files from "../files.js";
 import type * as messages from "../messages.js";
 import type * as projects from "../projects.js";
@@ -35,6 +36,7 @@ import type * as test from "../test.js";
 declare const fullApi: ApiFromModules<{
   chat: typeof chat;
   chatActions: typeof chatActions;
+  crons: typeof crons;
   files: typeof files;
   messages: typeof messages;
   projects: typeof projects;

@@ -4,7 +4,7 @@
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
-import { action } from "./_generated/server";
+import { action, internalAction } from "./_generated/server";
 
 interface RedditAuthResponse {
   access_token: string;
@@ -166,6 +166,17 @@ export const submitRedditPost = action({
     postId: v.id("redditPosts"),
   },
   handler: async (ctx, args) => {
+    return await submitRedditPostHandler(ctx, args.postId);
+  },
+});
+
+// Internal action to handle scheduled post submission
+export const submitScheduledRedditPost = internalAction({
+  args: {
+    postId: v.id("redditPosts"),
+  },
+  handler: async (ctx, args) => {
+    console.log(`Processing scheduled Reddit post: ${args.postId}`);
     return await submitRedditPostHandler(ctx, args.postId);
   },
 });
@@ -437,6 +448,97 @@ export const getRedditUserInfo = action({
       return {
         success: false,
         error: error instanceof Error ? error.message : "Failed to get user info",
+      };
+    }
+  },
+});
+
+// Fetch analytics for a published Reddit post
+export const fetchRedditAnalytics = internalAction({
+  args: {
+    redditId: v.string(), // Reddit post ID (e.g., "t3_abc123")
+    postId: v.id("redditPosts"),
+    connectionId: v.id("socialConnections"),
+  },
+  handler: async (ctx, args) => {
+    try {
+      console.log(`🔍 Fetching analytics for Reddit post: ${args.redditId}`);
+      
+      // Get connection details with access token
+      const connection = await ctx.runQuery(api.reddit.getConnectionById, {
+        connectionId: args.connectionId,
+      });
+      
+      if (!connection?.accessToken) {
+        throw new Error("No access token available for Reddit connection");
+      }
+
+      // Fetch post data from Reddit API
+      const postFullname = args.redditId; // Should be in format "t3_abc123"
+      const postUrl = `https://oauth.reddit.com/api/info?id=${postFullname}`;
+      
+      const response = await fetch(postUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${connection.accessToken}`,
+          'User-Agent': connection.userAgent || 'EACDashboard/1.0',
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error("Access token expired or invalid");
+        }
+        throw new Error(`Reddit API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json() as any;
+      
+      // Extract analytics from Reddit API response
+      const postData = data.data?.children?.[0]?.data;
+      if (!postData) {
+        throw new Error("Unable to fetch post data from Reddit API");
+      }
+
+      console.log(`📊 Analytics data received for ${args.redditId}:`, {
+        score: postData.score,
+        upvoteRatio: postData.upvote_ratio,
+        numComments: postData.num_comments,
+        totalAwards: postData.total_awards_received,
+      });
+
+      // Update the post with analytics data
+      await ctx.runMutation(api.reddit.updatePostAnalytics, {
+        postId: args.postId,
+        score: postData.score || 0,
+        upvoteRatio: postData.upvote_ratio || 0.5,
+        totalAwardsReceived: postData.total_awards_received || 0,
+        numComments: postData.num_comments || 0,
+        numCrossposts: postData.num_crossposts || 0,
+        viewCount: postData.view_count, // May be null/undefined for many posts
+      });
+
+      console.log(`✅ Analytics updated successfully for post ${args.postId}`);
+      
+      return {
+        success: true,
+        analytics: {
+          score: postData.score,
+          upvoteRatio: postData.upvote_ratio,
+          numComments: postData.num_comments,
+          totalAwardsReceived: postData.total_awards_received,
+          numCrossposts: postData.num_crossposts,
+          viewCount: postData.view_count,
+        },
+      };
+
+    } catch (error) {
+      console.error(`❌ Failed to fetch analytics for ${args.redditId}:`, error);
+      
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to fetch analytics",
       };
     }
   },

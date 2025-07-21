@@ -478,6 +478,16 @@ export const useEditorStore = create<EditorState>()(
           const fileName = `${name}${getFileExtension(type)}`;
           const basePath = category === 'financial' ? '/financial-data' : '/eac-projects';
           
+          // Clear any existing Reddit post state for new Reddit files to ensure blank state
+          if (type === 'reddit') {
+            try {
+              const { clearRedditPostState } = await import('@/lib/hooks/useRedditPostState');
+              clearRedditPostState(fileName);
+            } catch (error) {
+              console.warn('Could not clear Reddit post state:', error);
+            }
+          }
+          
           // Create new file
           const newFile: ProjectFile = {
             id,

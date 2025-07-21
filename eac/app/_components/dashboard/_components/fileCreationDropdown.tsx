@@ -149,11 +149,14 @@ export function FileCreationDropdown({ isOpen, onClose, preselectedFolder, butto
             aria-label="Select folder"
           >
             <option value="no-folder" className="bg-[#2d2d2d] text-[#cccccc]">No folder</option>
-            {projectFolders.map((folder) => (
-              <option key={folder.id} value={folder.id} className="bg-[#2d2d2d] text-[#cccccc]">
-                {folder.name}
-              </option>
-            ))}
+            {projectFolders
+              .filter((folder, index, array) => array.findIndex(f => f.id === folder.id) === index) // Remove duplicates
+              .map((folder) => (
+                <option key={`folder-${folder.id}`} value={folder.id} className="bg-[#2d2d2d] text-[#cccccc]">
+                  {folder.name}
+                </option>
+              ))
+            }
           </select>
         </div>
 
