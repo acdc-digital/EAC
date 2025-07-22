@@ -21,10 +21,22 @@ interface SocialAccount {
   _id?: string;
 }
 
+interface SocialConnection {
+  _id: string;
+  platform: 'facebook' | 'instagram' | 'twitter' | 'reddit';
+  username: string;
+  userId: string;
+  clientId?: string;
+  clientSecret?: string;
+  accessToken?: string;
+  refreshToken?: string;
+  isActive: boolean;
+}
+
 type SocialFormData = {
   facebook: { username: string; apiKey: string; accessToken: string };
   instagram: { username: string; apiKey: string; accessToken: string };
-  twitter: { username: string; apiKey: string; accessToken: string };
+  twitter: { username: string; clientId: string; clientSecret: string; apiTier: string };
   reddit: { username: string; clientId: string; clientSecret: string; userAgent: string };
 };
 
@@ -33,6 +45,14 @@ export function SocialConnectors() {
   const connections = useQuery(api.reddit.getSocialConnections, {
     userId: 'temp-user-id'
   });
+  
+  // Debug: Log all connections to see what's in the database
+  useEffect(() => {
+    if (connections) {
+      console.log('🔍 All Convex Connections:', connections);
+      console.log('🔍 Connection platforms:', connections.map(c => ({ platform: c.platform, username: c.username, id: c._id })));
+    }
+  }, [connections]);
   
   // Convex mutations
   const createSocialConnection = useMutation(api.reddit.createSocialConnection);
@@ -72,7 +92,7 @@ export function SocialConnectors() {
   const [formData, setFormData] = useState<SocialFormData>({
     facebook: { username: '', apiKey: '', accessToken: '' },
     instagram: { username: '', apiKey: '', accessToken: '' },
-    twitter: { username: '', apiKey: '', accessToken: '' },
+    twitter: { username: '', clientId: '', clientSecret: '', apiTier: 'free' },
     reddit: { username: '', clientId: '', clientSecret: '', userAgent: '' },
   });
 
@@ -128,6 +148,40 @@ export function SocialConnectors() {
       } finally {
         setIsConnecting(false);
       }
+    } else if (platform === 'twitter') {
+      try {
+        setIsConnecting(true);
+        setError(null);
+        
+        const twitterData = formData.twitter;
+        
+        // Call Convex mutation to create Twitter connection
+        const connectionId = await createSocialConnection({
+          userId: 'temp-user-id', // TODO: Replace with actual user ID
+          platform: 'twitter',
+          username: twitterData.username,
+          // Use Twitter-specific fields
+          apiKey: twitterData.clientId, // Will map to twitterClientId in backend
+          apiSecret: twitterData.clientSecret, // Will map to twitterClientSecret in backend
+        });
+        
+        console.log('Twitter connection created successfully:', connectionId);
+        
+        // Update local UI state
+        setAccounts(prev =>
+          prev.map(acc =>
+            acc.platform === platform
+              ? { ...acc, connected: true, username: twitterData.username, lastSync: new Date() }
+              : acc
+          )
+        );
+        
+      } catch (error) {
+        console.error('Failed to connect Twitter:', error);
+        setError(error instanceof Error ? error.message : 'Failed to connect Twitter');
+      } finally {
+        setIsConnecting(false);
+      }
     } else {
       // Simulate connection for other platforms
       setAccounts(prev =>
@@ -172,6 +226,54 @@ export function SocialConnectors() {
     } catch (error) {
       console.error('Failed to start Reddit OAuth:', error);
       setError(error instanceof Error ? error.message : 'Failed to start OAuth');
+    }
+  };
+
+  const handleStartXOAuth = async (connectionId: string) => {
+    try {
+      // Get X connection from Convex to get the client ID
+      const connection = connections?.find((c: any) => c._id === connectionId);
+      const clientId = connection?.twitterClientId || connection?.apiKey || formData.twitter.clientId;
+      
+      if (!clientId) {
+        alert('Please enter your X (Twitter) Client ID first');
+        return;
+      }
+
+      // Use environment variable to ensure consistency with backend
+      const redirectUri = 'http://localhost:3000/api/auth/twitter/callback';
+      console.log('🐦 Starting X OAuth with redirect URI:', redirectUri);
+      
+      const scope = 'tweet.write users.read offline.access'; // X API v2 scopes
+      
+      // Generate PKCE challenge (simplified for demo - should be more secure)
+      const codeVerifier = btoa(Math.random().toString()).substring(0, 43);
+      const codeChallenge = codeVerifier; // In production, use SHA256 hash
+      
+      // Pass both connection ID and code verifier in state parameter
+      const state = JSON.stringify({
+        connectionId: connectionId,
+        codeVerifier: codeVerifier
+      });
+      
+      const authUrl = new URL('https://twitter.com/i/oauth2/authorize');
+      authUrl.searchParams.set('response_type', 'code');
+      authUrl.searchParams.set('client_id', clientId);
+      authUrl.searchParams.set('redirect_uri', redirectUri);
+      authUrl.searchParams.set('scope', scope);
+      authUrl.searchParams.set('state', encodeURIComponent(state));
+      authUrl.searchParams.set('code_challenge', codeChallenge);
+      authUrl.searchParams.set('code_challenge_method', 'plain'); // Simplified for demo
+      
+      console.log('🐦 OAuth URL:', authUrl.toString());
+      console.log('🐦 State being sent:', state);
+      
+      // Redirect to X authorization
+      window.location.href = authUrl.toString();
+
+    } catch (error) {
+      console.error('Failed to start X OAuth:', error);
+      setError(error instanceof Error ? error.message : 'Failed to start X OAuth');
     }
   };
 
@@ -243,18 +345,40 @@ export function SocialConnectors() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {Object.entries(formData).map(([platform, data]) => {
             const typedPlatform = platform as keyof typeof formData;
-            // Use Convex data for Reddit, local state for others
-            const convexConnection = connections?.find(c => c.platform === typedPlatform);
-            const account = typedPlatform === 'reddit' && convexConnection
+            // Use Convex data for Reddit and Twitter, local state for others
+            const convexConnection = connections?.find((c: any) => c.platform === typedPlatform);
+            const account = (typedPlatform === 'reddit' || typedPlatform === 'twitter') && convexConnection
               ? {
                   platform: typedPlatform,
                   username: convexConnection.username,
                   connected: true,
-                  accessToken: convexConnection.accessToken,
+                  accessToken: typedPlatform === 'twitter' 
+                    ? convexConnection.twitterAccessToken 
+                    : convexConnection.accessToken,
                   _id: convexConnection._id,
                   lastSync: convexConnection.updatedAt ? new Date(convexConnection.updatedAt) : undefined
                 }
               : accounts.find(acc => acc.platform === typedPlatform);
+            
+            // Debug logging for all platforms
+            if (typedPlatform === 'twitter') {
+              console.log('🐦 Twitter Processing:', {
+                platform: typedPlatform,
+                convexConnection: convexConnection || 'NONE',
+                convexConnectionFields: convexConnection ? Object.keys(convexConnection) : [],
+                hasConvexConnection: !!convexConnection,
+                willCreateAccount: (typedPlatform === 'reddit' || typedPlatform === 'twitter') && !!convexConnection
+              });
+              
+              console.log('🐦 Twitter Account Created:', {
+                account: account || 'NONE',
+                accountFields: account ? Object.keys(account) : [],
+                accountId: account?._id,
+                accountConnected: account?.connected,
+                accountAccessToken: account?.accessToken ? 'HAS TOKEN' : 'NO TOKEN'
+              });
+            }
+            
             const Icon = platformIcons[typedPlatform];
             
             return (
@@ -289,7 +413,7 @@ export function SocialConnectors() {
                       </p>
                       {account.lastSync && (
                         <p className="text-xs text-[#858585] mt-1">
-                          Last sync: {account.lastSync.toLocaleString()}
+                          Last sync: {account.lastSync instanceof Date ? account.lastSync.toLocaleString() : String(account.lastSync)}
                         </p>
                       )}
                     </div>
@@ -316,6 +440,49 @@ export function SocialConnectors() {
                         </Button>
                         <Button
                           onClick={() => handleStartRedditOAuth(account._id)}
+                          variant="outline"
+                          className="w-full text-xs border-[#454545] text-[#cccccc] hover:bg-[#2d2d2d]"
+                          disabled={isConnecting}
+                        >
+                          Re-authorize Access
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {/* Show OAuth authorization button for X if not yet authorized */}
+                    {!account?.accessToken && typedPlatform === 'twitter' && account?._id && (() => {
+                      // Debug logging - execute as side effect
+                      console.log('🐦 Twitter Authorization Button Debug:', {
+                        showButton: true,
+                        hasAccessToken: !!account?.accessToken,
+                        isTwitter: typedPlatform === 'twitter',
+                        hasAccountId: !!account?._id,
+                        accountId: account?._id,
+                        account
+                      });
+                      
+                      return (
+                        <Button
+                          onClick={() => handleStartXOAuth(account._id)}
+                          className="w-full bg-[#1da1f2] hover:bg-[#1a91da] text-white"
+                          disabled={isConnecting}
+                        >
+                          Authorize X (Twitter) Access
+                        </Button>
+                      );
+                    })()}
+                    
+                    {/* Show authenticated status if authorized for X */}
+                    {account?.accessToken && typedPlatform === 'twitter' && (
+                      <div className="space-y-2">
+                        <Button
+                          disabled
+                          className="w-full bg-green-600 text-white opacity-60 cursor-not-allowed"
+                        >
+                          ✓ Authenticated
+                        </Button>
+                        <Button
+                          onClick={() => handleStartXOAuth(account._id)}
                           variant="outline"
                           className="w-full text-xs border-[#454545] text-[#cccccc] hover:bg-[#2d2d2d]"
                           disabled={isConnecting}
@@ -388,6 +555,53 @@ export function SocialConnectors() {
                           />
                         </div>
                       </>
+                    ) : platform === 'twitter' ? (
+                      <>
+                        <div>
+                          <Label htmlFor={`${platform}-client-id`} className="text-sm text-[#cccccc]">
+                            Client ID
+                          </Label>
+                          <Input
+                            id={`${platform}-client-id`}
+                            value={(data as { clientId: string }).clientId}
+                            onChange={(e) => updateFormData(typedPlatform, 'clientId', e.target.value)}
+                            placeholder="X (Twitter) Client ID from Developer Portal"
+                            className="mt-1 bg-[#1e1e1e] border-[#454545] text-[#cccccc]"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor={`${platform}-client-secret`} className="text-sm text-[#cccccc]">
+                            Client Secret
+                          </Label>
+                          <Input
+                            id={`${platform}-client-secret`}
+                            type="password"
+                            value={(data as { clientSecret: string }).clientSecret}
+                            onChange={(e) => updateFormData(typedPlatform, 'clientSecret', e.target.value)}
+                            placeholder="X (Twitter) Client Secret from Developer Portal"
+                            className="mt-1 bg-[#1e1e1e] border-[#454545] text-[#cccccc]"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor={`${platform}-api-tier`} className="text-sm text-[#cccccc]">
+                            API Tier
+                          </Label>
+                          <select
+                            id={`${platform}-api-tier`}
+                            value={(data as { apiTier: string }).apiTier}
+                            onChange={(e) => updateFormData(typedPlatform, 'apiTier', e.target.value)}
+                            className="mt-1 w-full px-3 py-2 bg-[#1e1e1e] border border-[#454545] text-[#cccccc] rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            aria-label="X API Tier Selection"
+                          >
+                            <option value="free">Free</option>
+                            <option value="basic">Basic ($100/month)</option>
+                            <option value="pro">Pro ($5,000/month)</option>
+                          </select>
+                          <p className="text-xs text-[#888] mt-1">
+                            Select your X API subscription tier for rate limiting
+                          </p>
+                        </div>
+                      </>
                     ) : (
                       <>
                         <div>
@@ -436,10 +650,10 @@ export function SocialConnectors() {
                         </Button>
                         
                         {/* OAuth Authorization Button - only show after connection is created */}
-                        {connections?.find(c => c.platform === 'reddit') && (
+                        {connections?.find((c: any) => c.platform === 'reddit') && (
                           <Button
                             onClick={() => {
-                              const redditConnection = connections.find(c => c.platform === 'reddit');
+                              const redditConnection = connections.find((c: any) => c.platform === 'reddit');
                               if (redditConnection) {
                                 handleStartRedditOAuth(redditConnection._id);
                               }
@@ -448,6 +662,37 @@ export function SocialConnectors() {
                             disabled={isConnecting}
                           >
                             Authorize Reddit Access
+                          </Button>
+                        )}
+                      </div>
+                    ) : platform === 'twitter' ? (
+                      <div className="space-y-3">
+                        <Button
+                          onClick={() => handleConnect(typedPlatform)}
+                          className="w-full bg-[#4a9eff] hover:bg-[#357abd] text-white"
+                          disabled={
+                            isConnecting ||
+                            !data.username ||
+                            !(data as { clientId: string }).clientId ||
+                            !(data as { clientSecret: string }).clientSecret
+                          }
+                        >
+                          {isConnecting ? 'Creating...' : 'Create X (Twitter) Connection'}
+                        </Button>
+                        
+                        {/* OAuth Authorization Button - show when connection exists */}
+                        {connections?.find((c: any) => c.platform === 'twitter') && (
+                          <Button
+                            onClick={() => {
+                              const twitterConnection = connections.find((c: any) => c.platform === 'twitter');
+                              if (twitterConnection) {
+                                handleStartXOAuth(twitterConnection._id);
+                              }
+                            }}
+                            className="w-full bg-[#1da1f2] hover:bg-[#1a91da] text-white"
+                            disabled={isConnecting}
+                          >
+                            Authorize X (Twitter) Access
                           </Button>
                         )}
                       </div>

@@ -32,35 +32,54 @@ export const createSocialConnection = mutation({
       .first();
     
     if (existing) {
-      // Update existing connection
-      await ctx.db.patch(existing._id, {
+      // Update existing connection with platform-specific fields
+      const updateData: any = {
         username: args.username,
-        clientId: args.clientId,
-        clientSecret: args.clientSecret, // TODO: Encrypt in production
-        userAgent: args.userAgent,
-        apiKey: args.apiKey,
-        apiSecret: args.apiSecret, // TODO: Encrypt in production
         isActive: true,
         updatedAt: now,
-      });
+      };
+
+      if (args.platform === 'twitter') {
+        // Map to Twitter-specific fields
+        updateData.twitterClientId = args.apiKey || args.clientId;
+        updateData.twitterClientSecret = args.apiSecret || args.clientSecret;
+      } else {
+        // Use generic fields for other platforms
+        updateData.clientId = args.clientId;
+        updateData.clientSecret = args.clientSecret;
+        updateData.userAgent = args.userAgent;
+        updateData.apiKey = args.apiKey;
+        updateData.apiSecret = args.apiSecret;
+      }
+
+      await ctx.db.patch(existing._id, updateData);
       return existing._id;
     } else {
-      // Create new connection
-      return await ctx.db.insert("socialConnections", {
+      // Create new connection with platform-specific fields
+      const connectionData: any = {
         userId: args.userId,
         platform: args.platform,
         username: args.username,
-        clientId: args.clientId,
-        clientSecret: args.clientSecret, // TODO: Encrypt in production
-        userAgent: args.userAgent,
-        apiKey: args.apiKey,
-        apiSecret: args.apiSecret, // TODO: Encrypt in production
         isActive: true,
-        lastSync: undefined,
-        tokenExpiry: undefined,
         createdAt: now,
         updatedAt: now,
-      });
+      };
+
+      if (args.platform === 'twitter') {
+        // Map to Twitter-specific fields
+        connectionData.twitterClientId = args.apiKey || args.clientId;
+        connectionData.twitterClientSecret = args.apiSecret || args.clientSecret;
+        connectionData.apiTier = 'free'; // Default to free tier
+      } else {
+        // Use generic fields for other platforms
+        connectionData.clientId = args.clientId;
+        connectionData.clientSecret = args.clientSecret;
+        connectionData.userAgent = args.userAgent;
+        connectionData.apiKey = args.apiKey;
+        connectionData.apiSecret = args.apiSecret;
+      }
+
+      return await ctx.db.insert("socialConnections", connectionData);
     }
   },
 });

@@ -27,6 +27,9 @@ import type * as reddit from "../reddit.js";
 import type * as redditApi from "../redditApi.js";
 import type * as test from "../test.js";
 import type * as trash from "../trash.js";
+import type * as x from "../x.js";
+import type * as xApi from "../xApi.js";
+import type * as xApi_clean from "../xApi_clean.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -51,6 +54,9 @@ declare const fullApi: ApiFromModules<{
   redditApi: typeof redditApi;
   test: typeof test;
   trash: typeof trash;
+  x: typeof x;
+  xApi: typeof xApi;
+  xApi_clean: typeof xApi_clean;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

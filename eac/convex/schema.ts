@@ -112,6 +112,24 @@ export default defineSchema({
     refreshToken: v.optional(v.string()), // Encrypted
     userAgent: v.optional(v.string()),
     
+    // X (Twitter)-specific fields
+    // OAuth 2.0 fields
+    twitterClientId: v.optional(v.string()),
+    twitterClientSecret: v.optional(v.string()), // Encrypted
+    twitterAccessToken: v.optional(v.string()), // Encrypted
+    twitterRefreshToken: v.optional(v.string()), // Encrypted
+    // OAuth 1.0a fields (alternative)
+    twitterConsumerKey: v.optional(v.string()),
+    twitterConsumerSecret: v.optional(v.string()), // Encrypted
+    twitterAccessTokenSecret: v.optional(v.string()), // Encrypted
+    // User info
+    twitterUserId: v.optional(v.string()), // X user ID
+    twitterScreenName: v.optional(v.string()), // @username
+    // API tier info
+    apiTier: v.optional(v.union(v.literal("free"), v.literal("basic"), v.literal("pro"))),
+    monthlyTweetLimit: v.optional(v.number()),
+    tweetsThisMonth: v.optional(v.number()),
+    
     // Generic OAuth fields for other platforms
     apiKey: v.optional(v.string()), // Encrypted
     apiSecret: v.optional(v.string()), // Encrypted

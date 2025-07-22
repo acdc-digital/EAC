@@ -112,6 +112,24 @@ export default defineSchema({
     refreshToken: v.optional(v.string()), // Encrypted
     userAgent: v.optional(v.string()),
     
+    // X (Twitter)-specific fields
+    // OAuth 2.0 fields
+    twitterClientId: v.optional(v.string()),
+    twitterClientSecret: v.optional(v.string()), // Encrypted
+    twitterAccessToken: v.optional(v.string()), // Encrypted
+    twitterRefreshToken: v.optional(v.string()), // Encrypted
+    // OAuth 1.0a fields (alternative)
+    twitterConsumerKey: v.optional(v.string()),
+    twitterConsumerSecret: v.optional(v.string()), // Encrypted
+    twitterAccessTokenSecret: v.optional(v.string()), // Encrypted
+    // User info
+    twitterUserId: v.optional(v.string()), // X user ID
+    twitterScreenName: v.optional(v.string()), // @username
+    // API tier info
+    apiTier: v.optional(v.union(v.literal("free"), v.literal("basic"), v.literal("pro"))),
+    monthlyTweetLimit: v.optional(v.number()),
+    tweetsThisMonth: v.optional(v.number()),
+    
     // Generic OAuth fields for other platforms
     apiKey: v.optional(v.string()), // Encrypted
     apiSecret: v.optional(v.string()), // Encrypted
@@ -267,4 +285,70 @@ export default defineSchema({
     .index("by_user", ["userId", "deletedAt"])
     .index("by_project", ["projectId", "deletedAt"])
     .index("by_original_id", ["originalId"]),
+
+  // X (Twitter) posts with all necessary fields for API posting
+  xPosts: defineTable({
+    userId: v.string(),
+    connectionId: v.id("socialConnections"),
+    fileId: v.optional(v.id("files")), // Link to file if created from editor
+    
+    // Required X API fields
+    text: v.string(), // Tweet content
+    
+    // Media fields
+    mediaIds: v.optional(v.array(v.string())), // Array of uploaded media IDs
+    mediaUrls: v.optional(v.array(v.string())), // Local URLs for preview
+    mediaTypes: v.optional(v.array(v.union(v.literal("image"), v.literal("video"), v.literal("gif")))),
+    
+    // Reply/Thread fields
+    replyToId: v.optional(v.string()), // Tweet ID being replied to
+    isThread: v.boolean(),
+    threadPosition: v.optional(v.number()), // Position in thread (1, 2, 3...)
+    
+    // Optional X API fields
+    replySettings: v.union(v.literal("everyone"), v.literal("mentionedUsers"), v.literal("followers")),
+    geo: v.optional(v.object({
+      coordinates: v.array(v.number()), // [longitude, latitude]
+      placeName: v.optional(v.string()),
+    })),
+    
+    // Scheduling & Status
+    status: v.union(v.literal("draft"), v.literal("scheduled"), v.literal("published"), v.literal("failed")),
+    publishAt: v.optional(v.number()), // Unix timestamp
+    publishedAt: v.optional(v.number()),
+    tweetUrl: v.optional(v.string()), // X URL after successful post
+    tweetId: v.optional(v.string()), // X tweet ID
+    
+    // File Association
+    fileName: v.optional(v.string()), // Link to file in editor
+    
+    // Analytics data from X API
+    retweetCount: v.optional(v.number()),
+    likeCount: v.optional(v.number()),
+    replyCount: v.optional(v.number()),
+    quoteCount: v.optional(v.number()),
+    impressionCount: v.optional(v.number()), // Requires higher API tier
+    
+    // Character count tracking
+    characterCount: v.number(),
+    isOverLimit: v.boolean(),
+    
+    // Error handling
+    error: v.optional(v.string()), // Error message if failed
+    retryCount: v.number(),
+    lastRetryAt: v.optional(v.number()),
+    
+    // API tier usage tracking
+    contributesToMonthlyLimit: v.boolean(),
+    
+    // Metadata
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user", ["userId", "createdAt"])
+    .index("by_status", ["status", "publishAt"])
+    .index("by_connection", ["connectionId", "createdAt"])
+    .index("by_file", ["fileId"])
+    .index("by_thread", ["isThread", "threadPosition"])
+    .index("by_file_name", ["fileName"]),
 });
