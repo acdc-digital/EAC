@@ -1,10 +1,10 @@
 // Reddit Integration Hook
 // /Users/matthewsimon/Projects/eac/eac/lib/hooks/useRedditIntegration.ts
 
+import { api } from '@/convex/_generated/api';
+import type { Id } from '@/convex/_generated/dataModel';
 import { useMutation, useQuery } from 'convex/react';
 import { useEffect } from 'react';
-import { api } from '../../convex/_generated/api';
-import type { Id } from '../../convex/_generated/dataModel';
 import { useSocialStore } from '../../store/social';
 
 export function useRedditIntegration(userId: string) {

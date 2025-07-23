@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Exchange authorization code for access token
-    const redirectUri = 'http://localhost:3000/api/auth/twitter/callback';
+    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/twitter/callback`;
     
     console.log('🔗 X OAuth callback using redirect URI:', redirectUri);
     

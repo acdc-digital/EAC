@@ -1,0 +1,20 @@
+{
+  "name": "eac-convex",
+  "version": "1.0.0",
+  "private": true,
+  "description": "EAC Convex Backend Functions",
+  "scripts": {
+    "dev": "convex dev --env-file .env.local",
+    "deploy": "convex deploy --env-file .env.local",
+    "codegen": "convex codegen --env-file .env.local",
+    "dashboard": "convex dashboard --env-file .env.local"
+  },
+  "dependencies": {
+    "convex": "^1.25.2",
+    "openai": "^5.10.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5"
+  }
+}

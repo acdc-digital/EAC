@@ -5,10 +5,10 @@
 
 import { useSidebarStore } from "@/store";
 import {
-  AlertCircle,
-  Copyright,
-  Cpu,
-  Wifi
+    AlertCircle,
+    Copyright,
+    Cpu,
+    Wifi
 } from "lucide-react";
 import { DashActivityBar } from "./_components/dashboard/dashActivityBar";
 import { DashEditor } from "./_components/dashboard/dashEditor";
@@ -17,8 +17,6 @@ import { FileSync } from "./_components/dashboard/fileSync";
 
 export default function DashboardPage() {
   const { activePanel, setActivePanel } = useSidebarStore();
-
-
 
   return (
     <div className="h-screen w-screen flex flex-col bg-[#0e0e0e] text-[#cccccc] font-mono text-sm overflow-hidden">

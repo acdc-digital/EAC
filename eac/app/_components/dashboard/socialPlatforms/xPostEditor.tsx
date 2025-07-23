@@ -11,13 +11,20 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { useXApi } from "@/lib/hooks/useXApi";
 import { useEditorStore } from "@/store";
 import {
-    Calendar,
-    Clock,
-    Users
+  AtSign,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  Globe,
+  ImageIcon,
+  MessageCircle,
+  Repeat2,
+  Users
 } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 interface XPostEditorProps {
   fileName: string;
@@ -26,8 +33,11 @@ interface XPostEditorProps {
 }
 
 export function XPostEditor({ fileName, onChange }: XPostEditorProps) {
+  // Debug: Check if component is mounting
+  console.log('🚀 XPostEditor component mounting with fileName:', fileName);
+  
   const [postContent, setPostContent] = useState('');
-  const [replySettings, setReplySettings] = useState('everyone');
+  const [replySettings, setReplySettings] = useState('following'); // Default to 'following' which is valid API value
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
   const [isThread, setIsThread] = useState(false);
@@ -36,9 +46,42 @@ export function XPostEditor({ fileName, onChange }: XPostEditorProps) {
   const [pollOptions, setPollOptions] = useState(['', '']);
   const [pollDuration, setPollDuration] = useState('1440'); // 24 hours in minutes
   const [hasPoll, setHasPoll] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [hasLoadedContent, setHasLoadedContent] = useState(false);
+
+  // Map UI reply settings to Twitter API values
+  const mapReplySettingsToAPI = (uiValue: string): 'following' | 'mentionedUsers' | 'subscribers' | 'verified' => {
+    switch (uiValue) {
+      case 'everyone':
+        return 'following'; // Map 'everyone' to 'following' as closest equivalent
+      case 'following':
+        return 'following';
+      case 'mentioned':
+        return 'mentionedUsers';
+      case 'subscribers':
+        return 'subscribers';
+      case 'verified':
+        return 'verified';
+      default:
+        return 'following'; // Safe default
+    }
+  };
 
   // Get editor store functions
-  const { updateFileStatus, openTabs } = useEditorStore();
+  const { updateFileStatus, updateFileContent, openTabs } = useEditorStore();
+  
+  // Get X API functions
+  const { postTweet, schedulePost, disconnectAccount, isPosting, isScheduling, hasConnection, connectionInfo } = useXApi();
+
+  // Debug what the component is receiving
+  console.log('🔍 XPostEditor Debug:', {
+    hasConnection,
+    connectionInfo,
+    hasConnectionBool: !!hasConnection,
+    connectionInfoExists: !!connectionInfo,
+    isConnectionAndInfo: !!(hasConnection && connectionInfo),
+    fileName
+  });
 
   // Use ref to store the onChange callback to avoid infinite loops
   const onChangeRef = useRef(onChange);
@@ -64,14 +107,72 @@ export function XPostEditor({ fileName, onChange }: XPostEditorProps) {
         hasPoll,
         pollOptions: hasPoll ? pollOptions.filter(Boolean) : [],
         pollDuration: hasPoll ? parseInt(pollDuration) : null
-      },
-      timestamp: new Date().toISOString()
+      }
     };
 
     if (onChangeRef.current) {
       onChangeRef.current(JSON.stringify(formData, null, 2));
     }
   }, [postContent, replySettings, scheduledDate, scheduledTime, isThread, threadTweets, mediaFiles, hasPoll, pollOptions, pollDuration, fileName]);
+
+  // Load saved content when component mounts or tab changes - memoized loading
+  const loadSavedContent = useCallback(() => {
+    console.log('🔍 Content loading effect triggered:', { fileName, hasLoadedContent, tabsCount: openTabs.length });
+    
+    const currentTab = openTabs.find(tab => tab.name === fileName || tab.filePath.includes(fileName));
+    console.log('🔍 Current tab found:', !!currentTab, 'has content:', !!currentTab?.content);
+    
+    if (currentTab?.content && !hasLoadedContent) {
+      try {
+        // Check if content is JSON or plain text
+        const content = currentTab.content.trim();
+        console.log('🔍 Raw content:', { content: content.substring(0, 100) + '...', length: content.length });
+        
+        let savedData;
+        if (content.startsWith('{') && content.endsWith('}')) {
+          // Looks like JSON, try to parse it
+          savedData = JSON.parse(content);
+          console.log('🔍 Parsed JSON data:', { hasText: !!savedData.text, textLength: savedData.text?.length });
+        } else {
+          // Plain text content, treat as tweet text
+          console.log('🔍 Plain text content detected, using as tweet text');
+          savedData = { text: content };
+        }
+        
+        if (savedData.text !== undefined) {
+          setPostContent(savedData.text || '');
+          setReplySettings(savedData.replySettings || 'following');
+          setScheduledDate(savedData.scheduledDate || '');
+          setScheduledTime(savedData.scheduledTime || '');
+          setIsThread(savedData.isThread || false);
+          setThreadTweets(savedData.threadTweets || ['']);
+          setHasPoll(savedData.hasPoll || false);
+          setPollOptions(savedData.pollOptions || ['', '']);
+          setPollDuration(savedData.pollDuration || '1440');
+          
+          setHasLoadedContent(true);
+          console.log('📥 Loaded saved content for', fileName);
+        }
+      } catch (error) {
+        console.error('Failed to parse saved content:', error);
+        // If parsing fails, treat the raw content as plain text
+        const rawText = currentTab.content.trim();
+        if (rawText) {
+          console.log('🔄 Fallback: Using raw content as tweet text');
+          setPostContent(rawText);
+          setHasLoadedContent(true);
+        }
+      }
+    } else if (!currentTab?.content) {
+      // Reset the flag if there's no content to load
+      console.log('🔄 Resetting hasLoadedContent flag - no content found');
+      setHasLoadedContent(false);
+    }
+  }, [fileName, openTabs, hasLoadedContent]);
+
+  useEffect(() => {
+    loadSavedContent();
+  }, [loadSavedContent]);
 
   const handleMediaUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -97,65 +198,238 @@ export function XPostEditor({ fileName, onChange }: XPostEditorProps) {
   };
 
   // Handle scheduling the post
-  const handleSchedulePost = () => {
+  const handleSchedulePost = async () => {
     if (!scheduledDate || !scheduledTime) {
       console.error('Schedule date and time are required');
       return;
     }
 
-    // Find the current file tab to get the tab id
-    const currentTab = openTabs.find(tab => tab.name === fileName || tab.filePath.includes(fileName));
-    if (currentTab) {
-      // Update file status to scheduled - use the tab id as the file id
-      updateFileStatus(currentTab.id, 'scheduled');
-      
-      // Log scheduling action (in a real app, this would make an API call)
-      const scheduledDateTime = new Date(`${scheduledDate}T${scheduledTime}`);
-      console.log('🚀 Post scheduled successfully!', {
-        tabId: currentTab.id,
-        fileName,
-        content: isThread ? threadTweets.join('\\n\\n') : postContent,
-        scheduledFor: scheduledDateTime,
-        platform: 'x',
-        mediaCount: mediaFiles.length,
-        hasPoll
+    // Create scheduled date time
+    const scheduledDateTime = new Date(`${scheduledDate}T${scheduledTime}`);
+    
+    try {
+      // Use the real X API to schedule the post
+      const result = await schedulePost({
+        text: postContent,
+        reply_settings: mapReplySettingsToAPI(replySettings),
+        media_files: mediaFiles,
+        poll: hasPoll ? {
+          options: pollOptions.filter(Boolean),
+          duration_minutes: parseInt(pollDuration)
+        } : undefined,
+        is_thread: isThread,
+        thread_tweets: isThread ? threadTweets : undefined,
+        scheduledFor: scheduledDateTime.toISOString(),
+        fileName: fileName
       });
-      
-      // In a real implementation, you would also save this to your backend/API
-      // For now, we'll just update the file content with scheduling info
-      const schedulingInfo = `\\n\\n// SCHEDULED FOR: ${scheduledDateTime.toLocaleString()}\\n// STATUS: SCHEDULED`;
-      if (onChangeRef.current) {
-        const updatedContent = `${JSON.stringify({
-          fileName,
-          platform: 'x',
-          content: {
-            text: postContent,
-            replySettings,
-            scheduledDate,
-            scheduledTime,
-            isThread,
-            threadTweets: isThread ? threadTweets : [postContent],
-            mediaCount: mediaFiles.length,
-            hasPoll,
-            pollOptions: hasPoll ? pollOptions.filter(Boolean) : [],
-            pollDuration: hasPoll ? parseInt(pollDuration) : null
-          },
-          timestamp: new Date().toISOString(),
-          status: 'scheduled',
-          scheduledFor: scheduledDateTime.toISOString()
-        }, null, 2)}${schedulingInfo}`;
+
+      if (result.success) {
+        // Update file status to scheduled
+        const currentTab = openTabs.find(tab => tab.name === fileName || tab.filePath.includes(fileName));
+        if (currentTab) {
+          updateFileStatus(currentTab.id, 'scheduled');
+        }
+
+        // Update file content with scheduling info
+        const schedulingInfo = `\n\n// SCHEDULED FOR: ${scheduledDateTime.toLocaleString()}\n// STATUS: SCHEDULED\n// API RESULT: ${JSON.stringify(result.data, null, 2)}`;
+        if (onChangeRef.current) {
+          const updatedContent = `${JSON.stringify({
+            fileName,
+            platform: 'x',
+            content: {
+              text: postContent,
+              replySettings,
+              scheduledDate,
+              scheduledTime,
+              isThread,
+              threadTweets: isThread ? threadTweets : [postContent],
+              mediaCount: mediaFiles.length,
+              hasPoll,
+              pollOptions: hasPoll ? pollOptions.filter(Boolean) : [],
+              pollDuration: hasPoll ? parseInt(pollDuration) : null
+            },
+            timestamp: new Date().toISOString(),
+            status: 'scheduled',
+            scheduledFor: scheduledDateTime.toISOString(),
+            apiResult: result.data
+          }, null, 2)}${schedulingInfo}`;
+          
+          onChangeRef.current(updatedContent);
+        }
+
+        // Show success notification
+        alert(`✅ Post scheduled successfully for ${scheduledDateTime.toLocaleString()}!\n\n${result.message || 'Your tweet will be posted automatically at the scheduled time.'}`);
         
-        onChangeRef.current(updatedContent);
+        console.log('🚀 Post scheduled successfully!', result);
+      } else {
+        throw new Error(result.error || 'Failed to schedule post');
       }
+
+    } catch (error) {
+      console.error('❌ Failed to schedule post:', error);
+      alert(`❌ Failed to schedule post:\n\n${error instanceof Error ? error.message : 'Unknown error occurred'}`);
     }
   };
 
-  // Handle saving as draft
-  const handleSaveDraft = () => {
-    const currentTab = openTabs.find(tab => tab.name === fileName || tab.filePath.includes(fileName));
-    if (currentTab) {
-      updateFileStatus(currentTab.id, 'draft');
-      console.log('💾 Post saved as draft');
+  // Handle posting immediately
+  const handlePostNow = async () => {
+    try {
+      // Use the real X API to post immediately
+      const result = await postTweet({
+        text: postContent,
+        reply_settings: mapReplySettingsToAPI(replySettings),
+        media_files: mediaFiles,
+        poll: hasPoll ? {
+          options: pollOptions.filter(Boolean),
+          duration_minutes: parseInt(pollDuration)
+        } : undefined,
+        is_thread: isThread,
+        thread_tweets: isThread ? threadTweets : undefined,
+      });
+
+      if (result.success) {
+        // Update file status to published
+        const currentTab = openTabs.find(tab => tab.name === fileName || tab.filePath.includes(fileName));
+        if (currentTab) {
+          updateFileStatus(currentTab.id, 'complete'); // Use 'complete' since 'published' isn't available
+        }
+
+        // Update file content with publish info
+        const publishInfo = `\n\n// POSTED TO X: ${new Date().toLocaleString()}\n// STATUS: PUBLISHED\n// TWEET ID: ${result.data?.id || 'N/A'}\n// API RESULT: ${JSON.stringify(result.data, null, 2)}`;
+        if (onChangeRef.current) {
+          const updatedContent = `${JSON.stringify({
+            fileName,
+            platform: 'x',
+            content: {
+              text: postContent,
+              replySettings,
+              isThread,
+              threadTweets: isThread ? threadTweets : [postContent],
+              mediaCount: mediaFiles.length,
+              hasPoll,
+              pollOptions: hasPoll ? pollOptions.filter(Boolean) : [],
+              pollDuration: hasPoll ? parseInt(pollDuration) : null
+            },
+            timestamp: new Date().toISOString(),
+            status: 'published',
+            postedAt: new Date().toISOString(),
+            tweetId: result.data?.id,
+            apiResult: result.data
+          }, null, 2)}${publishInfo}`;
+          
+          onChangeRef.current(updatedContent);
+        }
+
+        // Show success notification
+        const tweetUrl = result.data?.id ? `https://x.com/user/status/${result.data.id}` : '';
+        alert(`🚀 ${isThread ? 'Thread' : 'Tweet'} posted successfully!\n\n${result.message || 'Your post is now live on X.'}\n\n${tweetUrl ? `View tweet: ${tweetUrl}` : ''}`);
+        
+        console.log('✅ Post published successfully!', result);
+      } else {
+        throw new Error(result.error || 'Failed to post tweet');
+      }
+
+    } catch (error) {
+      console.error('❌ Failed to post tweet:', error);
+      alert(`❌ Failed to post ${isThread ? 'thread' : 'tweet'}:\n\n${error instanceof Error ? error.message : 'Unknown error occurred'}`);
+    }
+  };
+
+  // Handle saving as draft - memoized to prevent re-renders
+  const handleSaveDraft = useCallback(async () => {
+    setIsSavingDraft(true);
+    
+    try {
+      const currentTab = openTabs.find(tab => tab.name === fileName || tab.filePath.includes(fileName));
+      console.log('💾 Saving draft:', { 
+        fileName, 
+        currentTabFound: !!currentTab, 
+        currentTabId: currentTab?.id,
+        textLength: postContent.length 
+      });
+      
+      if (currentTab) {
+        // Create serialized content to save
+        const contentToSave = JSON.stringify({
+          text: postContent,
+          replySettings,
+          scheduledDate,
+          scheduledTime,
+          isThread,
+          threadTweets: isThread ? threadTweets : [postContent],
+          hasPoll,
+          pollOptions: hasPoll ? pollOptions : [],
+          pollDuration: hasPoll ? pollDuration : '1440',
+          lastSaved: Date.now()
+        });
+        
+        console.log('💾 Content to save:', { 
+          contentLength: contentToSave.length,
+          text: postContent.substring(0, 50) + '...' 
+        });
+        
+        // Save content to editor store
+        updateFileContent(currentTab.id, contentToSave);
+        updateFileStatus(currentTab.id, 'draft');
+        
+        // Verify it was saved
+        const verifyTab = openTabs.find(tab => tab.id === currentTab.id);
+        console.log('✅ Verified save:', { 
+          tabFound: !!verifyTab, 
+          hasContent: !!verifyTab?.content,
+          contentLength: verifyTab?.content?.length
+        });
+        
+        console.log('💾 Post content and status saved as draft');
+        
+        // Show feedback for 1.5 seconds
+        setTimeout(() => {
+          setIsSavingDraft(false);
+        }, 1500);
+      }
+    } catch (error) {
+      console.error('Failed to save draft:', error);
+      setIsSavingDraft(false);
+    }
+  }, [fileName, postContent, replySettings, scheduledDate, scheduledTime, isThread, threadTweets, hasPoll, pollOptions, pollDuration, openTabs, updateFileContent, updateFileStatus]);
+
+  // Handle disconnecting X account
+  const handleDisconnect = async () => {
+    console.log('🔌 Disconnect button clicked!');
+    console.log('🔌 Current hasConnection:', hasConnection);
+    console.log('🔌 Current connectionInfo:', connectionInfo);
+    
+    const confirmDisconnect = window.confirm(
+      '⚠️ Are you sure you want to disconnect your X account?\n\nThis will remove your connection and you won\'t be able to post until you reconnect.'
+    );
+    
+    console.log('🔌 User confirmation:', confirmDisconnect);
+    
+    if (confirmDisconnect) {
+      try {
+        console.log('🔌 Calling disconnectAccount function...');
+        console.log('🔌 disconnectAccount function exists:', typeof disconnectAccount === 'function');
+        
+        const result = await disconnectAccount();
+        console.log('🔌 Disconnect result:', result);
+        
+        if (result.success) {
+          console.log('✅ Disconnect successful, showing success alert');
+          alert('✅ X account disconnected successfully!\n\nYou can reconnect in Settings → Social Connections.');
+          // Force a page refresh to update the UI state
+          console.log('🔄 Forcing page refresh to update connection state...');
+          window.location.reload();
+        } else {
+          console.error('❌ Disconnect failed:', result.error);
+          alert(`❌ Failed to disconnect X account:\n\n${result.error}`);
+        }
+      } catch (error) {
+        console.error('❌ Error disconnecting X account:', error);
+        console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack');
+        alert(`❌ Error disconnecting X account:\n\n${error instanceof Error ? error.message : 'Unknown error occurred'}`);
+      }
+    } else {
+      console.log('🚫 User cancelled disconnect');
     }
   };
 
@@ -186,13 +460,58 @@ export function XPostEditor({ fileName, onChange }: XPostEditorProps) {
             </div>
             <div>
               <h1 className="text-xl font-semibold">X (Twitter) Post</h1>
-              <p className="text-sm text-[#858585]">{fileName}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-[#858585]">{fileName}</p>
+                {(() => {
+                  console.log('🔍 Rendering connection status - hasConnection:', hasConnection, 'connectionInfo:', connectionInfo);
+                  return hasConnection && connectionInfo ? (
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center gap-1 text-xs bg-green-900/20 text-green-400 px-2 py-1 rounded">
+                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                        Connected as {connectionInfo.username}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          console.log('🔥 DISCONNECT BUTTON CLICKED - IMMEDIATE LOG');
+                          handleDisconnect();
+                        }}
+                        className="h-6 px-2 text-xs border-red-600 text-red-400 hover:bg-red-900/20 hover:border-red-500"
+                      >
+                        Disconnect
+                      </Button>
+                    </div>
+                  ) : (
+                    <span className="flex items-center gap-1 text-xs bg-red-900/20 text-red-400 px-2 py-1 rounded">
+                      <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                      Not connected
+                    </span>
+                  );
+                })()}
+              </div>
             </div>
           </div>
           <Badge variant="outline" className="text-black border-black">
             Draft
           </Badge>
         </div>
+
+        {/* Connection Warning */}
+        {!hasConnection && (
+          <div className="p-4 bg-yellow-900/20 border border-yellow-700 rounded-lg">
+            <div className="flex items-start gap-3">
+              <div className="w-5 h-5 text-yellow-400 mt-0.5">⚠️</div>
+              <div>
+                <h3 className="text-yellow-400 font-medium text-sm">X Account Not Connected</h3>
+                <p className="text-yellow-300 text-xs mt-1">
+                  Connect your X account in Settings → Social Connections to enable real posting.
+                  You can still compose and save drafts.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <Tabs defaultValue="compose" className="space-y-6">
           <TabsList className="bg-[#2d2d2d] border-[#454545]">
@@ -480,22 +799,28 @@ export function XPostEditor({ fileName, onChange }: XPostEditorProps) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-[#2d2d2d] border-[#454545]">
-                      <SelectItem value="everyone">
-                        <div className="flex items-center gap-2">
-                          <Globe className="w-4 h-4" />
-                          Everyone
-                        </div>
-                      </SelectItem>
                       <SelectItem value="following">
                         <div className="flex items-center gap-2">
-                          <Users className="w-4 h-4" />
+                          <Globe className="w-4 h-4" />
                           People you follow
                         </div>
                       </SelectItem>
-                      <SelectItem value="mentioned">
+                      <SelectItem value="mentionedUsers">
                         <div className="flex items-center gap-2">
-                          <Heart className="w-4 h-4" />
+                          <AtSign className="w-4 h-4" />
                           Only people you mention
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="subscribers">
+                        <div className="flex items-center gap-2">
+                          <Users className="w-4 h-4" />
+                          Subscribers only
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="verified">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4" />
+                          Verified accounts only
                         </div>
                       </SelectItem>
                     </SelectContent>
@@ -508,18 +833,33 @@ export function XPostEditor({ fileName, onChange }: XPostEditorProps) {
 
         {/* Action Buttons */}
         <div className="flex gap-3 pt-4 border-t border-[#454545]">
+          {/* Post Now Button */}
           <Button 
             className="bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white flex-1"
-            onClick={scheduledDate && scheduledTime ? handleSchedulePost : () => console.log('Post immediately clicked')}
+            onClick={handlePostNow}
+            disabled={!postContent.trim() || !fileName || isPosting || !hasConnection}
           >
-            {scheduledDate && scheduledTime ? 'Schedule Tweet' : isThread ? 'Post Thread' : 'Post Tweet'}
+            {isPosting ? 'Posting...' : !hasConnection ? 'Connect X Account' : isThread ? 'Post Thread' : 'Post Tweet'}
           </Button>
+
+          {/* Schedule Button - Only show if date/time are set */}
+          {scheduledDate && scheduledTime && (
+            <Button 
+              className="bg-[#2f3336] hover:bg-[#374151] text-[#e7e9ea] flex-1"
+              onClick={handleSchedulePost}
+              disabled={!postContent.trim() || !fileName || isScheduling || !hasConnection}
+            >
+              {isScheduling ? 'Scheduling...' : !hasConnection ? 'Connect X Account' : 'Schedule Post'}
+            </Button>
+          )}
+
           <Button 
             variant="outline" 
             className="border-[#454545] text-[#cccccc] hover:bg-[#2d2d2d]"
             onClick={handleSaveDraft}
+            disabled={!postContent.trim() || !fileName || isSavingDraft}
           >
-            Save Draft
+            {isSavingDraft ? 'Saving...' : 'Save Draft'}
           </Button>
           <Button variant="outline" className="border-[#454545] text-[#cccccc] hover:bg-[#2d2d2d]">
             Preview

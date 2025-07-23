@@ -1,7 +1,7 @@
 // Editor Store
 // /Users/matthewsimon/Projects/EAC/eac/store/editor/index.ts
 
-import { AtSign, Braces, Calendar, Camera, FileCode, FileSpreadsheet, FileText, FileType, Hash, MessageSquare } from 'lucide-react';
+import { AtSign, Braces, Calendar, Camera, FileCode, FileSpreadsheet, FileText, FileType, MessageSquare } from 'lucide-react';
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { EditorState, EditorTab, ProjectFile, ProjectFolder, TrashItem } from './types';
@@ -32,7 +32,7 @@ const getFileIcon = (type: ProjectFile['type']) => {
     case 'facebook':
       return MessageSquare;
     case 'reddit':
-      return Hash;
+      return 'r/'; // Changed from Hash to r/ text
     case 'instagram':
       return Camera;
     case 'x':

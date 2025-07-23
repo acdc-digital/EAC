@@ -5,12 +5,12 @@
 
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import dynamic from 'next/dynamic';
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useEditorStore } from "@/store";
 import { ProjectFile } from "@/store/editor/types";
 import { useTerminalStore } from "@/store/terminal";
-import { AtSign, Braces, Camera, ChevronLeft, ChevronRight, Edit3, FileCode, FileSpreadsheet, FileText, FileType, Hash, MessageSquare, Plus, Users, X } from "lucide-react";
+import { AtSign, Braces, Camera, ChevronLeft, ChevronRight, Edit3, FileCode, FileSpreadsheet, FileText, FileType, MessageSquare, Plus, Users, X } from "lucide-react";
 
 // Dynamic import to avoid SSR issues
 const TiptapEditor = dynamic(() => import('@/app/_components/editor/_components/TiptapEditor'), {
@@ -205,8 +205,11 @@ export function DashEditor() {
   // Calculate line count based on active tab's content height - using a simple static approach
   const lineCount = 50; // Fixed line count to prevent infinite loops
 
-  // Get current tab to check if it's editable
-  const currentTab = openTabs.find((t) => t.id === activeTab);
+  // Get current tab to check if it's editable - memoized to prevent remounting
+  const currentTab = useMemo(() => 
+    openTabs.find((t) => t.id === activeTab), 
+    [openTabs, activeTab]
+  );
   const isEditable = currentTab ? ['typescript', 'javascript', 'json', 'markdown'].includes(currentTab.type) : false;
   const isMarkdownFile = currentTab?.type === 'markdown';
   const isGeneralsModule = currentTab?.type === 'generals';
@@ -280,7 +283,14 @@ export function DashEditor() {
                           case 'facebook':
                             return MessageSquare;
                           case 'reddit':
-                            return Hash;
+                            // Custom "r/" display for Reddit files
+                            const RedditIcon = () => (
+                              <span className="w-3 h-3 flex-shrink-0 text-[#858585] text-xs font-medium flex items-center justify-center">
+                                r/
+                              </span>
+                            );
+                            RedditIcon.displayName = 'RedditIcon';
+                            return RedditIcon;
                           case 'instagram':
                             return Camera;
                           case 'x':

@@ -33,7 +33,7 @@ export interface TrashItem {
 export interface ProjectFile {
   id: string;
   name: string;
-  icon: LucideIcon;
+  icon: LucideIcon | string; // Updated to allow string for custom Reddit "r/" display
   type: 'typescript' | 'json' | 'excel' | 'pdf' | 'markdown' | 'javascript' | 'generals' | 'percent-complete' | 'schedule' | 'materials' | 'social-connect' | 'post-creator' | 'calendar' | 'facebook' | 'reddit' | 'instagram' | 'x';
   category: 'project' | 'financial';
   content: string;

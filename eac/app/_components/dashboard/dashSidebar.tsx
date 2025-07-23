@@ -7,12 +7,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Id } from "@/convex/_generated/dataModel";
 import { useFiles } from "@/lib/hooks/useFiles";
 import { useProjects } from "@/lib/hooks/useProjects";
+import { useProjectSync } from "@/lib/hooks/useProjectSync";
 import { useEditorStore, useSidebarStore } from "@/store";
 // TODO: Re-enable once files have Convex IDs
 // import { useMutation } from "convex/react";
 // import { api } from "@/convex/_generated/api";
 import {
+  AtSign,
   Braces,
+  Camera,
   ChevronDown,
   ChevronRight,
   ChevronsDown,
@@ -23,6 +26,7 @@ import {
   FileType,
   Folder,
   GripVertical,
+  MessageSquare,
   Pin,
   Plus,
   X
@@ -58,6 +62,9 @@ export function DashSidebar({ activePanel }: SidebarProps) {
   const { projectFiles, financialFiles, projectFolders, showProjectsCategory, showFinancialCategory, openTab, openSpecialTab, renameFile, renameFolder, createFolder, deleteProjectsCategory, deleteFinancialCategory, reorderProjectFolders, reorderFilesInFolder, closeAllTabs, moveToTrash } = useEditorStore();
   const { createProject, deleteProject } = useProjects();
   const { deleteFile } = useFiles(null); // We'll get file-specific functions as needed
+  
+  // Initialize project synchronization between Convex and Zustand
+  const { isLoading: isProjectSyncLoading, syncStatus } = useProjectSync();
   
   // TODO: Re-enable once files have Convex IDs
   // const deleteFile = useMutation(api.files.deleteFile);
@@ -443,6 +450,21 @@ export function DashSidebar({ activePanel }: SidebarProps) {
         return FileSpreadsheet;
       case 'materials':
         return FileSpreadsheet;
+      case 'reddit':
+        // Return a custom component for Reddit r/ display
+        const RedditIcon = () => (
+          <span className="w-4 h-4 flex-shrink-0 text-[#858585] text-xs font-medium flex items-center justify-center">
+            r/
+          </span>
+        );
+        RedditIcon.displayName = 'RedditIcon';
+        return RedditIcon;
+      case 'facebook':
+        return MessageSquare;
+      case 'instagram':
+        return Camera;
+      case 'x':
+        return AtSign;
       default:
         return FileCode;
     }

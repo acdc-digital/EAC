@@ -15,7 +15,7 @@ import { api } from "@/convex/_generated/api";
 import { useCalendarSync } from "@/lib/hooks/useCalendarSync";
 import { useRedditPostState } from "@/lib/hooks/useRedditPostState";
 import { useEditorStore } from "@/store";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import { AlertCircle, BarChart3, Calendar, Clock, Eye, FileText, Hash, ImageIcon, Link, RefreshCw, Send, TrendingUp, Video } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -39,26 +39,32 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
 
   const redditConnection = redditConnections?.[0]; // Get the first Reddit connection
 
-  // Get existing Reddit post for this file (if any)
-  const existingPost = useQuery(api.reddit.getRedditPostByFileName, {
-    fileName: fileName
-  });
+  // Get existing Reddit post for this file (if any) - temporarily disabled
+  // const existingPost = useQuery(api.reddit.getRedditPostByFileName, {
+  //   fileName: fileName
+  // });
+  const existingPost = null; // Temporarily disabled until function is implemented
 
-  // Get the file record to link the post to it
-  const fileRecord = useQuery(api.files.getFileByName, {
-    name: fileName
-  });
+  // Get the file record to link the post to it - temporarily disabled
+  // const fileRecord = useQuery(api.files.getFileByName, {
+  //   name: fileName
+  // });
+  const fileRecord = null; // Temporarily disabled until function is implemented
 
   // TODO: Fix social store import
   // const clearError = useSocialStore(state => state.clearError);
   const clearError = () => setError(null); // Temporary fix
 
-  // Convex mutations
-  const createRedditPost = useMutation(api.reddit.createRedditPost);
-  const updateRedditPost = useMutation(api.reddit.updateRedditPost);
-  const cancelScheduledPost = useMutation(api.reddit.cancelScheduledPost);
+  // Convex mutations - temporarily disabled until functions are implemented
+  // const createRedditPost = useMutation(api.reddit.createRedditPost);
+  // const updateRedditPost = useMutation(api.reddit.updateRedditPost);
+  // const cancelScheduledPost = useMutation(api.reddit.cancelScheduledPost);
+  // const fetchAnalytics = useMutation(api.reddit.fetchPostAnalytics);
+  const createRedditPost = async () => { throw new Error("Function not implemented"); };
+  const updateRedditPost = async () => { throw new Error("Function not implemented"); };
+  const cancelScheduledPost = async () => { throw new Error("Function not implemented"); };
+  const fetchAnalytics = async () => { throw new Error("Function not implemented"); };
   const submitRedditPost = useAction(api.redditApi.submitRedditPost);
-  const fetchAnalytics = useMutation(api.reddit.fetchPostAnalytics);
 
   // File-specific form state using custom hook
   const {

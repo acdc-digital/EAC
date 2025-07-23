@@ -1,8 +1,8 @@
 // Terminal Chat Store with Convex Integration
 // /Users/matthewsimon/Projects/eac/eac/store/terminal/chat.ts
 
+import { api } from '@/convex/_generated/api';
 import { create } from 'zustand';
-import { api } from '../../../convex/_generated/api';
 
 export interface ChatMessage {
   _id: string;

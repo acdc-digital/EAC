@@ -1,10 +1,10 @@
-import { useEditorStore } from "@/store";
+import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
+// import { useEditorStore } from "@/store";
 import { useProjectStore } from "@/store/projects";
 import { CreateProjectArgs, UpdateProjectArgs } from "@/store/projects/types";
 import { useMutation, useQuery } from "convex/react";
 import React from "react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
 
 /**
  * Custom hook for project operations using Convex and Zustand
@@ -23,11 +23,13 @@ export const useProjects = () => {
   } = useProjectStore();
 
   // Get editor store for syncing sidebar folders
-  const { createFolder } = useEditorStore();
+  // const { createFolder } = useEditorStore();
 
   // Convex mutations
   const createProjectMutation = useMutation(api.projects.createProject);
   const deleteProjectMutation = useMutation(api.trash.deleteProject);
+  
+  // Re-enable Convex queries now that functions are deployed
   const generateProjectNumberQuery = useQuery(api.projects.generateProjectNumber, {});
 
   // Convex queries  
@@ -53,9 +55,21 @@ export const useProjects = () => {
         totalBudget: 0
       };
       setProjectStats(stats);
+    } else {
+      // Set default stats when no data
+      const defaultStats = {
+        total: 0,
+        active: 0,
+        completed: 0,
+        onHold: 0,
+        totalBudget: 0
+      };
+      setProjectStats(defaultStats);
     }
   }, [projectStatsQuery, setProjectStats]);
 
+  // Temporarily disable sync until Convex functions are fixed
+  /*
   // Sync database projects with sidebar folders (prevent duplicates)
   React.useEffect(() => {
     if (projectsQuery && projectsQuery.length > 0) {
@@ -80,6 +94,7 @@ export const useProjects = () => {
       }
     }
   }, [projectsQuery, createFolder]);
+  */
 
   /**
    * Create a new project
@@ -167,6 +182,7 @@ export const useProjects = () => {
     // State
     projects: projectsQuery ?? [],
     projectStats: projectStatsQuery,
+    nextProjectNumber: generateProjectNumberQuery || 1,
     isLoading: projectsQuery === undefined,
     isCreating: useProjectStore.getState().isCreating,
     isUpdating: useProjectStore.getState().isUpdating,

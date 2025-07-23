@@ -6,7 +6,7 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useEditorStore } from "@/store";
 import { ProjectFile } from "@/store/editor/types";
-import { AtSign, Camera, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, FileText, Folder, Hash, MessageSquare } from "lucide-react";
+import { AtSign, Camera, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, FileText, Folder, MessageSquare } from "lucide-react";
 import { useState } from 'react';
 
 export function FileEditor() {
@@ -74,7 +74,7 @@ export function FileEditor() {
       case 'facebook':
         return MessageSquare;
       case 'reddit':
-        return Hash;
+        return 'r/'; // Changed from Hash to r/ text to match Reddit naming convention
       case 'instagram':
         return Camera;
       case 'x':
@@ -86,7 +86,24 @@ export function FileEditor() {
     }
   };
 
-  const getFileTypeLabel = (type: string) => {
+    // Helper function to render file icon or text
+  const renderFileIcon = (type: ProjectFile['type']) => {
+    const iconOrText = getFileIcon(type);
+    if (typeof iconOrText === 'string') {
+      // Handle Reddit "r/" text display
+      return (
+        <span className="w-4 h-4 flex-shrink-0 text-[#858585] text-xs font-medium flex items-center justify-center">
+          {iconOrText}
+        </span>
+      );
+    } else {
+      // Handle regular icon components
+      const IconComponent = iconOrText;
+      return <IconComponent className="w-4 h-4 flex-shrink-0 text-[#858585]" />;
+    }
+  };
+
+  const getFileTypeLabel = (type: ProjectFile['type']): string => {
     switch (type) {
       case 'facebook':
         return 'Facebook Post';
@@ -133,7 +150,6 @@ export function FileEditor() {
 
         {/* Files not in folders */}
         {filesWithoutFolder.map(file => {
-          const IconComponent = getFileIcon(file.type);
           return (
             <div
               key={`${keyPrefix}-file-${file.id}`}
@@ -141,7 +157,7 @@ export function FileEditor() {
               className="flex items-center gap-2 px-3 py-2 hover:bg-[#2d2d2d] cursor-pointer text-[#cccccc] text-sm group border-b border-[#2d2d2d]/30"
             >
               <div className="flex items-center gap-2 flex-1 min-w-0">
-                <IconComponent className="w-4 h-4 flex-shrink-0 text-[#858585]" />
+                {renderFileIcon(file.type)}
                 <span className="truncate">{file.name}</span>
               </div>
               <div className="w-24 text-center text-xs text-[#858585]">
@@ -181,7 +197,6 @@ export function FileEditor() {
               {isExpanded && (
                 <div className="bg-[#1a1a1a]">
                   {files.map((file, fileIndex) => {
-                    const IconComponent = getFileIcon(file.type);
                     return (
                       <div
                         key={`${keyPrefix}-folder-${folderIndex}-file-${file.id}-${fileIndex}`}
@@ -189,7 +204,7 @@ export function FileEditor() {
                         className="flex items-center gap-2 px-6 py-2 hover:bg-[#2d2d2d] cursor-pointer text-[#cccccc] text-sm group border-b border-[#2d2d2d]/20"
                       >
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <IconComponent className="w-4 h-4 flex-shrink-0 text-[#858585]" />
+                          {renderFileIcon(file.type)}
                           <span className="truncate">{file.name}</span>
                         </div>
                         <div className="w-24 text-center text-xs text-[#858585]">

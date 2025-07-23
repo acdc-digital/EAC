@@ -1,8 +1,8 @@
 // Hook for syncing local projects with Convex database
 // /Users/matthewsimon/Projects/EAC/eac/lib/hooks/useSyncProjects.ts
 
+import { api } from "@/convex/_generated/api";
 import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { useEditorStore } from "../../store/editor";
 
 export function useSyncProjects() {

@@ -8,7 +8,8 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/convex/_generated/api";
-import { useMutation, useQuery } from "convex/react";
+import { useSocialConnectionSync } from "@/lib/hooks/useSocialConnectionSync";
+import { useMutation } from "convex/react";
 import { AlertCircle, CheckCircle, Facebook, Instagram, MessageSquare, Twitter } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -41,22 +42,13 @@ type SocialFormData = {
 };
 
 export function SocialConnectors() {
-  // Get connections from Convex
-  const connections = useQuery(api.reddit.getSocialConnections, {
-    userId: 'temp-user-id'
-  });
-  
-  // Debug: Log all connections to see what's in the database
-  useEffect(() => {
-    if (connections) {
-      console.log('🔍 All Convex Connections:', connections);
-      console.log('🔍 Connection platforms:', connections.map(c => ({ platform: c.platform, username: c.username, id: c._id })));
-    }
-  }, [connections]);
+  // Use the centralized social connection sync hook
+  const { connections, isLoading } = useSocialConnectionSync();
   
   // Convex mutations
   const createSocialConnection = useMutation(api.reddit.createSocialConnection);
   const disconnectSocialConnection = useMutation(api.reddit.deleteSocialConnection);
+  const disconnectXConnection = useMutation(api.x.deleteXConnection);
   
   // Local state
   const [isConnecting, setIsConnecting] = useState(false);
@@ -241,10 +233,10 @@ export function SocialConnectors() {
       }
 
       // Use environment variable to ensure consistency with backend
-      const redirectUri = 'http://localhost:3000/api/auth/twitter/callback';
+      const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/twitter/callback`;
       console.log('🐦 Starting X OAuth with redirect URI:', redirectUri);
       
-      const scope = 'tweet.write users.read offline.access'; // X API v2 scopes
+      const scope = 'tweet.read tweet.write users.read like.write offline.access'; // Complete scopes for dashboard
       
       // Generate PKCE challenge (simplified for demo - should be more secure)
       const codeVerifier = btoa(Math.random().toString()).substring(0, 43);
@@ -278,31 +270,30 @@ export function SocialConnectors() {
   };
 
   const handleDisconnect = async (platform: keyof typeof formData) => {
-    if (platform === 'reddit') {
-      try {
-        // Find the connection to disconnect
-        const connection = connections?.find(c => c.platform === 'reddit');
-        if (connection) {
+    try {
+      const connection = connections?.find(c => c.platform === platform);
+      
+      if (connection) {
+        if (platform === 'reddit') {
           await disconnectSocialConnection({ connectionId: connection._id });
+        } else if (platform === 'twitter') {
+          await disconnectXConnection({ connectionId: connection._id });
         }
         
-        // Clear the form data for Reddit
+        // Clear the form data for the platform
         setFormData(prev => ({
           ...prev,
-          reddit: { username: '', clientId: '', clientSecret: '', userAgent: '' }
+          [platform]: platform === 'reddit' 
+            ? { username: '', clientId: '', clientSecret: '', userAgent: '' }
+            : platform === 'twitter'
+            ? { username: '', clientId: '', clientSecret: '', apiTier: 'free' }
+            : prev[platform]
         }));
-      } catch (error) {
-        console.error('Failed to disconnect Reddit:', error);
+        
+        console.log(`✅ Successfully disconnected ${platform}`);
       }
-    } else {
-      // For other platforms, just update local UI state
-      setAccounts(prev =>
-        prev.map(acc =>
-          acc.platform === platform
-            ? { ...acc, connected: false, username: '', lastSync: undefined }
-            : acc
-        )
-      );
+    } catch (error) {
+      console.error(`Failed to disconnect ${platform}:`, error);
     }
   };
 
@@ -359,25 +350,6 @@ export function SocialConnectors() {
                   lastSync: convexConnection.updatedAt ? new Date(convexConnection.updatedAt) : undefined
                 }
               : accounts.find(acc => acc.platform === typedPlatform);
-            
-            // Debug logging for all platforms
-            if (typedPlatform === 'twitter') {
-              console.log('🐦 Twitter Processing:', {
-                platform: typedPlatform,
-                convexConnection: convexConnection || 'NONE',
-                convexConnectionFields: convexConnection ? Object.keys(convexConnection) : [],
-                hasConvexConnection: !!convexConnection,
-                willCreateAccount: (typedPlatform === 'reddit' || typedPlatform === 'twitter') && !!convexConnection
-              });
-              
-              console.log('🐦 Twitter Account Created:', {
-                account: account || 'NONE',
-                accountFields: account ? Object.keys(account) : [],
-                accountId: account?._id,
-                accountConnected: account?.connected,
-                accountAccessToken: account?.accessToken ? 'HAS TOKEN' : 'NO TOKEN'
-              });
-            }
             
             const Icon = platformIcons[typedPlatform];
             

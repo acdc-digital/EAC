@@ -1,10 +1,10 @@
+import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { useEditorStore } from "@/store";
 import { useProjectStore } from "@/store/projects";
 import { CreateProjectArgs, UpdateProjectArgs } from "@/store/projects/types";
 import { useMutation, useQuery } from "convex/react";
 import React from "react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
 
 /**
  * Custom hook for project operations using Convex and Zustand
