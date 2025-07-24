@@ -5,10 +5,10 @@
 
 import { useSidebarStore } from "@/store";
 import {
-    AlertCircle,
-    Copyright,
-    Cpu,
-    Wifi
+  AlertCircle,
+  Copyright,
+  Cpu,
+  Wifi
 } from "lucide-react";
 import { DashActivityBar } from "./_components/dashboard/dashActivityBar";
 import { DashEditor } from "./_components/dashboard/dashEditor";
@@ -40,12 +40,14 @@ export default function DashboardPage() {
           activePanel={activePanel} 
           onPanelChange={setActivePanel} 
         />
+        {/* Main work area */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Sidebar */}
+          <DashSidebar activePanel={activePanel} />
 
-        {/* Sidebar */}
-        <DashSidebar activePanel={activePanel} />
-
-        {/* Editor Area */}
-        <DashEditor />
+          {/* Editor Area */}
+          <DashEditor />
+        </div>
       </div>
 
       {/* Status Bar - 22px */}

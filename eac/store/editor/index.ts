@@ -297,12 +297,12 @@ export const useEditorStore = create<EditorState>()(
             return;
           }
 
-          // Create new tab
+          // Create new tab with content
           const newTab: EditorTab = {
             id: file.id,
             name: file.name,
             modified: false,
-            content: file.content,
+            content: file.content || getDefaultContent(file.type, file.name),
             filePath: file.filePath,
             type: file.type,
           };
@@ -429,16 +429,6 @@ export const useEditorStore = create<EditorState>()(
           const id = `${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now()}`;
           const fileName = `${name}${getFileExtension(type)}`;
           const basePath = category === 'financial' ? '/financial-data' : '/eac-projects';
-          
-          // Clear any existing Reddit post state for new Reddit files to ensure blank state
-          if (type === 'reddit') {
-            try {
-              const { clearRedditPostState } = await import('@/lib/hooks/useRedditPostState');
-              clearRedditPostState(fileName);
-            } catch (error) {
-              console.warn('Could not clear Reddit post state:', error);
-            }
-          }
           
           // Create new file
           const newFile: ProjectFile = {
@@ -972,6 +962,38 @@ export const useEditorStore = create<EditorState>()(
           set({ error });
         },
 
+        // Fix files that don't have content
+        repairFilesWithoutContent: () => {
+          const { projectFiles, financialFiles } = get();
+          
+          const repairedProjectFiles = projectFiles.map(file => {
+            if (!file.content || file.content.trim() === '') {
+              return {
+                ...file,
+                content: getDefaultContent(file.type, file.name),
+                modifiedAt: new Date()
+              };
+            }
+            return file;
+          });
+          
+          const repairedFinancialFiles = financialFiles.map(file => {
+            if (!file.content || file.content.trim() === '') {
+              return {
+                ...file,
+                content: getDefaultContent(file.type, file.name),
+                modifiedAt: new Date()
+              };
+            }
+            return file;
+          });
+          
+          set({
+            projectFiles: repairedProjectFiles,
+            financialFiles: repairedFinancialFiles
+          });
+        },
+
         reset: () => {
           set({
             openTabs: [],
@@ -1057,24 +1079,54 @@ export const useEditorStore = create<EditorState>()(
           removeItem: (name) => localStorage.removeItem(name),
         },
         onRehydrateStorage: () => (state) => {
-          if (state && state.projectFolders && state.projectFolders.length > 0) {
-            // Only ensure the Instructions folder if there are already some project folders
-            // This prevents auto-creation when storage is intentionally cleared
-            const hasInstructionsFolder = state.projectFolders.some(folder =>
-              folder.id === 'instructions-folder' && folder.pinned
-            );
+          if (state) {
+            // Repair any files that don't have content
+            if (state.projectFiles) {
+              state.projectFiles = state.projectFiles.map(file => {
+                if (!file.content || file.content.trim() === '') {
+                  return {
+                    ...file,
+                    content: getDefaultContent(file.type, file.name),
+                    modifiedAt: new Date()
+                  };
+                }
+                return file;
+              });
+            }
             
-            if (!hasInstructionsFolder) {
-              state.projectFolders = [
-                {
-                  id: 'instructions-folder',
-                  name: 'Instructions',
-                  category: 'project',
-                  createdAt: new Date(),
-                  pinned: true,
-                },
-                ...state.projectFolders
-              ];
+            if (state.financialFiles) {
+              state.financialFiles = state.financialFiles.map(file => {
+                if (!file.content || file.content.trim() === '') {
+                  return {
+                    ...file,
+                    content: getDefaultContent(file.type, file.name),
+                    modifiedAt: new Date()
+                  };
+                }
+                return file;
+              });
+            }
+            
+            // Ensure Instructions folder exists if there are project folders
+            if (state.projectFolders && state.projectFolders.length > 0) {
+              // Only ensure the Instructions folder if there are already some project folders
+              // This prevents auto-creation when storage is intentionally cleared
+              const hasInstructionsFolder = state.projectFolders.some(folder =>
+                folder.id === 'instructions-folder' && folder.pinned
+              );
+              
+              if (!hasInstructionsFolder) {
+                state.projectFolders = [
+                  {
+                    id: 'instructions-folder',
+                    name: 'Instructions',
+                    category: 'project',
+                    createdAt: new Date(),
+                    pinned: true,
+                  },
+                  ...state.projectFolders
+                ];
+              }
             }
           }
           // If projectFolders is empty, respect that (don't auto-create anything)

@@ -5,7 +5,7 @@
 
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import dynamic from 'next/dynamic';
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useEditorStore } from "@/store";
 import { ProjectFile } from "@/store/editor/types";
@@ -169,12 +169,12 @@ export function DashEditor() {
     return tab ? tab.content : '// File not found';
   };
 
-  const handleContentChange = (content: string) => {
+  const handleContentChange = useCallback((content: string) => {
     if (activeTab) {
       // Update the file content in your store
       updateFileContent(activeTab, content);
     }
-  };
+  }, [activeTab, updateFileContent]);
 
   const handleCreateFileWithDetails = () => {
     if (newFileName.trim()) {
@@ -219,6 +219,23 @@ export function DashEditor() {
   const isSocialConnectModule = currentTab?.type === 'social-connect';
   const isPostCreatorModule = currentTab?.type === 'post-creator';
   const isCalendarModule = currentTab?.type === 'calendar';
+
+  // Memoized change handlers for different editor types to prevent infinite re-renders
+  const handleRedditChange = useCallback((content: string) => {
+    if (currentTab) updateFileContent(currentTab.id, content);
+  }, [currentTab, updateFileContent]);
+
+  const handleFacebookChange = useCallback((content: string) => {
+    if (currentTab) updateFileContent(currentTab.id, content);
+  }, [currentTab, updateFileContent]);
+
+  const handleXChange = useCallback((content: string) => {
+    if (currentTab) updateFileContent(currentTab.id, content);
+  }, [currentTab, updateFileContent]);
+
+  const handleInstagramChange = useCallback((content: string) => {
+    if (currentTab) updateFileContent(currentTab.id, content);
+  }, [currentTab, updateFileContent]);
 
   return (
     <main className="flex-1 flex flex-col bg-[#1a1a1a]">
@@ -516,22 +533,22 @@ export function DashEditor() {
                       ) : currentTab?.type === 'facebook' ? (
                         <FacebookPostEditor
                           fileName={currentTab.name}
-                          onChange={(content) => updateFileContent(currentTab.id, content)}
+                          onChange={handleFacebookChange}
                         />
                       ) : currentTab?.type === 'x' ? (
                         <XPostEditor
                           fileName={currentTab.name}
-                          onChange={(content) => updateFileContent(currentTab.id, content)}
+                          onChange={handleXChange}
                         />
                       ) : currentTab?.type === 'instagram' ? (
                         <InstagramPostEditor
                           fileName={currentTab.name}
-                          onChange={(content) => updateFileContent(currentTab.id, content)}
+                          onChange={handleInstagramChange}
                         />
                       ) : currentTab?.type === 'reddit' ? (
                         <RedditPostEditor
                           fileName={currentTab.name}
-                          onChange={(content) => updateFileContent(currentTab.id, content)}
+                          onChange={handleRedditChange}
                         />
                       ) : (
                         // Use MarkdownEditor for markdown files, TiptapEditor for others

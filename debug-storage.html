@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug EAC Storage</title>
+</head>
+<body>
+    <h1>EAC Storage Debug</h1>
+    <div id="output"></div>
+    
+    <script>
+        function debugStorage() {
+            const output = document.getElementById('output');
+            let html = '<h2>=== DEBUGGING EDITOR STORAGE ===</h2>';
+
+            // Check if there's editor storage
+            const editorStorage = localStorage.getItem('editor-storage');
+            if (editorStorage) {
+                html += '<h3>Editor storage found:</h3>';
+                const parsed = JSON.parse(editorStorage);
+                html += '<pre>' + JSON.stringify(parsed, null, 2) + '</pre>';
+                
+                if (parsed.state) {
+                    html += '<h3>=== PROJECT FILES ===</h3>';
+                    html += '<p>Project files count: ' + (parsed.state.projectFiles?.length || 0) + '</p>';
+                    parsed.state.projectFiles?.forEach((file, index) => {
+                        html += '<div><strong>File ' + (index + 1) + ':</strong><br>';
+                        html += 'ID: ' + file.id + '<br>';
+                        html += 'Name: ' + file.name + '<br>';
+                        html += 'Type: ' + file.type + '<br>';
+                        html += 'Has Content: ' + !!file.content + '<br>';
+                        html += 'Content Length: ' + (file.content?.length || 0) + '<br>';
+                        html += 'Content Preview: ' + (file.content?.substring(0, 100) || 'NO CONTENT') + '<br><br></div>';
+                    });
+                    
+                    html += '<h3>=== FINANCIAL FILES ===</h3>';
+                    html += '<p>Financial files count: ' + (parsed.state.financialFiles?.length || 0) + '</p>';
+                    parsed.state.financialFiles?.forEach((file, index) => {
+                        html += '<div><strong>File ' + (index + 1) + ':</strong><br>';
+                        html += 'ID: ' + file.id + '<br>';
+                        html += 'Name: ' + file.name + '<br>';
+                        html += 'Type: ' + file.type + '<br>';
+                        html += 'Has Content: ' + !!file.content + '<br>';
+                        html += 'Content Length: ' + (file.content?.length || 0) + '<br>';
+                        html += 'Content Preview: ' + (file.content?.substring(0, 100) || 'NO CONTENT') + '<br><br></div>';
+                    });
+                    
+                    html += '<h3>=== OPEN TABS ===</h3>';
+                    html += '<p>Open tabs count: ' + (parsed.state.openTabs?.length || 0) + '</p>';
+                    parsed.state.openTabs?.forEach((tab, index) => {
+                        html += '<div><strong>Tab ' + (index + 1) + ':</strong><br>';
+                        html += 'ID: ' + tab.id + '<br>';
+                        html += 'Name: ' + tab.name + '<br>';
+                        html += 'Type: ' + tab.type + '<br>';
+                        html += 'Has Content: ' + !!tab.content + '<br>';
+                        html += 'Content Length: ' + (tab.content?.length || 0) + '<br>';
+                        html += 'Content Preview: ' + (tab.content?.substring(0, 100) || 'NO CONTENT') + '<br><br></div>';
+                    });
+                }
+            } else {
+                html += '<p>No editor storage found in localStorage</p>';
+            }
+
+            html += '<h3>=== ALL STORAGE KEYS ===</h3>';
+            Object.keys(localStorage).forEach(key => {
+                html += '<p>' + key + ': ' + (localStorage.getItem(key)?.length || 0) + ' characters</p>';
+            });
+            
+            output.innerHTML = html;
+        }
+        
+        // Run debug on page load
+        window.onload = debugStorage;
+        
+        // Also make it available globally
+        window.debugStorage = debugStorage;
+    </script>
+</body>
+</html>

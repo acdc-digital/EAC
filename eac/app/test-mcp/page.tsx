@@ -3,9 +3,9 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { api } from "@/convex/_generated/api";
 import { useAction } from "convex/react";
 import { useState } from "react";
-import { api } from "../../../convex/_generated/api";
 
 interface TestResult {
   type: "mcp-call" | "intent" | "chat" | "error";

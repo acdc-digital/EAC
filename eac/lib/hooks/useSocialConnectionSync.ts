@@ -4,7 +4,7 @@
 
 import { api } from "@/convex/_generated/api";
 import { useQuery } from "convex/react";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 // Define the connection type
 interface Connection {
@@ -25,7 +25,20 @@ export function useSocialConnectionSync(userId: string = 'temp-user-id') {
   // Prevent duplicate logging
   const lastLoggedConnectionsRef = useRef<string>('');
   
-  console.log(`🔍 useSocialConnectionSync [${hookInstanceId}] - Raw connections:`, connections);
+  // Only log on connection changes, not every render
+  useEffect(() => {
+    const connectionSignature = connections ? 
+      connections.map((c: Connection) => `${c.platform}-${c._id}`).sort().join('|') : 
+      'no-connections';
+      
+    if (connectionSignature !== lastLoggedConnectionsRef.current) {
+      // Reduced logging to prevent performance issues
+      if (process.env.NODE_ENV === 'development' && Math.random() < 0.1) {
+        console.log(`🔍 useSocialConnectionSync [${hookInstanceId}] - Connection change detected:`, connections?.length || 0, 'connections');
+      }
+      lastLoggedConnectionsRef.current = connectionSignature;
+    }
+  }, [connections, hookInstanceId]);
   
   useEffect(() => {
     if (!connections) return;
@@ -49,49 +62,45 @@ export function useSocialConnectionSync(userId: string = 'temp-user-id') {
     }
   }, [connections]);
 
-  // Helper function to get connection by platform
-  const getConnectionByPlatform = (platform: string) => {
-    console.log(`🔍 getConnectionByPlatform('${platform}') called`);
-    console.log('🔍 Available connections:', connections?.map((c: Connection) => ({ 
-      platform: c.platform, 
-      username: c.username, 
-      isActive: c.isActive,
-      hasTwitterToken: !!c.twitterAccessToken 
-    })));
-    
+  // Helper function to get connection by platform - memoized to prevent re-renders
+  const getConnectionByPlatform = useCallback((platform: string) => {
     const connection = connections?.find((conn: Connection) => conn.platform === platform) || null;
-    console.log(`🔍 Found connection for '${platform}':`, connection ? 'YES' : 'NO');
-    
     return connection;
-  };
+  }, [connections]);
 
-  // Helper function to check if platform is connected
-  const isPlatformConnected = (platform: string) => {
+  // Helper function to check if platform is connected - memoized
+  const isPlatformConnected = useCallback((platform: string) => {
     const connection = getConnectionByPlatform(platform);
     return connection?.isActive === true && !!connection.twitterAccessToken;
-  };
+  }, [getConnectionByPlatform]);
 
-  // Memoized platform-specific connections to ensure React detects changes
-  const twitterConnection = connections?.find((conn: Connection) => conn.platform === 'twitter') || null;
-  const redditConnection = connections?.find((conn: Connection) => conn.platform === 'reddit') || null;
-  const facebookConnection = connections?.find((conn: Connection) => conn.platform === 'facebook') || null;
-  const instagramConnection = connections?.find((conn: Connection) => conn.platform === 'instagram') || null;
+  // Memoized platform-specific connections to ensure React detects changes properly
+  const twitterConnection = useMemo(() => {
+    return connections?.find((conn: Connection) => conn.platform === 'twitter') || null;
+  }, [connections]);
+  
+  const redditConnection = useMemo(() => {
+    return connections?.find((conn: Connection) => conn.platform === 'reddit') || null;
+  }, [connections]);
+  
+  const facebookConnection = useMemo(() => {
+    return connections?.find((conn: Connection) => conn.platform === 'facebook') || null;
+  }, [connections]);
+  
+  const instagramConnection = useMemo(() => {
+    return connections?.find((conn: Connection) => conn.platform === 'instagram') || null;
+  }, [connections]);
 
-  // Debug what we're about to return
-  console.log(`🔍 useSocialConnectionSync [${hookInstanceId}] RETURN VALUES:`, {
-    connectionsLength: connections?.length || 0,
-    isLoading: connections === undefined,
-    twitterConnectionFound: !!twitterConnection,
-    twitterConnectionDetails: twitterConnection ? {
-      id: twitterConnection._id,
-      platform: twitterConnection.platform,
-      username: twitterConnection.username,
-      isActive: twitterConnection.isActive,
-      hasToken: !!twitterConnection.twitterAccessToken
-    } : 'NULL'
-  });
+  // Debug what we're about to return - only log on connection changes
+  useMemo(() => {
+    // Minimal logging to prevent performance issues
+    if (process.env.NODE_ENV === 'development' && Math.random() < 0.05) {
+      console.log(`🔍 useSocialConnectionSync [${hookInstanceId}] return - connections: ${connections?.length || 0}, twitter: ${!!twitterConnection}`);
+    }
+  }, [connections, twitterConnection, hookInstanceId]);
 
-  return {
+  // Memoize the return object to prevent infinite re-renders
+  return useMemo(() => ({
     connections: connections || [],
     isLoading: connections === undefined,
     getConnectionByPlatform,
@@ -101,5 +110,5 @@ export function useSocialConnectionSync(userId: string = 'temp-user-id') {
     redditConnection,
     facebookConnection,
     instagramConnection,
-  };
+  }), [connections, getConnectionByPlatform, isPlatformConnected, twitterConnection, redditConnection, facebookConnection, instagramConnection]);
 }

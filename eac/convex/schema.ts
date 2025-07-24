@@ -285,4 +285,42 @@ export default defineSchema({
     .index("by_user", ["userId", "deletedAt"])
     .index("by_project", ["projectId", "deletedAt"])
     .index("by_original_id", ["originalId"]),
+
+  // Social posts with unified status tracking
+  socialPosts: defineTable({
+    // File identification
+    fileName: v.string(),
+    fileType: v.union(v.literal('reddit'), v.literal('twitter')),
+    
+    // Post content
+    content: v.string(),
+    title: v.optional(v.string()), // For Reddit
+    
+    // Platform-specific data
+    platformData: v.optional(v.string()), // JSON string for complex data
+    
+    // Status tracking
+    status: v.union(
+      v.literal('draft'),
+      v.literal('scheduled'),
+      v.literal('posting'),
+      v.literal('posted'),
+      v.literal('failed')
+    ),
+    
+    // Submission details
+    postId: v.optional(v.string()), // Platform post ID after submission
+    postUrl: v.optional(v.string()), // URL to the live post
+    scheduledFor: v.optional(v.number()), // Timestamp for scheduled posts
+    postedAt: v.optional(v.number()), // Actual post timestamp
+    errorMessage: v.optional(v.string()), // Error details if failed
+    
+    // Metadata
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    userId: v.optional(v.string()),
+  })
+    .index("by_fileName", ["fileName"])
+    .index("by_status", ["status"])
+    .index("by_fileType", ["fileType"]),
 });

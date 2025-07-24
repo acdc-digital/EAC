@@ -19,7 +19,6 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronsDown,
-  Edit3,
   FileCode,
   FileSpreadsheet,
   FileText,
@@ -34,13 +33,6 @@ import {
 import React, { useCallback, useMemo, useState } from "react";
 import { DashDebug } from "./dashDebug";
 import { DashTrash } from "./dashTrash";
-
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -763,20 +755,9 @@ export function DashSidebar({ activePanel }: SidebarProps) {
               return (
                 <div key={uniqueKey} className="mb-1">
                   {isUserFolder ? (
-                    <ContextMenu>
-                      <ContextMenuTrigger asChild>
-                        {sectionContent}
-                      </ContextMenuTrigger>
-                      <ContextMenuContent className="w-48 bg-[#252526] border border-[#454545]">
-                        <ContextMenuItem
-                          onClick={() => handleFolderRenameClick(section.id, section.name)}
-                          className="text-xs text-[#cccccc] hover:bg-[#2a2d2e] flex items-center gap-2 px-2 py-1.5"
-                        >
-                          <Edit3 className="w-3 h-3" />
-                          Rename
-                        </ContextMenuItem>
-                      </ContextMenuContent>
-                    </ContextMenu>
+                    <div>
+                      {sectionContent}
+                    </div>
                   ) : (
                     sectionContent
                   )}
@@ -792,8 +773,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                         const isDraggedOverFile = dragOverFile === fileId;
                         
                         return (
-                          <ContextMenu key={'id' in file ? file.id : `${section.id}-${index}`}>
-                            <ContextMenuTrigger asChild>
+                          <div key={'id' in file ? file.id : `${section.id}-${index}`}>
                               <div
                                 className={`group flex items-center hover:bg-[#2d2d2d] px-1 py-0.5 rounded cursor-pointer transition-all duration-150 ${
                                   isDraggedOverFile ? 'bg-[#3a3a3a] border-l-2 border-[#007acc] shadow-lg transform scale-105' : ''
@@ -859,19 +839,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                                   </div>
                                 )}
                               </div>
-                            </ContextMenuTrigger>
-                            {isProjectFile && file.file && (
-                              <ContextMenuContent>
-                                <ContextMenuItem
-                                  onClick={() => handleRenameClick(file.file.id, file.name)}
-                                  className="flex items-center gap-2"
-                                >
-                                  <Edit3 className="w-3 h-3" />
-                                  Rename
-                                </ContextMenuItem>
-                              </ContextMenuContent>
-                            )}
-                          </ContextMenu>
+                          </div>
                         );
                       })}
                     </div>
@@ -879,8 +847,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                   
                   {/* Handle top-level files (files without folders) */}
                   {'file' in section && (
-                    <ContextMenu>
-                      <ContextMenuTrigger asChild>
+                    <div>
                         <div
                           className={`group flex items-center hover:bg-[#2d2d2d] px-1 py-0.5 rounded ml-4 transition-all duration-150 ${
                             draggedFile === section.file.id ? 'opacity-30 scale-95' : ''
@@ -944,17 +911,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                             </button>
                           )}
                         </div>
-                      </ContextMenuTrigger>
-                      <ContextMenuContent>
-                        <ContextMenuItem
-                          onClick={() => handleRenameClick(section.file.id, section.name)}
-                          className="flex items-center gap-2"
-                        >
-                          <Edit3 className="w-3 h-3" />
-                          Rename
-                        </ContextMenuItem>
-                      </ContextMenuContent>
-                    </ContextMenu>
+                    </div>
                   )}
                 </div>
               );
@@ -968,7 +925,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
   return (
     <>
       <aside className="w-60 min-w-60 max-w-60 bg-[#181818] border-r border-[#2d2d2d] flex flex-col flex-shrink-0">
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 h-full">
           {renderContent()}
         </ScrollArea>
       </aside>

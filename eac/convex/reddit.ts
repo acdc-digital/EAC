@@ -131,11 +131,13 @@ export const updateConnectionTokens = mutation({
     connectionId: v.id("socialConnections"),
     accessToken: v.string(),
     refreshToken: v.optional(v.string()),
+    tokenExpiry: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.connectionId, {
       accessToken: args.accessToken,
       refreshToken: args.refreshToken,
+      tokenExpiry: args.tokenExpiry,
       lastSync: Date.now(),
       updatedAt: Date.now(),
     });
@@ -151,6 +153,55 @@ export const deleteSocialConnection = mutation({
       isActive: false,
       updatedAt: Date.now(),
     });
+  },
+});
+
+// Reddit Posts Management
+export const createRedditPost = mutation({
+  args: {
+    userId: v.string(),
+    connectionId: v.id("socialConnections"),
+    fileId: v.optional(v.id("files")),
+    subreddit: v.string(),
+    title: v.string(),
+    kind: v.union(v.literal("self"), v.literal("link"), v.literal("image"), v.literal("video")),
+    text: v.optional(v.string()),
+    url: v.optional(v.string()),
+    nsfw: v.boolean(),
+    spoiler: v.boolean(),
+    flairId: v.optional(v.string()),
+    flairText: v.optional(v.string()),
+    sendReplies: v.boolean(),
+    publishAt: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    
+    // Determine initial status
+    const status = args.publishAt && args.publishAt > now ? "scheduled" : "draft";
+    
+    const postId = await ctx.db.insert("redditPosts", {
+      userId: args.userId,
+      connectionId: args.connectionId,
+      fileId: args.fileId,
+      subreddit: args.subreddit.replace(/^r\//, ""), // Remove r/ prefix if present
+      title: args.title,
+      kind: args.kind,
+      text: args.text,
+      url: args.url,
+      nsfw: args.nsfw,
+      spoiler: args.spoiler,
+      flairId: args.flairId,
+      flairText: args.flairText,
+      sendReplies: args.sendReplies,
+      status,
+      publishAt: args.publishAt,
+      retryCount: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return postId;
   },
 });
 
@@ -202,7 +253,7 @@ export const getRedditPostWithConnection = query({
     if (!post) return null;
 
     const connection = await ctx.db.get(post.connectionId);
-    return { ...post, connection };
+    return { post, connection };
   },
 });
 

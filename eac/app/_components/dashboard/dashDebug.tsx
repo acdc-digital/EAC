@@ -4,20 +4,27 @@
 "use client";
 
 import { Separator } from "@/components/ui/separator";
+import { useProjects } from "@/lib/hooks/useProjects";
+import { useProjectSync } from "@/lib/hooks/useProjectSync";
+import { clearAllPersistedState, performFullSync } from "@/lib/utils/stateSync";
+import { useEditorStore } from "@/store";
 // import { api } from "@/convex/_generated/api";
 // import { useQuery } from "convex/react";
 import {
-    Activity,
-    CheckCircle,
-    ChevronDown,
-    ChevronRight,
-    Clock,
-    Database,
-    Eye,
-    Settings2,
-    Terminal,
-    Wifi,
-    XCircle
+  Activity,
+  AtSign,
+  CheckCircle,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  Database,
+  Eye,
+  FileText,
+  Hash,
+  Settings2,
+  Terminal,
+  Wifi,
+  XCircle
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -25,6 +32,17 @@ export function DashDebug() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['storage']));
   const [connectionTests, setConnectionTests] = useState<{[key: string]: 'idle' | 'loading' | 'success' | 'error'}>({});
   const [currentHost, setCurrentHost] = useState<string>('localhost:3000');
+  
+  // Get editor store functions for creating test files
+  const createNewFile = useEditorStore(state => state.createNewFile);
+  const repairFilesWithoutContent = useEditorStore(state => state.repairFilesWithoutContent);
+  const projectFiles = useEditorStore(state => state.projectFiles);
+  const financialFiles = useEditorStore(state => state.financialFiles);
+  const { createFolder, deleteFolder } = useEditorStore();
+
+  // State sync hooks
+  const { projects: convexProjects, isLoading: isProjectsLoading, error: projectsError } = useProjects();
+  const { syncStatus, isLoading: isSyncLoading, error: syncError } = useProjectSync();
 
   // Convex queries for connection testing - temporarily disabled
   // const socialConnections = useQuery(api.socialConnections.getSocialConnections, { userId: 'temp-user-id' });
@@ -129,6 +147,44 @@ export function DashDebug() {
     setTimeout(() => window.location.reload(), 500);
   };
 
+  // New enhanced state clearing function
+  const clearAllPersistedStateAndSync = () => {
+    if (typeof window === 'undefined') return;
+    
+    try {
+      clearAllPersistedState();
+      console.log('🔄 State cleared and will sync with Convex on reload');
+    } catch (error) {
+      console.error('❌ Failed to clear persisted state:', error);
+    }
+  };
+
+  // Manual sync function
+  const manualSync = () => {
+    try {
+      if (convexProjects) {
+        performFullSync(convexProjects, createFolder, deleteFolder);
+        console.log('✅ Manual sync completed');
+      } else {
+        console.log('⏳ Waiting for Convex projects to load...');
+      }
+    } catch (error) {
+      console.error('❌ Manual sync failed:', error);
+    }
+  };
+
+  // State sync status logging
+  const logSyncStatus = () => {
+    console.log('🔍 Current Sync Status:');
+    console.log('  Convex Projects:', convexProjects?.length ?? 'Loading...');
+    console.log('  Zustand Projects:', syncStatus?.zustandProjectCount ?? 0);
+    console.log('  Zustand Folders:', syncStatus?.zustandFolderCount ?? 0);
+    console.log('  Last Sync:', syncStatus?.lastSyncTime ?? 'Never');
+    console.log('  Sync Loading:', isSyncLoading);
+    console.log('  Sync Error:', syncError);
+    console.log('  Projects Error:', projectsError);
+  };
+
   const inspectStorage = () => {
     if (typeof window === 'undefined') return;
     
@@ -166,6 +222,92 @@ export function DashDebug() {
       };
       console.log('🚀 Performance Data:', perfData);
     }
+  };
+
+  // Social post creation functions
+  const createRedditTestPost = async () => {
+    try {
+      const timestamp = Date.now();
+      await createNewFile(`test-reddit-${timestamp}`, 'reddit', 'project');
+      console.log('✅ Reddit test post created successfully');
+    } catch (error) {
+      console.error('❌ Failed to create Reddit test post:', error);
+    }
+  };
+
+  const createTwitterTestPost = async () => {
+    try {
+      const timestamp = Date.now();
+      await createNewFile(`test-twitter-${timestamp}`, 'x', 'project');
+      console.log('✅ Twitter test post created successfully');
+    } catch (error) {
+      console.error('❌ Failed to create Twitter test post:', error);
+    }
+  };
+
+  // File repair functions
+  const repairAllFiles = () => {
+    try {
+      const beforeProject = projectFiles.length;
+      const beforeFinancial = financialFiles.length;
+      
+      // Count files without content before repair
+      const emptyProjectFiles = projectFiles.filter(file => !file.content || file.content.trim() === '').length;
+      const emptyFinancialFiles = financialFiles.filter(file => !file.content || file.content.trim() === '').length;
+      
+      console.log('🔧 File Repair Analysis:');
+      console.log(`📁 Project Files: ${beforeProject} total, ${emptyProjectFiles} without content`);
+      console.log(`💰 Financial Files: ${beforeFinancial} total, ${emptyFinancialFiles} without content`);
+      
+      if (emptyProjectFiles === 0 && emptyFinancialFiles === 0) {
+        console.log('✅ All files already have content - no repair needed!');
+        return;
+      }
+      
+      // Run the repair
+      repairFilesWithoutContent();
+      
+      console.log(`🔧 Repaired ${emptyProjectFiles + emptyFinancialFiles} files with missing content`);
+      console.log('✅ File repair completed successfully');
+    } catch (error) {
+      console.error('❌ Failed to repair files:', error);
+    }
+  };
+
+  const analyzeFileContent = () => {
+    console.log('📊 File Content Analysis:');
+    console.log('\n📁 PROJECT FILES:');
+    projectFiles.forEach((file, index) => {
+      console.log(`  ${index + 1}. ${file.name}`);
+      console.log(`     Type: ${file.type}`);
+      console.log(`     Has Content: ${!!file.content}`);
+      console.log(`     Content Length: ${file.content?.length || 0} characters`);
+      if (file.content && file.content.length > 0) {
+        console.log(`     Preview: ${file.content.substring(0, 50)}...`);
+      }
+      console.log('');
+    });
+    
+    console.log('\n💰 FINANCIAL FILES:');
+    financialFiles.forEach((file, index) => {
+      console.log(`  ${index + 1}. ${file.name}`);
+      console.log(`     Type: ${file.type}`);
+      console.log(`     Has Content: ${!!file.content}`);
+      console.log(`     Content Length: ${file.content?.length || 0} characters`);
+      if (file.content && file.content.length > 0) {
+        console.log(`     Preview: ${file.content.substring(0, 50)}...`);
+      }
+      console.log('');
+    });
+    
+    const totalFiles = projectFiles.length + financialFiles.length;
+    const emptyFiles = [...projectFiles, ...financialFiles].filter(file => !file.content || file.content.trim() === '').length;
+    
+    console.log(`\n📈 SUMMARY:`);
+    console.log(`   Total Files: ${totalFiles}`);
+    console.log(`   Files with Content: ${totalFiles - emptyFiles}`);
+    console.log(`   Files without Content: ${emptyFiles}`);
+    console.log(`   Content Coverage: ${totalFiles > 0 ? Math.round(((totalFiles - emptyFiles) / totalFiles) * 100) : 0}%`);
   };
 
   return (
@@ -208,6 +350,92 @@ export function DashDebug() {
           )}
         </div>
 
+        {/* State Sync Management */}
+        <div className="rounded bg-[#1e1e1e] border border-[#2d2d2d]">
+          <button
+            onClick={() => toggleSection('statesync')}
+            className="w-full flex items-center gap-2 p-2 hover:bg-[#2d2d2d]/30 transition-colors"
+          >
+            {expandedSections.has('statesync') ? 
+              <ChevronDown className="w-3.5 h-3.5 text-[#858585]" /> : 
+              <ChevronRight className="w-3.5 h-3.5 text-[#858585]" />
+            }
+            <Wifi className="w-3.5 h-3.5 text-[#858585]" />
+            <span className="text-xs font-medium flex-1 text-left">State Sync</span>
+            <div className="flex items-center gap-1">
+              {isSyncLoading && <Clock className="w-3 h-3 text-yellow-400" />}
+              {syncError && <XCircle className="w-3 h-3 text-red-400" />}
+              {!isSyncLoading && !syncError && <CheckCircle className="w-3 h-3 text-green-400" />}
+            </div>
+          </button>
+          
+          {expandedSections.has('statesync') && (
+            <div className="px-2 pb-2 space-y-2">
+              <Separator className="bg-[#2d2d2d]" />
+              
+              {/* Sync Status Display */}
+              <div className="text-[10px] text-[#858585] space-y-1">
+                <div className="flex justify-between">
+                  <span>Convex Projects:</span>
+                  <span className="text-[#cccccc]">{convexProjects?.length ?? 'Loading...'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Zustand Projects:</span>
+                  <span className="text-[#cccccc]">{syncStatus?.zustandProjectCount ?? 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Zustand Folders:</span>
+                  <span className="text-[#cccccc]">{syncStatus?.zustandFolderCount ?? 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Last Sync:</span>
+                  <span className="text-[#cccccc]">
+                    {syncStatus?.lastSyncTime ? 
+                      new Date(syncStatus.lastSyncTime).toLocaleTimeString() : 
+                      'Never'
+                    }
+                  </span>
+                </div>
+              </div>
+              
+              <Separator className="bg-[#2d2d2d]" />
+              
+              {/* Action Buttons */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-xs text-[#858585]">Clear & sync fresh</span>
+                  <button
+                    onClick={clearAllPersistedStateAndSync}
+                    className="text-xs text-[#ff6b6b] hover:text-[#ff5252] underline-offset-2 hover:underline"
+                  >
+                    Reset
+                  </button>
+                </div>
+                
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-xs text-[#858585]">Force manual sync</span>
+                  <button
+                    onClick={manualSync}
+                    className="text-xs text-[#007acc] hover:text-[#1e90ff] underline-offset-2 hover:underline"
+                  >
+                    Sync
+                  </button>
+                </div>
+                
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-xs text-[#858585]">Log sync status</span>
+                  <button
+                    onClick={logSyncStatus}
+                    className="text-xs text-[#007acc] hover:text-[#1e90ff] underline-offset-2 hover:underline"
+                  >
+                    Log
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Storage Inspector */}
         <div className="rounded bg-[#1e1e1e] border border-[#2d2d2d]">
           <button
@@ -233,6 +461,56 @@ export function DashDebug() {
                 >
                   Inspect
                 </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* File Repair */}
+        <div className="rounded bg-[#1e1e1e] border border-[#2d2d2d]">
+          <button
+            onClick={() => toggleSection('filerepair')}
+            className="w-full flex items-center gap-2 p-2 hover:bg-[#2d2d2d]/30 transition-colors"
+          >
+            {expandedSections.has('filerepair') ? 
+              <ChevronDown className="w-3.5 h-3.5 text-[#858585]" /> : 
+              <ChevronRight className="w-3.5 h-3.5 text-[#858585]" />
+            }
+            <FileText className="w-3.5 h-3.5 text-[#858585]" />
+            <span className="text-xs font-medium flex-1 text-left">File Repair</span>
+          </button>
+          
+          {expandedSections.has('filerepair') && (
+            <div className="px-2 pb-2 space-y-2">
+              <Separator className="bg-[#2d2d2d]" />
+              <div className="px-1 space-y-2">
+                <div className="text-xs text-[#858585] mb-2">Fix files with missing content</div>
+                
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-[#858585]">Analyze file content</span>
+                    <button
+                      onClick={analyzeFileContent}
+                      className="text-xs text-[#007acc] hover:text-[#1e90ff] underline-offset-2 hover:underline"
+                    >
+                      Analyze
+                    </button>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-[#858585]">Repair empty files</span>
+                    <button
+                      onClick={repairAllFiles}
+                      className="text-xs text-[#007acc] hover:text-[#1e90ff] underline-offset-2 hover:underline"
+                    >
+                      Repair
+                    </button>
+                  </div>
+                  
+                  <div className="text-xs text-[#4a4a4a] mt-2 px-1">
+                    Files: {projectFiles.length + financialFiles.length} total, {[...projectFiles, ...financialFiles].filter(file => !file.content || file.content.trim() === '').length} empty
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -321,6 +599,63 @@ export function DashDebug() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Social Post Testing */}
+        <div className="rounded bg-[#1e1e1e] border border-[#2d2d2d]">
+          <button
+            onClick={() => toggleSection('social-posts')}
+            className="w-full flex items-center gap-2 p-2 hover:bg-[#2d2d2d]/30 transition-colors"
+          >
+            {expandedSections.has('social-posts') ? 
+              <ChevronDown className="w-3.5 h-3.5 text-[#858585]" /> : 
+              <ChevronRight className="w-3.5 h-3.5 text-[#858585]" />
+            }
+            <Settings2 className="w-3.5 h-3.5 text-[#858585]" />
+            <span className="text-xs font-medium flex-1 text-left">Social Post Testing</span>
+          </button>
+          
+          {expandedSections.has('social-posts') && (
+            <div className="px-2 pb-2 space-y-2">
+              <Separator className="bg-[#2d2d2d]" />
+              <div className="px-1 space-y-2">
+                <div className="text-xs text-[#858585] mb-2">Create test social media posts</div>
+                
+                {/* Social Post Creation Buttons */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Hash className="w-3 h-3 text-orange-400" />
+                      <span className="text-xs text-[#858585]">Reddit Test Post</span>
+                    </div>
+                    <button
+                      onClick={createRedditTestPost}
+                      className="text-xs text-[#007acc] hover:text-[#1e90ff] underline-offset-2 hover:underline"
+                    >
+                      Create
+                    </button>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <AtSign className="w-3 h-3 text-blue-400" />
+                      <span className="text-xs text-[#858585]">Twitter Test Post</span>
+                    </div>
+                    <button
+                      onClick={createTwitterTestPost}
+                      className="text-xs text-[#007acc] hover:text-[#1e90ff] underline-offset-2 hover:underline"
+                    >
+                      Create
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="text-xs text-[#858585] mt-2 px-1">
+                  Test posts will be created and opened in the editor for testing the social media posting functionality.
                 </div>
               </div>
             </div>

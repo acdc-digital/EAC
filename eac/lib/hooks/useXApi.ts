@@ -4,7 +4,7 @@
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useAction, useMutation } from "convex/react";
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSocialConnectionSync } from "./useSocialConnectionSync";
 
 interface PostTweetArgs {
@@ -32,41 +32,22 @@ export function useXApi() {
   // Use centralized social connection sync
   const { twitterConnection, isLoading: connectionsLoading } = useSocialConnectionSync();
   
-  // Debug what we received from useSocialConnectionSync
-  console.log('🔍 useXApi received from useSocialConnectionSync:', {
-    twitterConnection: twitterConnection ? 'FOUND' : 'NULL',
-    connectionsLoading,
-    twitterConnectionId: twitterConnection?._id,
-    twitterConnectionPlatform: twitterConnection?.platform,
-    twitterConnectionUsername: twitterConnection?.username
-  });
-  
-  // Debug logging with more detail - ALWAYS log to track state changes
-  console.log('🔍 X API Connection Debug (useXApi hook):', {
-    hasConnection: !!twitterConnection,
-    connectionsLoading,
-    twitterConnectionExists: twitterConnection !== null,
-    twitterConnectionUndefined: twitterConnection === undefined,
-    connectionDetails: twitterConnection ? {
-      id: twitterConnection._id,
-      platform: twitterConnection.platform, 
-      username: twitterConnection.username,
-      twitterScreenName: twitterConnection.twitterScreenName,
-      hasAccessToken: !!twitterConnection.twitterAccessToken,
-      accessTokenActual: twitterConnection.twitterAccessToken ? 'HAS TOKEN' : 'NO TOKEN',
-      isActive: twitterConnection.isActive,
-      tokenLength: twitterConnection.twitterAccessToken?.length || 0,
-      createdAt: new Date(twitterConnection.createdAt).toLocaleString(),
-      updatedAt: new Date(twitterConnection.updatedAt).toLocaleString()
-    } : 'NO_CONNECTION_FOUND - twitterConnection is null/undefined'
-  });
-  
+  // Minimal debug logging to prevent performance issues
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && Math.random() < 0.1) {
+      console.log('🔍 useXApi connection state:', {
+        hasConnection: !!twitterConnection,
+        isLoading: connectionsLoading
+      });
+    }
+  }, [twitterConnection, connectionsLoading]);
+
   // Convex actions for X API
   const createTweetAction = useAction(api.xApiActions.createTweet);
   const uploadMediaAction = useAction(api.xApiActions.uploadMedia);
   const deleteConnectionMutation = useMutation(api.x.deleteXConnection);
 
-  const postTweet = async (args: PostTweetArgs) => {
+  const postTweet = useCallback(async (args: PostTweetArgs) => {
     console.log('🐦 PostTweet called with:', { hasConnection: !!twitterConnection, connectionId: twitterConnection?._id });
     
     if (!twitterConnection) {
@@ -211,9 +192,9 @@ export function useXApi() {
       setIsPosting(false);
       setIsUploading(false);
     }
-  };
+  }, [twitterConnection, createTweetAction, uploadMediaAction]); // useCallback dependencies
 
-  const schedulePost = async (args: SchedulePostArgs) => {
+  const schedulePost = useCallback(async (args: SchedulePostArgs) => {
     if (!twitterConnection) {
       return {
         success: false,
@@ -258,9 +239,9 @@ export function useXApi() {
     } finally {
       setIsScheduling(false);
     }
-  };
+  }, [twitterConnection]); // useCallback dependencies
 
-  const uploadMediaFile = async (file: File) => {
+  const uploadMediaFile = useCallback(async (file: File) => {
     if (!twitterConnection) {
       throw new Error('No active X connection');
     }
@@ -280,9 +261,9 @@ export function useXApi() {
     } finally {
       setIsUploading(false);
     }
-  };
+  }, [twitterConnection, uploadMediaAction]); // useCallback dependencies
 
-  const disconnectAccount = async () => {
+  const disconnectAccount = useCallback(async () => {
     console.log('🔌 disconnectAccount function called - START');
     console.log('🔌 twitterConnection check:', !!twitterConnection);
     
@@ -323,9 +304,10 @@ export function useXApi() {
         error: error instanceof Error ? error.message : 'Failed to disconnect X account'
       };
     }
-  };
+  }, [twitterConnection, deleteConnectionMutation]); // useCallback dependencies
 
-  const returnValues = {
+  // Memoize the return values to prevent infinite re-renders
+  const returnValues = useMemo(() => ({
     postTweet,
     schedulePost,
     uploadMediaFile,
@@ -339,14 +321,15 @@ export function useXApi() {
       userId: twitterConnection.twitterUserId || 'Unknown',
       connectionId: twitterConnection._id,
     } : null,
-  };
+  }), [
+    postTweet, schedulePost, uploadMediaFile, disconnectAccount,
+    isPosting, isScheduling, isUploading, twitterConnection
+  ]);
 
-  console.log('🔍 useXApi returning values:', {
-    hasConnection: returnValues.hasConnection,
-    connectionInfo: returnValues.connectionInfo,
-    twitterConnectionNull: twitterConnection === null,
-    twitterConnectionUndefined: twitterConnection === undefined
-  });
+  // Minimal return logging to prevent performance issues
+  if (process.env.NODE_ENV === 'development' && Math.random() < 0.05) {
+    console.log('🔍 useXApi returning - hasConnection:', !!returnValues.hasConnection);
+  }
 
   return returnValues;
 }

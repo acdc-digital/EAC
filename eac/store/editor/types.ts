@@ -87,6 +87,7 @@ export interface EditorState {
   reorderFilesInFolder: (folderId: string, fromIndex: number, toIndex: number, category: 'project' | 'financial') => void;
   saveFile: (tabId: string) => void;
   setError: (error: string | null) => void;
+  repairFilesWithoutContent: () => void;
   cleanupDuplicateFolders: () => void;  // Emergency cleanup function
   reset: () => void;
 } 

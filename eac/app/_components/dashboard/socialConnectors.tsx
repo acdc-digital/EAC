@@ -380,7 +380,7 @@ export function SocialConnectors() {
                         {account.accessToken ? (
                           <span className="text-green-500">Authorized for posting</span>
                         ) : (
-                          <span className="text-orange-500">Connection created, authorization required</span>
+                          <span className="text-green-500">Connection created, authorization required</span>
                         )}
                       </p>
                       {account.lastSync && (
