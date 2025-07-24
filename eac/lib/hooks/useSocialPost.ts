@@ -19,6 +19,10 @@ export function useSocialPost({ fileName, fileType }: UseSocialPostOptions) {
   // Use ref to track if we're currently saving to prevent loops
   const isSavingRef = useRef(false);
   
+  // Use ref to get current status without dependency issues
+  const currentStatusRef = useRef(post?.status);
+  currentStatusRef.current = post?.status;
+  
   // Auto-save content with debouncing - completely stable dependencies
   const saveContent = useCallback(async (
     content: string,
@@ -30,13 +34,18 @@ export function useSocialPost({ fileName, fileType }: UseSocialPostOptions) {
     
     try {
       isSavingRef.current = true;
+      
+      // Get current status from ref to avoid stale closures
+      const currentStatus = currentStatusRef.current;
+      
       await upsertPost({
         fileName,
         fileType,
         content,
         title,
         platformData: platformData ? JSON.stringify(platformData) : undefined,
-        status: 'draft', // Always use draft for auto-save to prevent status conflicts
+        // Only set status to 'draft' for new posts, preserve existing status
+        status: currentStatus && currentStatus !== 'draft' ? undefined : 'draft',
         userId: 'temp-user-id', // TODO: Replace with actual user ID
       });
     } catch (error) {
@@ -44,7 +53,7 @@ export function useSocialPost({ fileName, fileType }: UseSocialPostOptions) {
     } finally {
       isSavingRef.current = false;
     }
-  }, [fileName, fileType, upsertPost]); // Stable dependencies only
+  }, [fileName, fileType, upsertPost]);
   
   // Update post status - stable dependencies
   const updatePostStatus = useCallback(async (

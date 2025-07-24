@@ -42,6 +42,22 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
     platformData,
   } = useSocialPost({ fileName, fileType: 'reddit' });
 
+  // Debug logging for status changes
+  useEffect(() => {
+    console.log(`📊 Reddit Editor Status Update for ${fileName}:`, {
+      status,
+      isPosted,
+      canPost,
+      post: post ? { 
+        _id: post._id, 
+        status: post.status, 
+        fileName: post.fileName,
+        postId: post.postId,
+        postUrl: post.postUrl 
+      } : null
+    });
+  }, [fileName, status, isPosted, canPost, post]);
+
   // Get Reddit connection from Convex
   const redditConnections = useQuery(api.reddit.getSocialConnections, {
     userId: 'temp-user-id', // TODO: Replace with actual user ID
@@ -205,11 +221,17 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
       });
 
       if (result.success && result.url) {
+        console.log("✅ Reddit post successful, updating status to 'posted'", {
+          fileName,
+          result,
+          currentStatus: status,
+          currentPost: post
+        });
         await updatePostStatus('posted', {
           postId: result.redditId,
           postUrl: result.url,
         });
-        console.log("Post submitted successfully!");
+        console.log("✅ Status update completed");
       } else {
         throw new Error('Failed to post');
       }
@@ -225,7 +247,7 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
 
   // Handle scheduling
   const handleSchedule = async () => {
-    if (!canSchedule || !formData.scheduledDate || !formData.scheduledTime) return;
+    if (!canSchedule || !formData.scheduledDate || !formData.scheduledTime || !redditConnection) return;
 
     const scheduledDateTime = new Date(`${formData.scheduledDate}T${formData.scheduledTime}`);
     
@@ -242,6 +264,7 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
           nsfw: formData.nsfw,
           spoiler: formData.spoiler,
           sendReplies: formData.sendReplies,
+          connectionId: redditConnection._id, // Add connection ID for scheduled posting
         }
       );
       setShowScheduler(false);

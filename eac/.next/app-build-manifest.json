@@ -11,20 +11,10 @@
       "static/chunks/main-app.js",
       "static/chunks/app/page.js"
     ],
-    "/api/mcp/route": [
+    "/_not-found/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/mcp/route.js"
-    ],
-    "/api/auth/twitter/callback/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/auth/twitter/callback/route.js"
-    ],
-    "/api/auth/reddit/callback/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/auth/reddit/callback/route.js"
+      "static/chunks/app/_not-found/page.js"
     ]
   }
 }

@@ -4,10 +4,12 @@
 "use client";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { api } from "@/convex/_generated/api";
 import { useEditorStore } from "@/store";
 import { ProjectFile } from "@/store/editor/types";
+import { useQuery } from "convex/react";
 import { AtSign, Camera, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, FileText, Folder, MessageSquare } from "lucide-react";
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 export function FileEditor() {
   const { 
@@ -20,6 +22,20 @@ export function FileEditor() {
   } = useEditorStore();
 
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  
+  // Get all social posts to sync real status
+  const allSocialPosts = useQuery(api.socialPosts.getAllPosts);
+  
+  // Create a map of fileName -> real status from Convex
+  const statusMap = useMemo(() => {
+    if (!allSocialPosts) return new Map();
+    
+    const map = new Map<string, string>();
+    allSocialPosts.forEach(post => {
+      map.set(post.fileName, post.status);
+    });
+    return map;
+  }, [allSocialPosts]);
 
   // Functions to expand/collapse all folders
   const expandAllFolders = () => {
@@ -45,24 +61,52 @@ export function FileEditor() {
       return <div className="w-20"></div>; // Empty space for non-social files
     }
     
-    // Use the local file status for all social media files (including Reddit)
-    const status = file.status || 'draft';
+    // Get real status from Convex database, fallback to local file status
+    const realStatus = statusMap.get(file.name) || file.status || 'draft';
+    
+    // Map real Convex status to display status
+    const getDisplayStatus = (status: string) => {
+      switch (status) {
+        case 'posted':
+          return 'complete';
+        case 'posting':
+        case 'scheduled':
+          return 'scheduled';
+        case 'failed':
+        case 'draft':
+        default:
+          return 'draft';
+      }
+    };
+    
+    const displayStatus = getDisplayStatus(realStatus);
+    
     const statusConfig = {
       draft: { label: 'Draft', color: 'bg-[#4a4a4a] text-[#cccccc]', next: 'scheduled' as const },
-      scheduled: { label: 'Scheduled', color: 'bg-[#3b82f6] text-white', next: 'complete' as const },
-      complete: { label: 'Complete', color: 'bg-[#10b981] text-white', next: 'draft' as const }
+      scheduled: { label: realStatus === 'posting' ? 'Posting...' : 'Scheduled', color: 'bg-[#3b82f6] text-white', next: 'complete' as const },
+      complete: { label: 'Posted', color: 'bg-[#10b981] text-white', next: 'draft' as const }
     };
 
-    const config = statusConfig[status];
+    const config = statusConfig[displayStatus];
+    
+    // Don't allow manual status changes for actually posted content
+    const isActuallyPosted = realStatus === 'posted';
     
     return (
       <button
         onClick={(e) => {
           e.stopPropagation(); // Prevent opening the file
-          updateFileStatus(file.id, config.next);
+          if (!isActuallyPosted) {
+            updateFileStatus(file.id, config.next);
+          }
         }}
-        className={`px-2 py-0.5 text-xs rounded-full hover:opacity-80 transition-opacity ${config.color}`}
-        title={`Click to change to ${config.next}`}
+        disabled={isActuallyPosted}
+        className={`px-2 py-0.5 text-xs rounded-full transition-opacity ${config.color} ${
+          isActuallyPosted 
+            ? 'cursor-default opacity-90' 
+            : 'hover:opacity-80 cursor-pointer'
+        }`}
+        title={isActuallyPosted ? 'Post has been published' : `Click to change to ${config.next}`}
       >
         {config.label}
       </button>

@@ -6,11 +6,11 @@ import { internal } from "./_generated/api";
 
 const crons = cronJobs();
 
-// Process scheduled Reddit posts every minute
+// Process scheduled social posts every minute (unified system)
 crons.interval(
-  "process scheduled reddit posts",
+  "process scheduled social posts",
   { minutes: 1 },
-  internal.redditApi.processScheduledRedditPosts
+  internal.socialPosts.processScheduledPosts
 );
 
 // Daily cleanup of trash items older than 30 days

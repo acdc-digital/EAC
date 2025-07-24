@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalAction } from "./_generated/server";
+import { api } from "./_generated/api";
 
 // Get post by fileName
 export const getPostByFileName = query({
@@ -27,6 +28,18 @@ export const getPostsByStatus = query({
     const posts = await ctx.db
       .query("socialPosts")
       .withIndex("by_status", (q) => q.eq("status", args.status))
+      .collect();
+    
+    return posts;
+  },
+});
+
+// Get all social posts
+export const getAllPosts = query({
+  args: {},
+  handler: async (ctx) => {
+    const posts = await ctx.db
+      .query("socialPosts")
       .collect();
     
     return posts;
@@ -77,20 +90,26 @@ export const upsertPost = mutation({
       content: args.content,
       title: args.title,
       platformData: args.platformData,
-      status: args.status || 'draft',
+      // Only update status if explicitly provided
+      ...(args.status !== undefined && { status: args.status }),
       scheduledFor: args.scheduledFor,
       userId: args.userId,
       updatedAt: now,
     };
     
     if (existingPost) {
-      // Update existing post
-      await ctx.db.patch(existingPost._id, postData);
+      // Update existing post - preserve status if not provided
+      const updateData = { ...postData };
+      if (args.status === undefined) {
+        delete updateData.status; // Don't update status if not provided
+      }
+      await ctx.db.patch(existingPost._id, updateData);
       return await ctx.db.get(existingPost._id);
     } else {
-      // Create new post
+      // Create new post - always set status to draft if not provided
       const id = await ctx.db.insert("socialPosts", {
         ...postData,
+        status: args.status || 'draft',
         createdAt: now,
       });
       
@@ -116,15 +135,27 @@ export const updatePostStatus = mutation({
     errorMessage: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    console.log(`🔍 Looking for post to update status:`, { 
+      fileName: args.fileName, 
+      newStatus: args.status 
+    });
+    
     const post = await ctx.db
       .query("socialPosts")
       .withIndex("by_fileName", (q) => q.eq("fileName", args.fileName))
       .first();
     
+    console.log(`📝 Found post for status update:`, post ? {
+      _id: post._id,
+      fileName: post.fileName,
+      currentStatus: post.status,
+      newStatus: args.status
+    } : 'NOT FOUND');
+    
     if (!post) {
       throw new Error(`Post not found for fileName: ${args.fileName}`);
     }
-    
+
     await ctx.db.patch(post._id, {
       status: args.status,
       postId: args.postId,
@@ -134,7 +165,15 @@ export const updatePostStatus = mutation({
       updatedAt: Date.now(),
     });
     
-    return await ctx.db.get(post._id);
+    const updatedPost = await ctx.db.get(post._id);
+    console.log(`✅ Status updated successfully:`, {
+      _id: updatedPost?._id,
+      fileName: updatedPost?.fileName,
+      oldStatus: post.status,
+      newStatus: updatedPost?.status
+    });
+
+    return updatedPost;
   },
 });
 
@@ -211,5 +250,114 @@ export const getScheduledPostsToPublish = query({
       .collect();
     
     return posts;
+  },
+});
+
+// Internal action to process scheduled posts (called by cron job)
+export const processScheduledPosts = internalAction({
+  args: {},
+  handler: async (ctx): Promise<{ processed: number; results: Array<{ fileName: string; success: boolean; error?: string }> }> => {
+    try {
+      console.log('🕐 [CRON] Processing scheduled posts...');
+      
+      // Get posts that need to be published
+      const scheduledPosts: any[] = await ctx.runQuery(api.socialPosts.getScheduledPostsToPublish);
+      
+      if (scheduledPosts.length === 0) {
+        console.log('✅ [CRON] No scheduled posts ready for publishing');
+        return { processed: 0, results: [] };
+      }
+      
+      console.log(`📋 [CRON] Found ${scheduledPosts.length} posts ready for publishing`);
+      
+      const results: Array<{ fileName: string; success: boolean; error?: string }> = [];
+      
+      for (const post of scheduledPosts) {
+        try {
+          console.log(`🚀 [CRON] Publishing ${post.fileType} post: ${post.fileName}`);
+          
+          // Update status to posting
+          await ctx.runMutation(api.socialPosts.updatePostStatus, {
+            fileName: post.fileName,
+            status: 'posting',
+          });
+          
+          // Route to appropriate platform API
+          if (post.fileType === 'reddit') {
+            // Parse platform data to get connectionId
+            const platformData = post.platformData ? JSON.parse(post.platformData) : {};
+            
+            if (!platformData.connectionId) {
+              throw new Error('No connectionId found in platform data for scheduled Reddit post');
+            }
+            
+            // Create Reddit post first (if it doesn't exist)
+            const redditPost = await ctx.runMutation(api.reddit.createRedditPost, {
+              userId: post.userId || 'temp-user-id',
+              connectionId: platformData.connectionId,
+              subreddit: platformData.subreddit || 'test',
+              title: post.title || '',
+              kind: platformData.postType || 'self',
+              text: post.content,
+              url: platformData.linkUrl || undefined,
+              nsfw: platformData.nsfw || false,
+              spoiler: platformData.spoiler || false,
+              sendReplies: platformData.sendReplies !== false, // Default to true
+              flairId: platformData.flairId || undefined,
+            });
+            
+            // Submit the Reddit post
+            const result = await ctx.runAction(api.redditApi.submitRedditPost, {
+              postId: redditPost,
+            });
+            
+            if (result.success && result.url) {
+              // Update status to posted with URL
+              await ctx.runMutation(api.socialPosts.updatePostStatus, {
+                fileName: post.fileName,
+                status: 'posted',
+                postUrl: result.url,
+                postId: result.redditId,
+                postedAt: Date.now(),
+              });
+              
+              console.log(`✅ [CRON] Successfully published Reddit post: ${post.fileName}`);
+              results.push({ fileName: post.fileName, success: true });
+            } else {
+              throw new Error(result.error || 'Failed to submit Reddit post');
+            }
+          } else if (post.fileType === 'twitter') {
+            // TODO: Implement Twitter scheduled posting
+            console.log(`⏳ [CRON] Twitter scheduled posting not yet implemented for: ${post.fileName}`);
+            results.push({ fileName: post.fileName, success: false, error: 'Twitter posting not implemented' });
+          } else {
+            throw new Error(`Unsupported platform: ${post.fileType}`);
+          }
+          
+        } catch (error) {
+          console.error(`❌ [CRON] Failed to publish post ${post.fileName}:`, error);
+          
+          // Update status to failed
+          await ctx.runMutation(api.socialPosts.updatePostStatus, {
+            fileName: post.fileName,
+            status: 'failed',
+            errorMessage: error instanceof Error ? error.message : 'Unknown error',
+          });
+          
+          results.push({ 
+            fileName: post.fileName, 
+            success: false, 
+            error: error instanceof Error ? error.message : 'Unknown error' 
+          });
+        }
+      }
+      
+      console.log(`🏁 [CRON] Completed processing ${results.length} scheduled posts`);
+      return { processed: results.length, results };
+      
+    } catch (error) {
+      console.error('❌ [CRON] Failed to process scheduled posts:', error);
+      throw error;
+    }
   },
 });
