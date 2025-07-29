@@ -3,19 +3,18 @@
 
 import { api } from "@/convex/_generated/api";
 import { useChatStore } from "@/store/terminal/chat";
-import { useAction, useMutation } from "convex/react";
-import { useCallback, useMemo } from "react";
+import { useAction, useMutation, useQuery } from "convex/react";
+import { useCallback } from "react";
 import { handleCommand, isCommand, parseCommand } from "../chatCommands";
 
 export function useChat() {
   const { sessionId, isLoading, setLoading } = useChatStore();
   
-  // Temporarily disable until Convex functions are fixed
-  // const messages = useQuery(api.chat.getChatMessages, {
-  //   sessionId,
-  //   limit: 50,
-  // });
-  const messages = useMemo(() => [], []);
+  // Get messages from Convex
+  const messages = useQuery(api.chat.getChatMessages, {
+    sessionId,
+    limit: 50,
+  });
   
   // Action to send messages to OpenAI
   const sendChatMessage = useAction(api.chatActions.sendChatMessage);

@@ -46,11 +46,18 @@ export function Terminal() {
               <button
                 className={`rounded-none text-xs h-[25px] ${!isCollapsed && activeTab === 'terminal' ? 'bg-[#0e639c] text-white' : 'bg-transparent text-white'} hover:bg-[#ffffff20] px-3 min-w-[70px] flex items-center justify-center ${isCollapsed ? 'cursor-pointer' : ''}`}
                 onClick={() => {
-                  // Explicitly handle terminal expansion when collapsed
+                  // Handle terminal tab click behavior
                   if (isCollapsed) {
+                    // If collapsed, expand and set as active tab
                     toggleCollapse();
+                    setActiveTab("terminal");
+                  } else if (activeTab === 'terminal') {
+                    // If already active and expanded, collapse the terminal
+                    toggleCollapse();
+                  } else {
+                    // If not active but expanded, just set as active tab
+                    setActiveTab("terminal");
                   }
-                  setActiveTab("terminal");
                 }}
               >
                 <TerminalIcon className="w-3 h-3 mr-1" />
@@ -58,12 +65,17 @@ export function Terminal() {
               </button>
               <button
                 className={`rounded-none text-xs h-[25px] ${!isCollapsed && activeTab === 'history' ? 'bg-[#094771] text-white' : 'bg-transparent text-white'} hover:bg-[#ffffff20] px-3 min-w-[70px] flex items-center justify-center`}
-                onClick={(e) => {
-                  // Prevent default tab change behavior when collapsed
+                onClick={() => {
+                  // Handle history tab click behavior
                   if (isCollapsed) {
-                    e.preventDefault();
-                    e.stopPropagation();
+                    // If collapsed, expand and set as active tab
+                    toggleCollapse();
+                    setActiveTab("history");
+                  } else if (activeTab === 'history') {
+                    // If already active and expanded, collapse the terminal
+                    toggleCollapse();
                   } else {
+                    // If not active but expanded, just set as active tab
                     setActiveTab("history");
                   }
                 }}

@@ -10,12 +10,12 @@ import { Authenticated, Unauthenticated } from "convex/react";
 import {
   Bug,
   Calendar,
+  Contact,
   Edit3,
   FileText,
   Settings,
   Trash2,
-  User,
-  Users
+  User
 } from "lucide-react";
 
 interface ActivityBarProps {
@@ -47,7 +47,7 @@ export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps
 
   const activityItems = [
     { id: "explorer", icon: FileText, label: "Explorer" },
-    { id: "social-connectors", icon: Users, label: "Social Media Connectors" },
+    { id: "social-connectors", icon: Contact, label: "Social Media Connectors" },
     { id: "file-editor", icon: Edit3, label: "File Editor" },
     { id: "calendar", icon: Calendar, label: "Content Calendar" },
     { id: "trash", icon: Trash2, label: "Trash" },
@@ -121,7 +121,7 @@ export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps
                     title="User Profile"
                   >
                     <div
-                      className={`w-6 h-6 rounded-full border flex items-center justify-center text-sm font-medium ${
+                      className={`w-6 h-6 rounded-full border flex items-center justify-center text-xs font-medium ${
                         activePanel === 'profile'
                           ? 'border-[#cccccc] text-[#cccccc]'
                           : 'border-[#858585] text-[#858585]'
@@ -142,7 +142,7 @@ export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps
               size="icon"
               onClick={() => handleActivityClick(item.id)}
               className={`
-                w-11 h-11 rounded-none hover:bg-[#2d2d2d] relative
+                w-9 h-9 rounded-none hover:bg-[#2d2d2d] relative
                 ${isActive 
                   ? 'bg-[#2d2d2d] border-l-2 border-[#007acc]' 
                   : 'border-l-2 border-transparent'
