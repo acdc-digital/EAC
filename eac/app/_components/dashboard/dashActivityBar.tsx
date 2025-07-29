@@ -5,17 +5,17 @@
 
 import { Button } from "@/components/ui/button";
 import { useEditorStore } from "@/store/editor";
-import { SignInButton, UserButton } from "@clerk/nextjs";
+import { SignInButton, useUser } from "@clerk/nextjs";
 import { Authenticated, Unauthenticated } from "convex/react";
 import {
-    Bug,
-    Calendar,
-    Edit3,
-    FileText,
-    Settings,
-    Trash2,
-    User,
-    Users
+  Bug,
+  Calendar,
+  Edit3,
+  FileText,
+  Settings,
+  Trash2,
+  User,
+  Users
 } from "lucide-react";
 
 interface ActivityBarProps {
@@ -25,6 +25,25 @@ interface ActivityBarProps {
 
 export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps) {
   const { openSpecialTab } = useEditorStore();
+  const { user } = useUser();
+
+  // Get the first letter of user's name (fallback to 'U')
+  const getUserInitial = () => {
+    if (!user) return 'U';
+    
+    // Try to get first letter from firstName, fullName, or email
+    if (user.firstName) {
+      return user.firstName.charAt(0).toUpperCase();
+    }
+    if (user.fullName) {
+      return user.fullName.charAt(0).toUpperCase();
+    }
+    if (user.emailAddresses?.[0]?.emailAddress) {
+      return user.emailAddresses[0].emailAddress.charAt(0).toUpperCase();
+    }
+    
+    return 'U';
+  };
 
   const activityItems = [
     { id: "explorer", icon: FileText, label: "Explorer" },
@@ -89,19 +108,28 @@ export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps
                   </SignInButton>
                 </Unauthenticated>
                 <Authenticated>
-                  <UserButton 
-                    appearance={{
-                      elements: {
-                        userButtonAvatarBox: "w-8 h-8 rounded-sm",
-                        userButtonPopoverCard: "bg-[#252526] border border-[#454545]",
-                        userButtonPopoverActionButton: "text-[#cccccc] hover:bg-[#2a2d2e]",
-                        userButtonPopoverActionButtonText: "text-[#cccccc]",
-                        userButtonPopoverFooter: "hidden"
-                      }
+                  <button
+                    className={`w-11 h-11 rounded-none hover:bg-[#2d2d2d] flex items-center justify-center cursor-pointer ${
+                      activePanel === 'profile'
+                        ? 'bg-[#2d2d2d] border-l-2 border-[#007acc]'
+                        : 'border-l-2 border-transparent'
+                    }`}
+                    onClick={() => {
+                      openSpecialTab('user-profile', 'User Profile', 'user-profile');
+                      onPanelChange('explorer'); // Reset to explorer panel
                     }}
-                    userProfileMode="modal"
-                    afterSignOutUrl="/"
-                  />
+                    title="User Profile"
+                  >
+                    <div
+                      className={`w-6 h-6 rounded-full border flex items-center justify-center text-sm font-medium ${
+                        activePanel === 'profile'
+                          ? 'border-[#cccccc] text-[#cccccc]'
+                          : 'border-[#858585] text-[#858585]'
+                      }`}
+                    >
+                      {getUserInitial()}
+                    </div>
+                  </button>
                 </Authenticated>
               </div>
             );

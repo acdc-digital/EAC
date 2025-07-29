@@ -313,7 +313,7 @@ export const useEditorStore = create<EditorState>()(
           });
         },
 
-        openSpecialTab: (id: string, name: string, type: 'social-connect' | 'post-creator' | 'calendar') => {
+        openSpecialTab: (id: string, name: string, type: 'social-connect' | 'post-creator' | 'calendar' | 'user-profile') => {
           const { openTabs } = get();
           
           // Check if tab is already open

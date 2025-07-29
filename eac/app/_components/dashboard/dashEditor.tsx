@@ -10,7 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEditorStore } from "@/store";
 import { ProjectFile } from "@/store/editor/types";
 import { useTerminalStore } from "@/store/terminal";
-import { AtSign, Braces, Camera, ChevronLeft, ChevronRight, Edit3, FileCode, FileSpreadsheet, FileText, FileType, MessageSquare, Plus, Users, X } from "lucide-react";
+import { AtSign, Braces, Camera, ChevronLeft, ChevronRight, Edit3, FileCode, FileSpreadsheet, FileText, FileType, MessageSquare, Plus, User, Users, X } from "lucide-react";
 
 // Dynamic import to avoid SSR issues
 const TiptapEditor = dynamic(() => import('@/app/_components/editor/_components/TiptapEditor'), {
@@ -49,6 +49,12 @@ const EditMaterials = dynamic(() => import('../editor/editMaterials').then(mod =
 const CalendarPage = dynamic(() => import('../calendar/page'), {
   ssr: false,
   loading: () => <div className="p-4 text-[#858585]">Loading calendar...</div>
+});
+
+// Dynamic import for User Profile component
+const UserProfile = dynamic(() => import('../user-profile/UserProfile').then(mod => ({ default: mod.UserProfile })), {
+  ssr: false,
+  loading: () => <div className="p-4 text-[#858585]">Loading profile...</div>
 });
 
 // Dynamic import for Terminal component
@@ -219,6 +225,7 @@ export function DashEditor() {
   const isSocialConnectModule = currentTab?.type === 'social-connect';
   const isPostCreatorModule = currentTab?.type === 'post-creator';
   const isCalendarModule = currentTab?.type === 'calendar';
+  const isUserProfileModule = currentTab?.type === 'user-profile';
 
   // Memoized change handlers for different editor types to prevent infinite re-renders
   const handleRedditChange = useCallback((content: string) => {
@@ -312,6 +319,8 @@ export function DashEditor() {
                             return Camera;
                           case 'x':
                             return AtSign;
+                          case 'user-profile':
+                            return User;
                           default:
                             return FileCode;
                         }
@@ -530,6 +539,8 @@ export function DashEditor() {
                         <FileEditor />
                       ) : isCalendarModule ? (
                         <CalendarPage />
+                      ) : isUserProfileModule ? (
+                        <UserProfile />
                       ) : currentTab?.type === 'facebook' ? (
                         <FacebookPostEditor
                           fileName={currentTab.name}

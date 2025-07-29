@@ -47,6 +47,12 @@
       "static/chunks/_app-pages-browser_app__components_terminal_terminal_tsx.js"
     ]
   },
+  "app/_components/dashboard/dashEditor.tsx -> ../user-profile/UserProfile": {
+    "id": "app/_components/dashboard/dashEditor.tsx -> ../user-profile/UserProfile",
+    "files": [
+      "static/chunks/_app-pages-browser_app__components_user-profile_UserProfile_tsx.js"
+    ]
+  },
   "app/_components/dashboard/dashEditor.tsx -> ./fileEditor": {
     "id": "app/_components/dashboard/dashEditor.tsx -> ./fileEditor",
     "files": [

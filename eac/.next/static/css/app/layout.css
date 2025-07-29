@@ -1278,6 +1278,12 @@
   .border-\[\#555555\] {
     border-color: #555555;
   }
+  .border-\[\#858585\] {
+    border-color: #858585;
+  }
+  .border-\[\#cccccc\] {
+    border-color: #cccccc;
+  }
   .border-\[\#e4405f\] {
     border-color: #e4405f;
   }
@@ -2627,6 +2633,13 @@
     &:hover {
       @media (hover: hover) {
         border-color: var(--color-red-500);
+      }
+    }
+  }
+  .hover\:border-red-600 {
+    &:hover {
+      @media (hover: hover) {
+        border-color: var(--color-red-600);
       }
     }
   }
