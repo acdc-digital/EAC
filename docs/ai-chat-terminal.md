@@ -2,13 +2,13 @@
 
 ## Overview
 
-The EAC Dashboard includes an integrated AI chat terminal powered by OpenAI's GPT-4o-mini model. The chat interface uses a terminal-style format with `$ user:` and `$ system:` prompts for an authentic development experience.
+The EAC Dashboard includes an integrated AI chat terminal powered by Anthropic's Claude model. The chat interface uses a terminal-style format with `$ user:` and `$ system:` prompts for an authentic development experience.
 
 ## Features
 
 ### 🤖 AI Integration
 
-- **OpenAI GPT-4o-mini** for intelligent responses
+- **Anthropic Claude 3.5 Sonnet** for intelligent responses
 - **Context-aware** about EAC project structure and technologies
 - **Real-time** conversation with Convex backend storage
 - **Session management** for conversation continuity
@@ -35,14 +35,11 @@ The EAC Dashboard includes an integrated AI chat terminal powered by OpenAI's GP
 
 ### 1. Environment Configuration
 
-Add your OpenAI API key to `eac/.env.local`:
+Add your Anthropic API key to `eac/.env.local`:
 
-```env
-# OpenAI API Integration for Terminal Chat
-OPENAI_API_KEY=your_openai_api_key_here
-
-# Convex Configuration
-NEXT_PUBLIC_CONVEX_URL=your_convex_deployment_url
+```bash
+# Anthropic Claude API Integration for Terminal Chat
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
 ```
 
 ### 2. Install Dependencies
@@ -93,7 +90,7 @@ Frontend:
 
 Backend:
 - Convex (real-time database)
-- OpenAI API integration
+- Anthropic Claude API integration
 - Server actions and mutations
 ...
 
@@ -109,12 +106,12 @@ $ system: In Convex, there are key differences between mutations and actions:
 
 **Actions:**
 - Run in Node.js environment
-- Can call external APIs (like OpenAI)
+- Can call external APIs (like Anthropic Claude)
 - Cannot directly access the database
 - Must use ctx.runQuery() and ctx.runMutation()
 - Perfect for external integrations
 
-In our chat system, we use an action to call OpenAI's API, then use mutations to store the messages in the database.
+In our chat system, we use an action to call Anthropic's Claude API, then use mutations to store the messages in the database.
 ```
 
 ### AI Context
@@ -131,7 +128,7 @@ The AI assistant has context about:
 Commands are processed locally for instant responses:
 
 - **Local Processing**: Commands like `/help`, `/clear` are handled immediately
-- **AI Integration**: Regular questions are sent to OpenAI
+- **AI Integration**: Regular questions are sent to Claude
 - **Smart Routing**: System automatically decides local vs. AI processing
 
 ## Architecture
@@ -152,14 +149,14 @@ eac/
 │   └── chat.ts                  # Chat state management
 └── convex/
     ├── chat.ts                  # Message storage functions
-    ├── chatActions.ts           # OpenAI integration
+    ├── chatActions.ts           # Anthropic Claude integration
     └── schema.ts                # Database schema
 ```
 
 ### Data Flow
 
 1. **User Input** → ChatMessages component
-2. **Command Check** → Local command handler or OpenAI API
+2. **Command Check** → Local command handler or Claude API
 3. **Storage** → Convex database via mutations
 4. **Real-time Updates** → Convex queries update UI
 5. **Display** → Terminal-style format
@@ -219,7 +216,7 @@ The chat interface uses VS Code-inspired styling in `chatMessages.tsx`:
 ### Common Issues
 
 1. **No AI Responses**
-   - Check OpenAI API key in `.env.local`
+   - Check Anthropic API key in `.env.local`
    - Verify Convex backend is running
    - Check browser console for errors
 

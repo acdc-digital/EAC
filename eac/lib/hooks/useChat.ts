@@ -16,7 +16,7 @@ export function useChat() {
     limit: 50,
   });
   
-  // Action to send messages to OpenAI
+  // Action to send messages to Claude
   const sendChatMessage = useAction(api.chatActions.sendChatMessage);
   
   // Mutation to store local messages

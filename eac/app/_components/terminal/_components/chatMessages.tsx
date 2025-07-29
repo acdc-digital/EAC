@@ -272,7 +272,7 @@ export function ChatMessages() {
         <div className="text-[#cccccc] space-y-1 mb-4">
           <div>EAC Financial Dashboard - AI Assistant</div>
           <div className="text-[#4ec9b0]">▲ Next.js 15.0.0 + Convex Backend</div>
-          <div>- OpenAI GPT-4o-mini Integration</div>
+          <div>- Anthropic Claude 3.5 Sonnet Integration</div>
           <div className={`text-xs ${mcpConnected ? 'text-[#4ec9b0]' : 'text-[#f48771]'}`}>
             🔌 MCP Server: {mcpConnected ? 'Connected' : 'Disconnected'}
             {mcpConnected && ` (${availableTools.length} tools)`}

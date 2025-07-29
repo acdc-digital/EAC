@@ -16,7 +16,7 @@ if [ ! -f "eac/.env.local" ]; then
     echo "📝 Creating environment file..."
     cp .env.example eac/.env.local
     echo "✅ Created eac/.env.local from .env.example"
-    echo "⚠️  Please add your OpenAI API key to eac/.env.local for chat functionality"
+    echo "⚠️  Please add your Anthropic API key to eac/.env.local for chat functionality"
 fi
 
 # Install dependencies
@@ -31,7 +31,7 @@ fi
 echo "✅ Setup complete!"
 echo ""
 echo "🔧 Next steps:"
-echo "1. Add your OpenAI API key to eac/.env.local"
+echo "1. Add your Anthropic API key to eac/.env.local"
 echo "2. Run 'pnpm convex:dev' to start Convex backend"
 echo "3. Run 'pnpm dev' to start the development server"
 echo "4. Open http://localhost:3000 in your browser"

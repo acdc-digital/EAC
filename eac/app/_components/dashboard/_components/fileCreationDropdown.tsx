@@ -23,7 +23,6 @@ export function FileCreationDropdown({ isOpen, onClose, preselectedFolder, butto
   const [newFileName, setNewFileName] = useState('');
   const [newFileType, setNewFileType] = useState<ProjectFile['type']>('markdown');
   const [newFileFolderId, setNewFileFolderId] = useState<string>('no-folder');
-  const [isCreatingFile, setIsCreatingFile] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -63,7 +62,6 @@ export function FileCreationDropdown({ isOpen, onClose, preselectedFolder, butto
 
   const handleCreateFile = async () => {
     if (newFileName.trim()) {
-          setIsCreatingFile(true);
           
           try {
             // First create the file locally
@@ -94,8 +92,6 @@ export function FileCreationDropdown({ isOpen, onClose, preselectedFolder, butto
         
       } catch (error) {
         console.error('Error creating file:', error);
-      } finally {
-        setIsCreatingFile(false);
       }
       
       // Reset form

@@ -393,7 +393,7 @@ export function SocialConnectors() {
                     {/* Show OAuth authorization button if not yet authorized */}
                     {!account?.accessToken && typedPlatform === 'reddit' && account?._id && (
                       <Button
-                        onClick={() => handleStartRedditOAuth(account._id)}
+                        onClick={() => account._id && handleStartRedditOAuth(account._id)}
                         className="w-full bg-[#ff4500] hover:bg-[#e03d00] text-white"
                         disabled={isConnecting}
                       >
@@ -411,7 +411,7 @@ export function SocialConnectors() {
                           ✓ Authenticated
                         </Button>
                         <Button
-                          onClick={() => handleStartRedditOAuth(account._id)}
+                          onClick={() => account._id && handleStartRedditOAuth(account._id)}
                           variant="outline"
                           className="w-full text-xs border-[#454545] text-[#cccccc] hover:bg-[#2d2d2d]"
                           disabled={isConnecting}
@@ -435,7 +435,7 @@ export function SocialConnectors() {
                       
                       return (
                         <Button
-                          onClick={() => handleStartXOAuth(account._id)}
+                          onClick={() => account._id && handleStartXOAuth(account._id)}
                           className="w-full bg-[#1da1f2] hover:bg-[#1a91da] text-white"
                           disabled={isConnecting}
                         >
@@ -454,7 +454,7 @@ export function SocialConnectors() {
                           ✓ Authenticated
                         </Button>
                         <Button
-                          onClick={() => handleStartXOAuth(account._id)}
+                          onClick={() => account._id && handleStartXOAuth(account._id)}
                           variant="outline"
                           className="w-full text-xs border-[#454545] text-[#cccccc] hover:bg-[#2d2d2d]"
                           disabled={isConnecting}

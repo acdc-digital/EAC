@@ -144,7 +144,7 @@ The EAC Dashboard follows a sophisticated monorepo architecture with clear separ
 
 ## Notable Features
 
-- **Terminal Chat Integration**: AI chat with OpenAI GPT-4o-mini
+- **Terminal Chat Integration**: AI chat with Anthropic Claude
 - **VS Code Interface**: Familiar development environment patterns
 - **Real-time Collaboration**: Convex enables real-time data sync
 - **Financial Dashboard**: Specialized for project management and analytics

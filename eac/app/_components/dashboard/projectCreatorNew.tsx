@@ -34,8 +34,7 @@ interface ProjectCreatorProps {
 export function ProjectCreator({ 
   trigger, 
   onProjectCreated, 
-  className = "",
-  userId 
+  className = ""
 }: ProjectCreatorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [projectName, setProjectName] = useState("");
@@ -87,8 +86,7 @@ export function ProjectCreator({
         description: description.trim() || undefined,
         budget: budgetNumber,
         status,
-        userId,
-        projectNo: nextProjectNumber,
+        projectNo: nextProjectNumber?.toString(),
       });
 
       if (newProject) {

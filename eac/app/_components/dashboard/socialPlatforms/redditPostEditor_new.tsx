@@ -32,6 +32,7 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
     saveContent,
     updatePostStatus,
     schedulePost,
+    platformData,
     status,
     isPosted,
     isScheduled,
@@ -39,7 +40,6 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
     isFailed,
     canPost,
     canSchedule,
-    getPlatformData,
   } = useSocialPost({ fileName, fileType: 'reddit' });
 
   // Get Reddit connection from Convex
@@ -76,7 +76,7 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
   useEffect(() => {
     if (post && !postLoading) {
       try {
-        const platformData = getPlatformData() as {
+        const platformDataFromPost = platformData as {
           subreddit?: string;
           postType?: "self" | "link";
           linkUrl?: string;
@@ -90,21 +90,21 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
         setFormData({
           title: post.title || "",
           content: post.content || "",
-          subreddit: platformData.subreddit || "test",
-          postType: platformData.postType || "self",
-          linkUrl: platformData.linkUrl || "",
-          flairId: platformData.flairId || null,
-          nsfw: platformData.nsfw || false,
-          spoiler: platformData.spoiler || false,
-          sendReplies: platformData.sendReplies ?? true,
-          scheduledDate: platformData.scheduledDate || "",
-          scheduledTime: platformData.scheduledTime || "",
+          subreddit: platformDataFromPost.subreddit || "test",
+          postType: platformDataFromPost.postType || "self",
+          linkUrl: platformDataFromPost.linkUrl || "",
+          flairId: platformDataFromPost.flairId || null,
+          nsfw: platformDataFromPost.nsfw || false,
+          spoiler: platformDataFromPost.spoiler || false,
+          sendReplies: platformDataFromPost.sendReplies ?? true,
+          scheduledDate: platformDataFromPost.scheduledDate || "",
+          scheduledTime: platformDataFromPost.scheduledTime || "",
         });
       } catch (error) {
         console.error('Failed to parse platform data:', error);
       }
     }
-  }, [post, postLoading, getPlatformData]);
+  }, [post, postLoading, platformData]);
 
   // Auto-save on content change (debounced)
   useEffect(() => {

@@ -14,7 +14,7 @@
 
 ---
 
-[![Next.js](https://img.shields.io/badge/Next.js-14-000000?logo=next.js&logoColor=white&labelColor=101010)](https://nextjs.org/) [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white&labelColor=101010)](https://reactjs.org/) [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white&labelColor=101010)](https://www.typescriptlang.org/) [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white&labelColor=101010)](https://tailwindcss.com/) [![Zustand](https://img.shields.io/badge/Zustand-State_Management-FF6B35?logo=react&logoColor=white&labelColor=101010)](https://github.com/pmndrs/zustand) [![Convex](https://img.shields.io/badge/Convex-DB-FF6B35?logo=data%3Adownload&logoColor=white&labelColor=101010)](https://convex.dev/) [![OpenAI](https://img.shields.io/badge/OpenAI-API-000000?logo=openai&logoColor=white&labelColor=101010)](https://openai.com/) [![pnpm](https://img.shields.io/badge/pnpm-Workspace-F69220?logo=pnpm&logoColor=white&labelColor=101010)](https://pnpm.io/)
+[![Next.js](https://img.shields.io/badge/Next.js-14-000000?logo=next.js&logoColor=white&labelColor=101010)](https://nextjs.org/) [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white&labelColor=101010)](https://reactjs.org/) [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white&labelColor=101010)](https://www.typescriptlang.org/) [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-06B6D4?logo=tailwindcss&logoColor=white&labelColor=101010)](https://tailwindcss.com/) [![Zustand](https://img.shields.io/badge/Zustand-State_Management-FF6B35?logo=react&logoColor=white&labelColor=101010)](https://github.com/pmndrs/zustand) [![Convex](https://img.shields.io/badge/Convex-DB-FF6B35?logo=data%3Adownload&logoColor=white&labelColor=101010)](https://convex.dev/) [![Anthropic](https://img.shields.io/badge/Anthropic-Claude-FF6B35?logo=anthropic&logoColor=white&labelColor=101010)](https://anthropic.com/) [![pnpm](https://img.shields.io/badge/pnpm-Workspace-F69220?logo=pnpm&logoColor=white&labelColor=101010)](https://pnpm.io/)
 
 > A modern, VS Code-inspired dashboard for Social management and Media Analytic tracking built with React, Next.js, and TypeScript. This project is optimized for GitHub Copilot in VS Code. The codebase follows modern React patterns with comprehensive documentation to help AI assistants understand the project structure and conventions. Familiarize yourself with our [Copilot Instructions](.github/copilot-instructions.md) to get the most out of AI-assisted development.
 
@@ -178,7 +178,7 @@ convex/
 The project uses environment files to manage different Convex deployments and API integrations:
 
 - **`.env.local`** (root): Contains `CONVEX_DEPLOYMENT` and `CONVEX_URL`
-- **`eac/.env.local`**: Contains `NEXT_PUBLIC_CONVEX_URL` for the frontend and `OPENAI_API_KEY`
+- **`eac/.env.local`**: Contains `NEXT_PUBLIC_CONVEX_URL` for the frontend and `ANTHROPIC_API_KEY`
 
 #### Required Environment Variables
 
@@ -188,19 +188,19 @@ Create `eac/.env.local` with the following:
 # Convex Configuration
 NEXT_PUBLIC_CONVEX_URL=your_convex_deployment_url
 
-# OpenAI API Integration for Terminal Chat
-OPENAI_API_KEY=your_openai_api_key_here
+# Anthropic Claude API Integration for Terminal Chat
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
 ```
 
 **Important:**
 
 - All Convex commands in `package.json` are configured with `--env-file .env.local` to ensure consistent deployment targeting.
-- The OpenAI API key is required for the AI chat functionality in the terminal interface.
+- The Anthropic API key is required for the AI chat functionality in the terminal interface.
 - Copy `.env.example` to `.env.local` and fill in your actual API keys.
 
 #### AI Chat Terminal
 
-The dashboard includes an integrated AI chat terminal powered by OpenAI GPT-4o-mini:
+The dashboard includes an integrated AI chat terminal powered by Anthropic Claude:
 
 - **Access**: Click the terminal tab at the bottom of the interface
 - **Format**: Uses terminal-style `$ user:` and `$ system:` prompts

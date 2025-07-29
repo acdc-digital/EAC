@@ -101,6 +101,7 @@ export function DashEditor() {
     activeTab, 
     closeTab, 
     setActiveTab, 
+    reorderTabs,
     updateFileContent,
     createNewFile,
     projectFolders
@@ -117,6 +118,9 @@ export function DashEditor() {
   const [newFileName, setNewFileName] = useState('');
   const [newFileType, setNewFileType] = useState<ProjectFile['type']>('markdown');
   const [newFileFolderId, setNewFileFolderId] = useState<string>('no-folder');
+  
+  // Drag and drop state for tabs
+  const [draggedTab, setDraggedTab] = useState<string | null>(null);
 
   // Calculate the visible area width (container width minus button widths)
   const TAB_WIDTH = 200;
@@ -158,6 +162,34 @@ export function DashEditor() {
       setScrollPosition(maxScrollPosition);
     }
   }, [maxScrollPosition, scrollPosition]);
+
+  // Drag and drop handlers for tabs
+  const handleTabDragStart = (e: React.DragEvent, tabId: string) => {
+    setDraggedTab(tabId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleTabDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    // Just prevent default to allow drop, no visual indicator needed
+  };
+
+  const handleTabDragLeave = () => {
+    // No action needed since we're not showing drag-over indicators
+  };
+
+  const handleTabDrop = (e: React.DragEvent, targetTabId: string) => {
+    e.preventDefault();
+    if (draggedTab && draggedTab !== targetTabId) {
+      // Reorder the tabs in the store
+      reorderTabs(draggedTab, targetTabId);
+    }
+    setDraggedTab(null);
+  };
+
+  const handleTabDragEnd = () => {
+    setDraggedTab(null);
+  };
 
   const scrollLeft = () => {
     setScrollPosition(Math.max(0, scrollPosition - 1));
@@ -266,11 +298,19 @@ export function DashEditor() {
                 {openTabs.map((tab) => (
                   <div
                     key={tab.id}
+                    draggable
+                    onDragStart={(e) => handleTabDragStart(e, tab.id)}
+                    onDragOver={handleTabDragOver}
+                    onDragLeave={handleTabDragLeave}
+                    onDrop={(e) => handleTabDrop(e, tab.id)}
+                    onDragEnd={handleTabDragEnd}
                     className={`
-                      flex items-center gap-2 px-3 h-[35px] text-xs border-r border-[#2d2d2d] cursor-pointer flex-shrink-0
-                      ${activeTab === tab.id 
-                        ? 'bg-[#1a1a1a] text-[#cccccc]' 
-                        : 'bg-[#0e0e0e] text-[#858585] hover:bg-[#181818]'
+                      flex items-center gap-2 px-3 h-[35px] text-xs border-r border-[#2d2d2d] cursor-pointer flex-shrink-0 transition-colors duration-150
+                      ${draggedTab === tab.id
+                        ? 'bg-[#0e639c] text-white' // Blue color when being dragged (matches terminal header)
+                        : activeTab === tab.id
+                          ? 'bg-[#1a1a1a] text-[#cccccc]'
+                          : 'bg-[#0e0e0e] text-[#858585] hover:bg-[#181818]'
                       }
                     `}
                     style={{ 

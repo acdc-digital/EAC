@@ -109,7 +109,7 @@ export function handleCommand(command: string): string | null {
 📁 State: Zustand with persistence
 📁 UI: Tailwind CSS v4 + shadcn/ui
 📁 Editor: Tiptap rich text editing
-📁 Chat: OpenAI GPT-4o-mini integration
+📁 Chat: Anthropic Claude 3.5 Sonnet integration
 
 Key Directories:
 - eac/app/_components/ - React components
@@ -128,7 +128,7 @@ Frontend:
 
 Backend:
 - Convex (real-time database)
-- OpenAI API integration
+- Anthropic Claude API integration
 - Server actions and mutations
 
 State Management:

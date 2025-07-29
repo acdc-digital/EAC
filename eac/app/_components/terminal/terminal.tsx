@@ -64,21 +64,21 @@ export function Terminal() {
                 Terminal
               </button>
               <button
-                className={`rounded-none text-xs h-[25px] ${!isCollapsed && activeTab === 'history' ? 'bg-[#094771] text-white' : 'bg-transparent text-white'} hover:bg-[#ffffff20] px-3 min-w-[70px] flex items-center justify-center`}
+                className={`rounded-none text-xs h-[25px] ${!isCollapsed && activeTab === 'history' ? 'bg-[#094771] text-white' : 'bg-transparent text-white'} hover:bg-[#ffffff20] px-3 min-w-[70px] flex items-center justify-center ${isCollapsed ? 'opacity-50 cursor-not-allowed' : ''}`}
                 onClick={() => {
-                  // Handle history tab click behavior
-                  if (isCollapsed) {
-                    // If collapsed, expand and set as active tab
-                    toggleCollapse();
-                    setActiveTab("history");
-                  } else if (activeTab === 'history') {
-                    // If already active and expanded, collapse the terminal
-                    toggleCollapse();
-                  } else {
-                    // If not active but expanded, just set as active tab
-                    setActiveTab("history");
+                  // Only handle history tab click if terminal is expanded
+                  if (!isCollapsed) {
+                    if (activeTab === 'history') {
+                      // If already active and expanded, collapse the terminal
+                      toggleCollapse();
+                    } else {
+                      // If not active but expanded, just set as active tab
+                      setActiveTab("history");
+                    }
                   }
+                  // If collapsed, do nothing - don't expand the terminal
                 }}
+                disabled={isCollapsed}
               >
                 <History className="w-3 h-3 mr-1" />
                 History

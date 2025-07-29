@@ -54,7 +54,7 @@ echo ""
 
 echo "📊 Expected Behavior:"
 echo "- The chat should detect MCP intents automatically"
-echo "- OpenAI responses should include MCP analysis data"
+echo "- Claude responses should include MCP analysis data"
 echo "- Messages should be formatted in terminal style ($ user: / $ system:)"
 echo ""
 
@@ -62,7 +62,7 @@ echo "🐛 If something isn't working:"
 echo "1. Check the browser console for errors"
 echo "2. Verify Convex functions are deployed at blessed-squid-371"
 echo "3. Make sure .env.local has the correct CONVEX_DEPLOYMENT"
-echo "4. Check that OpenAI API key is set in the Convex dashboard"
+echo "4. Check that Anthropic API key is set in the Convex dashboard"
 echo ""
 
 echo "✅ Integration Status:"

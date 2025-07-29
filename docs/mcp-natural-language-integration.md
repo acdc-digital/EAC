@@ -4,7 +4,7 @@
 
 Yes! You can absolutely ask natural language questions in the chat terminal and have them trigger MCP server actions. The integration works through three layers:
 
-1. **Natural Language Processing** in the OpenAI system prompt
+1. **Natural Language Processing** in the Claude system prompt
 2. **MCP Action Detection** in the Convex chat actions
 3. **Direct MCP Server Integration** for complex analysis
 
@@ -15,7 +15,7 @@ User Input (Natural Language)
     ↓
 Chat Terminal (React Component)
     ↓
-Convex Chat Action (OpenAI + MCP Detection)
+Convex Chat Action (Claude + MCP Detection)
     ↓
 MCP Server Tools (Project Analysis)
     ↓
@@ -46,7 +46,7 @@ $ user: Analyze the project architecture
 
 ### 1. Smart Intent Detection
 
-Add to the OpenAI system prompt in `convex/chatActions.ts`:
+Add to the Claude system prompt in `convex/chatActions.ts`:
 
 ```typescript
 const systemPrompt = `You are an AI assistant for the EAC Financial Dashboard project with MCP server integration.
@@ -172,16 +172,16 @@ export const sendChatMessage = action({
           },
         );
 
-        // Let OpenAI process the MCP result for natural response
-        return await processWithOpenAI(
+        // Let Claude process the MCP result for natural response
+        return await processWithClaude(
           args.content,
           mcpResult,
           ctx,
           args.sessionId,
         );
       } else {
-        // Regular OpenAI chat
-        return await processWithOpenAI(args.content, null, ctx, args.sessionId);
+        // Regular Claude chat
+        return await processWithClaude(args.content, null, ctx, args.sessionId);
       }
     } catch (error) {
       console.error("Chat error:", error);
@@ -402,7 +402,7 @@ $ system: [MCP cross-analysis] Component-Convex Integration Analysis:
 **Direct Convex Usage:**
 - **ProjectCreator**: Uses createProject mutation
 - **DashOverview**: Queries project metrics
-- **ChatMessages**: Real-time chat with OpenAI actions
+- **ChatMessages**: Real-time chat with Claude actions
 - **FileSync**: Sync files to Convex storage
 
 **Integration Patterns:**

@@ -56,7 +56,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
   const { deleteFile } = useFiles(null); // We'll get file-specific functions as needed
   
   // Initialize project synchronization between Convex and Zustand
-  const { isLoading: isProjectSyncLoading, syncStatus } = useProjectSync();
+  useProjectSync();
   
   // TODO: Re-enable once files have Convex IDs
   // const deleteFile = useMutation(api.files.deleteFile);
@@ -113,14 +113,6 @@ export function DashSidebar({ activePanel }: SidebarProps) {
     }
   };
 
-  // File rename handlers
-  const handleRenameClick = (fileId: string, currentName: string) => {
-    // Remove file extension for editing
-    const nameWithoutExtension = currentName.replace(/\.[^/.]+$/, "");
-    setRenamingFile({ fileId, currentName: nameWithoutExtension });
-    setNewFileName(nameWithoutExtension);
-  };
-
   const handleRenameSubmit = () => {
     if (renamingFile && newFileName.trim()) {
       renameFile(renamingFile.fileId, newFileName.trim());
@@ -142,12 +134,6 @@ export function DashSidebar({ activePanel }: SidebarProps) {
       e.preventDefault();
       handleRenameCancel();
     }
-  };
-
-  // Folder rename handlers
-  const handleFolderRenameClick = (folderId: string, currentName: string) => {
-    setRenamingFolder({ folderId, currentName });
-    setNewFolderRename(currentName);
   };
 
   const handleFolderRenameSubmit = () => {

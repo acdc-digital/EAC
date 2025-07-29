@@ -381,6 +381,19 @@ export const useEditorStore = create<EditorState>()(
           }
         },
 
+        reorderTabs: (fromTabId: string, toTabId: string) => {
+          const { openTabs } = get();
+          const fromIndex = openTabs.findIndex(tab => tab.id === fromTabId);
+          const toIndex = openTabs.findIndex(tab => tab.id === toTabId);
+          
+          if (fromIndex !== -1 && toIndex !== -1 && fromIndex !== toIndex) {
+            const newTabs = [...openTabs];
+            const [movedTab] = newTabs.splice(fromIndex, 1);
+            newTabs.splice(toIndex, 0, movedTab);
+            set({ openTabs: newTabs });
+          }
+        },
+
         updateTabContent: (tabId: string, content: string) => {
           const { openTabs } = get();
           const updatedTabs = openTabs.map((tab: EditorTab) => 

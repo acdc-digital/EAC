@@ -9,7 +9,7 @@ This document specifies the development of a Model Context Protocol (MCP) server
 ### Current Technology Stack
 
 - **Frontend**: Next.js 15 (App Router), React 18, TypeScript
-- **Backend**: Convex real-time database with OpenAI integration
+- **Backend**: Convex real-time database with Anthropic Claude integration
 - **State Management**: Zustand with persistence middleware
 - **UI Framework**: Tailwind CSS v4 + shadcn/ui components
 - **Rich Text**: Tiptap editor with ProseMirror

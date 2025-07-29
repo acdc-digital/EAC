@@ -329,7 +329,6 @@ export function DashDebug() {
         description: 'Test project created from debug panel',
         status: 'active',
         budget: 1000,
-        userId: convexDebugUser
       });
       console.log('✅ Test project created:', result);
       return 'success';
