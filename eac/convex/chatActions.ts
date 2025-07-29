@@ -1,13 +1,13 @@
 "use node";
 
 import { v } from "convex/values";
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import { api } from "./_generated/api";
 import { action } from "./_generated/server";
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+// Initialize Anthropic client
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
 // MCP Intent Detection Helper
@@ -65,7 +65,7 @@ function detectMCPIntent(message: string): { tool: string; confidence: number; p
   return null;
 }
 
-// Action to send message to OpenAI and get response
+// Action to send message to Claude and get response
 export const sendChatMessage = action({
   args: {
     content: v.string(),
@@ -109,7 +109,6 @@ export const sendChatMessage = action({
             const newProject = await ctx.runMutation(api.projects.createProject, {
               name: projectName,
               status: "active" as const,
-              userId: "user_chat",
             });
             
             if (!newProject) {
@@ -164,17 +163,21 @@ Project "${newProject.name}" has been created in your database!`;
         return { mcpTriggered: true, tool: mcpIntent.tool };
       }
 
-      // Regular OpenAI processing for non-MCP messages
+      // Regular Claude processing for non-MCP messages
       const recentMessages = await ctx.runQuery(api.chat.getChatMessages, {
         sessionId: args.sessionId,
         limit: 20,
       });
 
-      // Prepare messages for OpenAI API with MCP awareness
-      const openAIMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-        {
-          role: "system",
-          content: `You are an AI assistant for the EAC Financial Dashboard project with MCP (Model Context Protocol) integration.
+      // Prepare messages for Claude API with MCP awareness
+      const claudeMessages: Anthropic.MessageParam[] = recentMessages
+        .filter((msg: any) => msg.role === "user" || msg.role === "assistant")
+        .map((msg: any) => ({
+          role: msg.role as "user" | "assistant",
+          content: msg.content
+        }));
+
+      const systemPrompt = `You are an AI assistant for the EAC Financial Dashboard project with MCP (Model Context Protocol) integration.
 
 **EAC Project Specifics:**
 - Financial analytics and project tracking
@@ -205,45 +208,22 @@ When users ask about project analysis, the system automatically triggers MCP ser
 - Provide actionable technical guidance
 - Format responses clearly for terminal display
 
-For general questions not requiring MCP analysis, provide helpful guidance about EAC development patterns, React/Next.js best practices, and Convex integration techniques.`
-        },
-        ...recentMessages.map((msg: any) => ({
-          role: msg.role as "user" | "assistant" | "system",
-          content: msg.content
-        }))
-      ];
+For general questions not requiring MCP analysis, provide helpful guidance about EAC development patterns, React/Next.js best practices, and Convex integration techniques.`;
 
-      // Optional: Check content moderation
-      try {
-        const moderation = await openai.moderations.create({
-          input: args.content,
-        });
-        
-        if (moderation.results[0].flagged) {
-          const categories = moderation.results[0].categories;
-          const flaggedCategories = Object.keys(categories)
-            .filter((key) => (categories as any)[key]);
-          
-          throw new Error(`Content flagged for: ${flaggedCategories.join(", ")}`);
-        }
-      } catch (moderationError) {
-        console.warn("Moderation check failed:", moderationError);
-        // Continue without moderation check if it fails
-      }
-
-      // Get response from OpenAI
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: openAIMessages,
+      // Get response from Claude
+      const completion = await anthropic.messages.create({
+        model: "claude-3-5-sonnet-20241022",
         max_tokens: 1000,
-        temperature: 0.7,
-        stream: false,
+        system: systemPrompt,
+        messages: claudeMessages,
       });
 
-      const assistantResponse = completion.choices[0]?.message?.content;
+      const assistantResponse = completion.content[0]?.type === "text"
+        ? completion.content[0].text
+        : "I couldn't generate a response.";
 
       if (!assistantResponse) {
-        throw new Error("No response from OpenAI");
+        throw new Error("No response from Claude");
       }
 
       // Store the assistant's response

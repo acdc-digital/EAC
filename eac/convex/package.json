@@ -10,8 +10,8 @@
     "dashboard": "convex dashboard --env-file .env.local"
   },
   "dependencies": {
-    "convex": "^1.25.2",
-    "openai": "^5.10.1"
+    "@anthropic-ai/sdk": "^0.57.0",
+    "convex": "^1.25.2"
   },
   "devDependencies": {
     "@types/node": "^20",
