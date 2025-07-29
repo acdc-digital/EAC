@@ -4,10 +4,11 @@
 "use client";
 
 import { ResizablePanel } from "@/components/ui/resizable";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTerminalStore } from "@/store/terminal";
 import { AlertCircle, ChevronDown, ChevronUp, History, Settings, Terminal as TerminalIcon } from "lucide-react";
+import { useState } from "react";
 import { ChatMessages } from "./_components";
+import { HistoryTab } from "./historyTab";
 
 export function Terminal() {
   const { 
@@ -15,6 +16,8 @@ export function Terminal() {
     toggleCollapse, 
     setSize 
   } = useTerminalStore();
+  
+  const [activeTab, setActiveTab] = useState("terminal");
 
   const handleResize = (size: number) => {
     try {
@@ -37,50 +40,58 @@ export function Terminal() {
     >
       <div className={`flex flex-col ${isCollapsed ? 'h-[25px]' : 'h-full bg-[#181818]'}`}>
         {/* Fixed Header */}
-        <div className={`h-[25px] bg-[#0e639c] flex items-center justify-between px-0 flex-shrink-0 ${
-          isCollapsed ? '' : 'border-b border-[#2d2d2d]'
-        }`}>
-          <Tabs defaultValue="terminal" className="flex-1">
-            <TabsList className="h-[25px] bg-transparent rounded-none border-none justify-start p-0">
-              <TabsTrigger
-                value="terminal"
-                className="rounded-none text-xs h-[25px] data-[state=active]:bg-[#1a1a1a] data-[state=active]:text-[#cccccc] bg-transparent cursor-pointer"
-                onClick={toggleCollapse}
+        <div className={`h-[25px] bg-[#0e639c] flex items-center justify-between px-0 flex-shrink-0`}>
+          <div className="flex items-center">
+            <div className="h-[25px] bg-transparent rounded-none border-none justify-start p-0 flex items-center">
+              <button
+                className={`rounded-none text-xs h-[25px] ${!isCollapsed && activeTab === 'terminal' ? 'bg-[#0e639c] text-white' : 'bg-transparent text-white'} hover:bg-[#ffffff20] px-3 min-w-[70px] flex items-center justify-center ${isCollapsed ? 'cursor-pointer' : ''}`}
+                onClick={() => {
+                  // Explicitly handle terminal expansion when collapsed
+                  if (isCollapsed) {
+                    toggleCollapse();
+                  }
+                  setActiveTab("terminal");
+                }}
               >
                 <TerminalIcon className="w-3 h-3 mr-1" />
                 Terminal
-              </TabsTrigger>
-              <TabsTrigger
-                value="history"
-                className="rounded-none text-xs h-[25px] data-[state=active]:bg-[#1a1a1a] data-[state=active]:text-[#cccccc] bg-transparent cursor-not-allowed opacity-60"
-                disabled
+              </button>
+              <button
+                className={`rounded-none text-xs h-[25px] ${!isCollapsed && activeTab === 'history' ? 'bg-[#094771] text-white' : 'bg-transparent text-white'} hover:bg-[#ffffff20] px-3 min-w-[70px] flex items-center justify-center`}
+                onClick={(e) => {
+                  // Prevent default tab change behavior when collapsed
+                  if (isCollapsed) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  } else {
+                    setActiveTab("history");
+                  }
+                }}
               >
                 <History className="w-3 h-3 mr-1" />
                 History
-              </TabsTrigger>
-              <TabsTrigger
-                value="problems"
-                className="rounded-none text-xs h-[25px] data-[state=active]:bg-[#1a1a1a] data-[state=active]:text-[#cccccc] bg-transparent cursor-not-allowed opacity-60"
+              </button>
+              <button
+                className="rounded-none text-xs h-[25px] bg-transparent text-white opacity-60 px-3 min-w-[70px] flex items-center justify-center"
                 disabled
               >
                 <AlertCircle className="w-3 h-3 mr-1" />
                 Problems
-              </TabsTrigger>
-              <TabsTrigger
-                value="settings"
-                className="rounded-none text-xs h-[25px] data-[state=active]:bg-[#1a1a1a] data-[state=active]:text-[#cccccc] bg-transparent cursor-not-allowed opacity-60"
+              </button>
+              <button
+                className="rounded-none text-xs h-[25px] bg-transparent text-white opacity-60 px-3 min-w-[70px] flex items-center justify-center"
                 disabled
               >
                 <Settings className="w-3 h-3 mr-1" />
                 Settings
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+              </button>
+            </div>
+          </div>
 
           {/* Collapse/Expand Button */}
           <button
             onClick={toggleCollapse}
-            className="w-5 h-5 hover:bg-[#ffffff20] rounded-sm flex items-center justify-center transition-colors ml-4 mr-3 cursor-pointer"
+            className="w-5 h-5 hover:bg-[#ffffff20] rounded-sm flex items-center justify-center transition-colors mr-3 cursor-pointer"
             aria-label={isCollapsed ? "Expand terminal" : "Collapse terminal"}
           >
             {isCollapsed ? (
@@ -91,31 +102,26 @@ export function Terminal() {
           </button>
         </div>
 
-        {/* Scrollable Chat Area - Only show when not collapsed */}
+        {/* Content Area - Only show when not collapsed */}
         {!isCollapsed && (
-          <Tabs defaultValue="terminal" className="flex-1 flex flex-col min-h-0">
-            <TabsContent value="terminal" className="flex-1 flex flex-col mt-0 min-h-0">
-              <ChatMessages />
-            </TabsContent>
-
-            <TabsContent value="history" className="flex-1 bg-[#0e0e0e] p-2 mt-0 min-h-0">
-              <div className="text-xs text-[#858585]">
-                Command history coming soon...
+          <div className="flex-1 flex flex-col min-h-0">
+            {activeTab === "terminal" && <ChatMessages />}
+            {activeTab === "history" && <HistoryTab />}
+            {activeTab === "problems" && (
+              <div className="flex-1 bg-[#0e0e0e] p-2 min-h-0">
+                <div className="text-xs text-[#858585]">
+                  No problems detected.
+                </div>
               </div>
-            </TabsContent>
-
-            <TabsContent value="problems" className="flex-1 bg-[#0e0e0e] p-2 mt-0 min-h-0">
-              <div className="text-xs text-[#858585]">
-                No problems detected.
+            )}
+            {activeTab === "settings" && (
+              <div className="flex-1 bg-[#0e0e0e] p-2 min-h-0">
+                <div className="text-xs text-[#858585]">
+                  Terminal settings coming soon...
+                </div>
               </div>
-            </TabsContent>
-
-            <TabsContent value="settings" className="flex-1 bg-[#0e0e0e] p-2 mt-0 min-h-0">
-              <div className="text-xs text-[#858585]">
-                Terminal settings coming soon...
-              </div>
-            </TabsContent>
-          </Tabs>
+            )}
+          </div>
         )}
       </div>
     </ResizablePanel>

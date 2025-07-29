@@ -25,7 +25,7 @@ export default defineSchema({
     status: v.union(v.literal("active"), v.literal("completed"), v.literal("on-hold")),
     budget: v.optional(v.number()),
     projectNo: v.optional(v.string()), // Added to match existing data
-    userId: v.optional(v.string()), // Added to match existing data
+    userId: v.optional(v.union(v.string(), v.id("users"))), // Allow both string and ID for migration
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_created_at", ["createdAt"])
@@ -49,7 +49,7 @@ export default defineSchema({
     content: v.optional(v.string()), // File content for text files
     size: v.optional(v.number()), // File size in bytes
     projectId: v.id("projects"), // Reference to the parent project
-    userId: v.optional(v.string()), // User who created the file
+    userId: v.optional(v.union(v.string(), v.id("users"))), // Allow both string and ID for migration
     path: v.optional(v.string()), // Relative path within project (e.g., "/posts/social/")
     mimeType: v.optional(v.string()), // MIME type for proper handling
     isDeleted: v.optional(v.boolean()), // Soft delete flag
@@ -82,9 +82,17 @@ export default defineSchema({
     .index("by_last_modified", ["lastModified"])
     .index("by_not_deleted", ["isDeleted", "createdAt"]),
 
-  // Make all user fields optional to match existing data
+  // Updated users table with Clerk authentication support
   users: defineTable({
+    // Clerk authentication fields
+    clerkId: v.optional(v.string()), // Clerk user ID
     email: v.string(),
+    firstName: v.optional(v.string()),
+    lastName: v.optional(v.string()),
+    username: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
+
+    // Legacy fields (keep for backward compatibility)
     name: v.optional(v.string()),
     role: v.optional(v.string()),
     isAnonymous: v.optional(v.boolean()),
@@ -92,11 +100,13 @@ export default defineSchema({
     image: v.optional(v.string()),
     emailVerificationTime: v.optional(v.number()),
     createdAt: v.optional(v.number()),
-  }).index("by_email", ["email"]),
+    updatedAt: v.optional(v.number()),
+  }).index("by_email", ["email"])
+    .index("by_clerk_id", ["clerkId"]),
 
   // Social media connections for API credentials
   socialConnections: defineTable({
-    userId: v.string(),
+    userId: v.optional(v.union(v.string(), v.id("users"))), // Allow both string and ID for migration
     platform: v.union(
       v.literal("facebook"),
       v.literal("instagram"),
@@ -146,7 +156,7 @@ export default defineSchema({
 
   // Reddit posts with all necessary fields for API posting
   redditPosts: defineTable({
-    userId: v.string(),
+    userId: v.optional(v.union(v.string(), v.id("users"))), // Allow both string and ID for migration
     connectionId: v.id("socialConnections"),
     fileId: v.optional(v.id("files")), // Link to file if created from editor
     
@@ -214,13 +224,13 @@ export default defineSchema({
     status: v.union(v.literal("active"), v.literal("completed"), v.literal("on-hold")),
     budget: v.optional(v.number()),
     projectNo: v.optional(v.string()),
-    userId: v.optional(v.string()),
+    userId: v.optional(v.union(v.string(), v.id("users"))), // Allow both string and ID for migration
     originalCreatedAt: v.number(), // Original creation date
     originalUpdatedAt: v.number(), // Original update date
     
     // Deletion metadata
     deletedAt: v.number(), // When it was moved to trash
-    deletedBy: v.optional(v.string()), // Who deleted it
+    deletedBy: v.optional(v.union(v.string(), v.id("users"))), // Allow both string and ID for migration
     
     // Associated files data (snapshot at deletion time)
     associatedFiles: v.optional(v.array(v.object({
@@ -252,7 +262,7 @@ export default defineSchema({
     content: v.optional(v.string()),
     size: v.optional(v.number()),
     projectId: v.id("projects"), // Original project reference
-    userId: v.optional(v.string()),
+    userId: v.optional(v.union(v.string(), v.id("users"))), // Allow both string and ID for migration
     path: v.optional(v.string()),
     mimeType: v.optional(v.string()),
     originalCreatedAt: v.number(),
@@ -278,7 +288,7 @@ export default defineSchema({
     
     // Deletion metadata
     deletedAt: v.number(), // When it was moved to trash
-    deletedBy: v.optional(v.string()), // Who deleted it
+    deletedBy: v.optional(v.union(v.string(), v.id("users"))), // Allow both string and ID for migration
     parentProjectName: v.optional(v.string()), // Name of parent project for reference
   })
     .index("by_deleted_at", ["deletedAt"])
@@ -318,9 +328,31 @@ export default defineSchema({
     // Metadata
     createdAt: v.number(),
     updatedAt: v.number(),
-    userId: v.optional(v.string()),
+    userId: v.optional(v.union(v.string(), v.id("users"))), // Allow both string and ID for migration
   })
     .index("by_fileName", ["fileName"])
     .index("by_status", ["status"])
     .index("by_fileType", ["fileType"]),
+
+  // Activity logs for history tracking
+  activityLogs: defineTable({
+    userId: v.optional(v.union(v.string(), v.id("users"))), // Allow both string and ID for migration
+    type: v.union(v.literal('success'), v.literal('error'), v.literal('warning'), v.literal('info')),
+    category: v.union(
+      v.literal('social'),
+      v.literal('file'),
+      v.literal('project'),
+      v.literal('connection'),
+      v.literal('debug'),
+      v.literal('system')
+    ),
+    action: v.string(),
+    message: v.string(),
+    details: v.optional(v.string()), // JSON string for complex data
+    timestamp: v.number(),
+  })
+    .index('by_user', ['userId', 'timestamp'])
+    .index('by_timestamp', ['timestamp'])
+    .index('by_category', ['category', 'timestamp'])
+    .index('by_type', ['type', 'timestamp']),
 });

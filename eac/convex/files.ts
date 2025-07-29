@@ -1,13 +1,63 @@
 import { v } from "convex/values";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
 
-// Get all files for a specific project
+// Helper function to get current user
+async function getCurrentUserId(ctx: QueryCtx | MutationCtx) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new Error("Not authenticated");
+  }
+  
+  // First try to find user by clerk ID
+  const user = await ctx.db
+    .query("users")
+    .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+    .first();
+    
+  if (user) {
+    return user._id;
+  }
+  
+  // Fallback to email lookup for legacy users
+  if (identity.email) {
+    const emailUser = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", identity.email!))
+      .first();
+    if (emailUser) {
+      return emailUser._id;
+    }
+  }
+  
+  throw new Error("User not found in database");
+}
+
+// Helper function to verify project ownership
+async function verifyProjectOwnership(ctx: QueryCtx | MutationCtx, projectId: any, userId: any) {
+  const project = await ctx.db.get(projectId);
+  if (!project) {
+    throw new Error("Project not found");
+  }
+  // Projects table has userId field
+  if (project.userId !== userId) {
+    throw new Error("Not authorized to access this project");
+  }
+  return project;
+}
+
+// User-scoped: Get all files for a specific project
 export const getFilesByProject = query({
   args: { 
     projectId: v.id("projects"),
     includeDeleted: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    const userId = await getCurrentUserId(ctx);
+    
+    // Verify user owns the project
+    await verifyProjectOwnership(ctx, args.projectId, userId);
+    
     let query = ctx.db
       .query("files")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId));
@@ -21,7 +71,7 @@ export const getFilesByProject = query({
   },
 });
 
-// Get files by type within a project
+// User-scoped: Get files by type within a project
 export const getFilesByType = query({
   args: { 
     projectId: v.id("projects"),
@@ -36,6 +86,11 @@ export const getFilesByType = query({
     ),
   },
   handler: async (ctx, args) => {
+    const userId = await getCurrentUserId(ctx);
+    
+    // Verify user owns the project
+    await verifyProjectOwnership(ctx, args.projectId, userId);
+    
     const files = await ctx.db
       .query("files")
       .withIndex("by_project_type", (q) => 

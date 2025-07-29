@@ -13,6 +13,7 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as activityLogs from "../activityLogs.js";
 import type * as chat from "../chat.js";
 import type * as chatActions from "../chatActions.js";
 import type * as crons from "../crons.js";
@@ -26,6 +27,8 @@ import type * as socialPosts from "../socialPosts.js";
 import type * as test from "../test.js";
 import type * as testSimple from "../testSimple.js";
 import type * as trash from "../trash.js";
+import type * as users from "../users.js";
+import type * as utils from "../utils.js";
 import type * as x from "../x.js";
 import type * as xApi from "../xApi.js";
 import type * as xApiActions from "../xApiActions.js";
@@ -40,6 +43,7 @@ import type * as xApi_clean from "../xApi_clean.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  activityLogs: typeof activityLogs;
   chat: typeof chat;
   chatActions: typeof chatActions;
   crons: typeof crons;
@@ -53,6 +57,8 @@ declare const fullApi: ApiFromModules<{
   test: typeof test;
   testSimple: typeof testSimple;
   trash: typeof trash;
+  users: typeof users;
+  utils: typeof utils;
   x: typeof x;
   xApi: typeof xApi;
   xApiActions: typeof xApiActions;

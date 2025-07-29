@@ -4,12 +4,12 @@
 "use client";
 
 import { Separator } from "@/components/ui/separator";
+import { api } from "@/convex/_generated/api";
 import { useProjects } from "@/lib/hooks/useProjects";
 import { useProjectSync } from "@/lib/hooks/useProjectSync";
 import { clearAllPersistedState, performFullSync } from "@/lib/utils/stateSync";
 import { useEditorStore } from "@/store";
-// import { api } from "@/convex/_generated/api";
-// import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import {
   Activity,
   AtSign,
@@ -32,6 +32,7 @@ export function DashDebug() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['storage']));
   const [connectionTests, setConnectionTests] = useState<{[key: string]: 'idle' | 'loading' | 'success' | 'error'}>({});
   const [currentHost, setCurrentHost] = useState<string>('localhost:3000');
+  const [convexDebugUser] = useState('debug-user-' + Date.now());
   
   // Get editor store functions for creating test files
   const createNewFile = useEditorStore(state => state.createNewFile);
@@ -41,8 +42,17 @@ export function DashDebug() {
   const { createFolder, deleteFolder } = useEditorStore();
 
   // State sync hooks
-  const { projects: convexProjects, isLoading: isProjectsLoading, error: projectsError } = useProjects();
+  const { projects: convexProjects, error: projectsError } = useProjects();
   const { syncStatus, isLoading: isSyncLoading, error: syncError } = useProjectSync();
+
+  // Convex queries for debugging
+  const convexProjectsQuery = useQuery(api.projects.getProjects, {});
+  const convexSocialPosts = useQuery(api.socialPosts.getAllPosts, {});
+  const convexMessages = useQuery(api.messages.getMessages, {});
+
+  // Convex mutations for testing
+  const createTestProject = useMutation(api.projects.createProject);
+  const createTestPost = useMutation(api.socialPosts.upsertPost);
 
   // Convex queries for connection testing - temporarily disabled
   // const socialConnections = useQuery(api.socialConnections.getSocialConnections, { userId: 'temp-user-id' });
@@ -310,6 +320,58 @@ export function DashDebug() {
     console.log(`   Content Coverage: ${totalFiles > 0 ? Math.round(((totalFiles - emptyFiles) / totalFiles) * 100) : 0}%`);
   };
 
+  // Convex Debug Functions
+  const testConvexProject = async () => {
+    try {
+      console.log('🔍 Testing Convex project creation...');
+      const result = await createTestProject({
+        name: `Test Project ${Date.now()}`,
+        description: 'Test project created from debug panel',
+        status: 'active',
+        budget: 1000,
+        userId: convexDebugUser
+      });
+      console.log('✅ Test project created:', result);
+      return 'success';
+    } catch (error) {
+      console.error('❌ Failed to create test project:', error);
+      return 'error';
+    }
+  };
+
+  const testConvexSocialPost = async () => {
+    try {
+      console.log('🔍 Testing Convex social post creation...');
+      const result = await createTestPost({
+        content: `Debug test post created at ${new Date().toLocaleString()}`,
+        fileName: `debug-post-${Date.now()}.reddit`,
+        fileType: 'reddit',
+        status: 'scheduled',
+        userId: convexDebugUser,
+        scheduledFor: Date.now() + (24 * 60 * 60 * 1000), // Tomorrow
+        platformData: JSON.stringify({ subreddit: 'test' })
+      });
+      console.log('✅ Test social post created:', result);
+      return 'success';
+    } catch (error) {
+      console.error('❌ Failed to create test social post:', error);
+      return 'error';
+    }
+  };
+
+  const logConvexData = () => {
+    console.log('🔍 Current Convex Query Results:', {
+      projects: convexProjectsQuery,
+      socialPosts: convexSocialPosts,
+      messages: convexMessages,
+      projectsLoading: convexProjectsQuery === undefined,
+      socialPostsLoading: convexSocialPosts === undefined,
+      messagesLoading: convexMessages === undefined,
+      currentUserId: convexDebugUser,
+      convexUrl: process.env.NEXT_PUBLIC_CONVEX_URL,
+    });
+  };
+
   return (
     <div className="h-full bg-[#181818] text-[#cccccc] flex flex-col">
       <div className="p-2">
@@ -516,147 +578,185 @@ export function DashDebug() {
           )}
         </div>
 
-        {/* Performance */}
+        {/* Convex Database */}
         <div className="rounded bg-[#1e1e1e] border border-[#2d2d2d]">
           <button
-            onClick={() => toggleSection('performance')}
+            onClick={() => toggleSection('convex-debug')}
             className="w-full flex items-center gap-2 p-2 hover:bg-[#2d2d2d]/30 transition-colors"
           >
-            {expandedSections.has('performance') ? 
-              <ChevronDown className="w-3.5 h-3.5 text-[#858585]" /> : 
+            {expandedSections.has('convex-debug') ?
+              <ChevronDown className="w-3.5 h-3.5 text-[#858585]" /> :
+              <ChevronRight className="w-3.5 h-3.5 text-[#858585]" />
+            }
+            <Database className="w-3.5 h-3.5 text-[#858585]" />
+            <span className="text-xs font-medium flex-1 text-left">Convex Database</span>
+            <div className="flex items-center gap-1">
+              {convexProjectsQuery === undefined && <Clock className="w-3 h-3 text-yellow-400" />}
+              {convexProjectsQuery !== undefined && <CheckCircle className="w-3 h-3 text-green-400" />}
+            </div>
+          </button>
+          
+          {expandedSections.has('convex-debug') && (
+            <div className="px-2 pb-2 space-y-2">
+              <Separator className="bg-[#2d2d2d]" />
+              
+              {/* Query Status Display */}
+              <div className="text-[10px] text-[#858585] space-y-1">
+                <div className="flex justify-between">
+                  <span>Projects:</span>
+                  <span className="text-[#cccccc]">{convexProjectsQuery?.length ?? 'Loading...'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Social Posts:</span>
+                  <span className="text-[#cccccc]">{convexSocialPosts?.length ?? 'Loading...'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Messages:</span>
+                  <span className="text-[#cccccc]">{convexMessages?.length ?? 'Loading...'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>User ID:</span>
+                  <span className="text-[#cccccc] font-mono text-[9px]">{convexDebugUser.slice(-8)}</span>
+                </div>
+              </div>
+              
+              <Separator className="bg-[#2d2d2d]" />
+              
+              {/* Test Actions */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-xs text-[#858585]">Create test project</span>
+                  <button
+                    onClick={testConvexProject}
+                    className="text-xs text-[#007acc] hover:text-[#1e90ff] underline-offset-2 hover:underline"
+                  >
+                    Test
+                  </button>
+                </div>
+                
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-xs text-[#858585]">Create test social post</span>
+                  <button
+                    onClick={testConvexSocialPost}
+                    className="text-xs text-[#007acc] hover:text-[#1e90ff] underline-offset-2 hover:underline"
+                  >
+                    Test
+                  </button>
+                </div>
+                
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-xs text-[#858585]">Log query data</span>
+                  <button
+                    onClick={logConvexData}
+                    className="text-xs text-[#007acc] hover:text-[#1e90ff] underline-offset-2 hover:underline"
+                  >
+                    Log
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* General Test Activity */}
+        <div className="rounded bg-[#1e1e1e] border border-[#2d2d2d]">
+          <button
+            onClick={() => toggleSection('test-activity')}
+            className="w-full flex items-center gap-2 p-2 hover:bg-[#2d2d2d]/30 transition-colors"
+          >
+            {expandedSections.has('test-activity') ?
+              <ChevronDown className="w-3.5 h-3.5 text-[#858585]" /> :
               <ChevronRight className="w-3.5 h-3.5 text-[#858585]" />
             }
             <Activity className="w-3.5 h-3.5 text-[#858585]" />
-            <span className="text-xs font-medium flex-1 text-left">Performance</span>
+            <span className="text-xs font-medium flex-1 text-left">Test Activity</span>
           </button>
           
-          {expandedSections.has('performance') && (
+          {expandedSections.has('test-activity') && (
             <div className="px-2 pb-2 space-y-2">
               <Separator className="bg-[#2d2d2d]" />
-              <div className="flex items-center justify-between px-1">
-                <span className="text-xs text-[#858585]">Log browser metrics</span>
-                <button
-                  onClick={logPerformanceData}
-                  className="text-xs text-[#007acc] hover:text-[#1e90ff] underline-offset-2 hover:underline"
-                >
-                  Log
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Connection Testing */}
-        <div className="rounded bg-[#1e1e1e] border border-[#2d2d2d]">
-          <button
-            onClick={() => toggleSection('connections')}
-            className="w-full flex items-center gap-2 p-2 hover:bg-[#2d2d2d]/30 transition-colors"
-          >
-            {expandedSections.has('connections') ? 
-              <ChevronDown className="w-3.5 h-3.5 text-[#858585]" /> : 
-              <ChevronRight className="w-3.5 h-3.5 text-[#858585]" />
-            }
-            <Wifi className="w-3.5 h-3.5 text-[#858585]" />
-            <span className="text-xs font-medium flex-1 text-left">Connection Tests</span>
-          </button>
-          
-          {expandedSections.has('connections') && (
-            <div className="px-2 pb-2 space-y-2">
-              <Separator className="bg-[#2d2d2d]" />
-              <div className="px-1 space-y-2">
-                <div className="text-xs text-[#858585] mb-2">Test database and API connections</div>
-                
-                {/* Connection Test Buttons */}
-                <div className="space-y-1">
-                  {[
-                    { key: 'convex-database', label: 'Convex Database', icon: Database },
-                    { key: 'twitter-api', label: 'Twitter/X API', icon: CheckCircle },
-                    { key: 'reddit-api', label: 'Reddit API', icon: CheckCircle },
-                    { key: 'full-stack', label: 'Full Stack Test', icon: Activity }
-                  ].map(({ key, label, icon: Icon }) => (
-                    <div key={key} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Icon className="w-3 h-3 text-[#858585]" />
-                        <span className="text-xs text-[#858585]">{label}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {connectionTests[key] === 'loading' && (
-                          <Clock className="w-3 h-3 text-yellow-400 animate-spin" />
-                        )}
-                        {connectionTests[key] === 'success' && (
-                          <CheckCircle className="w-3 h-3 text-green-400" />
-                        )}
-                        {connectionTests[key] === 'error' && (
-                          <XCircle className="w-3 h-3 text-red-400" />
-                        )}
-                        <button
-                          onClick={() => runConnectionTest(key)}
-                          disabled={connectionTests[key] === 'loading'}
-                          className="text-xs text-[#007acc] hover:text-[#1e90ff] underline-offset-2 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Test
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+              
+              {/* Performance Tests */}
+              <div className="space-y-1">
+                <div className="text-xs text-[#858585] mb-1 px-1">Performance & Metrics</div>
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-xs text-[#858585]">Log browser metrics</span>
+                  <button
+                    onClick={logPerformanceData}
+                    className="text-xs text-[#007acc] hover:text-[#1e90ff] underline-offset-2 hover:underline"
+                  >
+                    Log
+                  </button>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
-
-        {/* Social Post Testing */}
-        <div className="rounded bg-[#1e1e1e] border border-[#2d2d2d]">
-          <button
-            onClick={() => toggleSection('social-posts')}
-            className="w-full flex items-center gap-2 p-2 hover:bg-[#2d2d2d]/30 transition-colors"
-          >
-            {expandedSections.has('social-posts') ? 
-              <ChevronDown className="w-3.5 h-3.5 text-[#858585]" /> : 
-              <ChevronRight className="w-3.5 h-3.5 text-[#858585]" />
-            }
-            <Settings2 className="w-3.5 h-3.5 text-[#858585]" />
-            <span className="text-xs font-medium flex-1 text-left">Social Post Testing</span>
-          </button>
-          
-          {expandedSections.has('social-posts') && (
-            <div className="px-2 pb-2 space-y-2">
+              
               <Separator className="bg-[#2d2d2d]" />
-              <div className="px-1 space-y-2">
-                <div className="text-xs text-[#858585] mb-2">Create test social media posts</div>
-                
-                {/* Social Post Creation Buttons */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Hash className="w-3 h-3 text-orange-400" />
-                      <span className="text-xs text-[#858585]">Reddit Test Post</span>
-                    </div>
-                    <button
-                      onClick={createRedditTestPost}
-                      className="text-xs text-[#007acc] hover:text-[#1e90ff] underline-offset-2 hover:underline"
-                    >
-                      Create
-                    </button>
+              
+              {/* Social Media Tests */}
+              <div className="space-y-1">
+                <div className="text-xs text-[#858585] mb-1 px-1">Social Media Testing</div>
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-2">
+                    <Hash className="w-3 h-3 text-orange-400" />
+                    <span className="text-xs text-[#858585]">Reddit test post</span>
                   </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <AtSign className="w-3 h-3 text-blue-400" />
-                      <span className="text-xs text-[#858585]">Twitter Test Post</span>
-                    </div>
-                    <button
-                      onClick={createTwitterTestPost}
-                      className="text-xs text-[#007acc] hover:text-[#1e90ff] underline-offset-2 hover:underline"
-                    >
-                      Create
-                    </button>
-                  </div>
+                  <button
+                    onClick={createRedditTestPost}
+                    className="text-xs text-[#007acc] hover:text-[#1e90ff] underline-offset-2 hover:underline"
+                  >
+                    Create
+                  </button>
                 </div>
                 
-                <div className="text-xs text-[#858585] mt-2 px-1">
-                  Test posts will be created and opened in the editor for testing the social media posting functionality.
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-2">
+                    <AtSign className="w-3 h-3 text-blue-400" />
+                    <span className="text-xs text-[#858585]">Twitter test post</span>
+                  </div>
+                  <button
+                    onClick={createTwitterTestPost}
+                    className="text-xs text-[#007acc] hover:text-[#1e90ff] underline-offset-2 hover:underline"
+                  >
+                    Create
+                  </button>
                 </div>
+              </div>
+              
+              <Separator className="bg-[#2d2d2d]" />
+              
+              {/* Connection Tests */}
+              <div className="space-y-1">
+                <div className="text-xs text-[#858585] mb-1 px-1">API Connection Tests</div>
+                {[
+                  { key: 'convex-database', label: 'Convex DB', icon: Database },
+                  { key: 'twitter-api', label: 'Twitter API', icon: CheckCircle },
+                  { key: 'reddit-api', label: 'Reddit API', icon: CheckCircle },
+                ].map(({ key, label, icon: Icon }) => (
+                  <div key={key} className="flex items-center justify-between px-1">
+                    <div className="flex items-center gap-2">
+                      <Icon className="w-3 h-3 text-[#858585]" />
+                      <span className="text-xs text-[#858585]">{label}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {connectionTests[key] === 'loading' && (
+                        <Clock className="w-3 h-3 text-yellow-400 animate-spin" />
+                      )}
+                      {connectionTests[key] === 'success' && (
+                        <CheckCircle className="w-3 h-3 text-green-400" />
+                      )}
+                      {connectionTests[key] === 'error' && (
+                        <XCircle className="w-3 h-3 text-red-400" />
+                      )}
+                      <button
+                        onClick={() => runConnectionTest(key)}
+                        disabled={connectionTests[key] === 'loading'}
+                        className="text-xs text-[#007acc] hover:text-[#1e90ff] underline-offset-2 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Test
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}

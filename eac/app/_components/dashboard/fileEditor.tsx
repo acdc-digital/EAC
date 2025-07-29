@@ -5,6 +5,7 @@
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { api } from "@/convex/_generated/api";
+import { logger } from "@/lib/logger";
 import { useEditorStore } from "@/store";
 import { ProjectFile } from "@/store/editor/types";
 import { useQuery } from "convex/react";
@@ -97,7 +98,11 @@ export function FileEditor() {
         onClick={(e) => {
           e.stopPropagation(); // Prevent opening the file
           if (!isActuallyPosted) {
+            const oldStatus = displayStatus;
             updateFileStatus(file.id, config.next);
+            
+            // Log the status change
+            logger.fileStatusChanged(file.name, oldStatus, config.next);
           }
         }}
         disabled={isActuallyPosted}
@@ -166,12 +171,21 @@ export function FileEditor() {
 
   const toggleFolder = (folderId: string) => {
     const newExpanded = new Set(expandedFolders);
-    if (newExpanded.has(folderId)) {
+    const wasExpanded = newExpanded.has(folderId);
+    
+    if (wasExpanded) {
       newExpanded.delete(folderId);
     } else {
       newExpanded.add(folderId);
     }
+    
     setExpandedFolders(newExpanded);
+    
+    // Find folder name for logging
+    const folder = [...projectFolders, ...financialFolders].find(f => f.id === folderId);
+    if (folder) {
+      logger.folderToggled(folder.name, !wasExpanded);
+    }
   };
 
   const renderFiles = (files: typeof filteredProjectFiles, folders: typeof projectFolders, keyPrefix: string) => {
@@ -197,7 +211,10 @@ export function FileEditor() {
           return (
             <div
               key={`${keyPrefix}-file-${file.id}`}
-              onClick={() => openTab(file)}
+              onClick={() => {
+                openTab(file);
+                logger.fileOpened(file.name, getFileTypeLabel(file.type));
+              }}
               className="flex items-center gap-2 px-3 py-2 hover:bg-[#2d2d2d] cursor-pointer text-[#cccccc] text-sm group border-b border-[#2d2d2d]/30"
             >
               <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -244,7 +261,10 @@ export function FileEditor() {
                     return (
                       <div
                         key={`${keyPrefix}-folder-${folderIndex}-file-${file.id}-${fileIndex}`}
-                        onClick={() => openTab(file)}
+                        onClick={() => {
+                          openTab(file);
+                          logger.fileOpened(file.name, getFileTypeLabel(file.type));
+                        }}
                         className="flex items-center gap-2 px-6 py-2 hover:bg-[#2d2d2d] cursor-pointer text-[#cccccc] text-sm group border-b border-[#2d2d2d]/20"
                       >
                         <div className="flex items-center gap-2 flex-1 min-w-0">

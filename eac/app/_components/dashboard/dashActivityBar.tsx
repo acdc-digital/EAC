@@ -5,6 +5,8 @@
 
 import { Button } from "@/components/ui/button";
 import { useEditorStore } from "@/store/editor";
+import { SignInButton, UserButton } from "@clerk/nextjs";
+import { Authenticated, Unauthenticated } from "convex/react";
 import {
     Bug,
     Calendar,
@@ -12,6 +14,7 @@ import {
     FileText,
     Settings,
     Trash2,
+    User,
     Users
 } from "lucide-react";
 
@@ -30,9 +33,16 @@ export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps
     { id: "calendar", icon: Calendar, label: "Content Calendar" },
     { id: "trash", icon: Trash2, label: "Trash" },
     { id: "debug", icon: Bug, label: "Debug Tools" },
+    { id: "profile", icon: User, label: "User Profile" },
   ];
 
   const handleActivityClick = (id: string) => {
+    // Handle profile authentication
+    if (id === 'profile') {
+      // This will be handled by the profile button render logic
+      return;
+    }
+    
     // For social connectors and file editor, open tabs directly
     if (id === 'social-connectors') {
       openSpecialTab('social-connectors', 'Social Media Connectors', 'social-connect');
@@ -61,6 +71,41 @@ export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps
         {activityItems.map((item) => {
           const Icon = item.icon;
           const isActive = activePanel === item.id;
+          
+          // Special handling for profile icon
+          if (item.id === 'profile') {
+            return (
+              <div key={item.id}>
+                <Unauthenticated>
+                  <SignInButton mode="modal">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="w-11 h-11 rounded-none hover:bg-[#2d2d2d] border-l-2 border-transparent"
+                      title="Sign In"
+                    >
+                      <Icon className="w-5 h-5 text-[#858585]" />
+                    </Button>
+                  </SignInButton>
+                </Unauthenticated>
+                <Authenticated>
+                  <UserButton 
+                    appearance={{
+                      elements: {
+                        userButtonAvatarBox: "w-8 h-8 rounded-sm",
+                        userButtonPopoverCard: "bg-[#252526] border border-[#454545]",
+                        userButtonPopoverActionButton: "text-[#cccccc] hover:bg-[#2a2d2e]",
+                        userButtonPopoverActionButtonText: "text-[#cccccc]",
+                        userButtonPopoverFooter: "hidden"
+                      }
+                    }}
+                    userProfileMode="modal"
+                    afterSignOutUrl="/"
+                  />
+                </Authenticated>
+              </div>
+            );
+          }
           
           return (
             <Button
