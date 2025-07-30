@@ -84,8 +84,6 @@
     --text-xl--line-height: calc(1.75 / 1.25);
     --text-2xl: 1.5rem;
     --text-2xl--line-height: calc(2 / 1.5);
-    --text-4xl: 2.25rem;
-    --text-4xl--line-height: calc(2.5 / 2.25);
     --font-weight-normal: 400;
     --font-weight-medium: 500;
     --font-weight-semibold: 600;
@@ -817,6 +815,9 @@
   .max-w-\[40px\] {
     max-width: 40px;
   }
+  .max-w-\[120px\] {
+    max-width: 120px;
+  }
   .max-w-\[calc\(100\%-2rem\)\] {
     max-width: calc(100% - 2rem);
   }
@@ -858,6 +859,9 @@
   }
   .min-w-\[80px\] {
     min-width: 80px;
+  }
+  .min-w-\[90px\] {
+    min-width: 90px;
   }
   .min-w-\[100px\] {
     min-width: 100px;
@@ -1412,9 +1416,6 @@
   .border-t-transparent {
     border-top-color: transparent;
   }
-  .border-l-\[\#0e639c\] {
-    border-left-color: #0e639c;
-  }
   .border-l-\[\#007acc\] {
     border-left-color: #007acc;
   }
@@ -1454,14 +1455,14 @@
   .bg-\[\#1e1e1e\] {
     background-color: #1e1e1e;
   }
-  .bg-\[\#1f2937\] {
-    background-color: #1f2937;
-  }
   .bg-\[\#2a2a2a\] {
     background-color: #2a2a2a;
   }
   .bg-\[\#2d2d2d\] {
     background-color: #2d2d2d;
+  }
+  .bg-\[\#2d2d2d\]\/50 {
+    background-color: color-mix(in oklab, #2d2d2d 50%, transparent);
   }
   .bg-\[\#2d2d2d\]\/90 {
     background-color: color-mix(in oklab, #2d2d2d 90%, transparent);
@@ -1973,10 +1974,6 @@
     font-size: var(--text-2xl);
     line-height: var(--tw-leading, var(--text-2xl--line-height));
   }
-  .text-4xl {
-    font-size: var(--text-4xl);
-    line-height: var(--tw-leading, var(--text-4xl--line-height));
-  }
   .text-base {
     font-size: var(--text-base);
     line-height: var(--tw-leading, var(--text-base--line-height));
@@ -2096,6 +2093,9 @@
   }
   .text-\[\#569cd6\] {
     color: #569cd6;
+  }
+  .text-\[\#666\] {
+    color: #666;
   }
   .text-\[\#888\] {
     color: #888;
@@ -2728,13 +2728,6 @@
     &:hover {
       @media (hover: hover) {
         background-color: color-mix(in oklab, #2d2d2d 30%, transparent);
-      }
-    }
-  }
-  .hover\:bg-\[\#2d2d2d\]\/50 {
-    &:hover {
-      @media (hover: hover) {
-        background-color: color-mix(in oklab, #2d2d2d 50%, transparent);
       }
     }
   }

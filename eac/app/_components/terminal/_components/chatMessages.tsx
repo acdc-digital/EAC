@@ -18,7 +18,7 @@ export function ChatMessages() {
   const [showCommandHints, setShowCommandHints] = useState(false);
   const [showMCPTools, setShowMCPTools] = useState(false);
   const [selectedToolIndex, setSelectedToolIndex] = useState(-1);
-  const [toolsMode, setToolsMode] = useState<'mcp' | 'agents'>('mcp');
+  const [toolsMode, setToolsMode] = useState<'mcp' | 'agents'>('agents');
   
   const { messages, isLoading: chatLoading, sendMessage, sessionId, storeChatMessage } = useChat();
   const {
@@ -299,14 +299,20 @@ export function ChatMessages() {
 
   // Helper function to get available tools based on current mode
   const getAvailableTools = () => {
-    if (toolsMode === 'agents' && activeAgentId) {
-      const activeAgent = agents.find(a => a.id === activeAgentId);
-      return activeAgent?.tools.map(tool => ({
-        name: tool.command.slice(1), // Remove the '/' prefix
-        description: tool.description,
-        command: tool.command
-      })) || [];
+    if (toolsMode === 'agents') {
+      if (activeAgentId) {
+        const activeAgent = agents.find(a => a.id === activeAgentId);
+        return activeAgent?.tools.map(tool => ({
+          name: tool.command.slice(1), // Remove the '/' prefix
+          description: tool.description,
+          command: tool.command
+        })) || [];
+      } else {
+        // Return empty array when in agent mode but no agent is selected
+        return [];
+      }
     } else {
+      // MCP mode - return MCP tools
       return availableTools || [];
     }
   };
@@ -344,6 +350,10 @@ export function ChatMessages() {
             🔌 MCP Server: {mcpConnected ? 'Connected' : 'Disconnected'}
             {mcpConnected && ` (${availableTools.length} tools)`}
           </div>
+          <div className={`text-xs ${activeAgentId ? 'text-[#4ec9b0]' : 'text-[#858585]'}`}>
+            🤖 Agents: {activeAgentId ? `Active (${agents.find(a => a.id === activeAgentId)?.name})` : 'None selected'}
+            {activeAgentId && ` (${agents.find(a => a.id === activeAgentId)?.tools.length || 0} tools)`}
+          </div>
           {mcpError && (
             <div className="text-[#f48771] text-xs">MCP Error: {mcpError}</div>
           )}
@@ -352,6 +362,7 @@ export function ChatMessages() {
           <div className="text-[#858585] border-t border-[#333] pt-2 mt-3">
             Type your questions about projects, financials, Reddit integration, or development below.
             {mcpConnected && <div className="text-xs text-[#4ec9b0] mt-1">Enhanced: Try &ldquo;analyze my reddit integration&rdquo; or &ldquo;optimize my workflow&rdquo;</div>}
+            {activeAgentId && <div className="text-xs text-[#4ec9b0] mt-1">Agent Active: Type &ldquo;/&rdquo; to see available agent tools</div>}
           </div>
         </div>
 

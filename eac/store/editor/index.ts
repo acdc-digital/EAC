@@ -307,10 +307,16 @@ export const useEditorStore = create<EditorState>()(
             content: file.content || getDefaultContent(file.type, file.name),
             filePath: file.filePath,
             type: file.type,
+            pinned: false,
           };
 
+          // Insert new tab after all pinned tabs
+          const pinnedTabs = openTabs.filter(tab => tab.pinned);
+          const unpinnedTabs = openTabs.filter(tab => !tab.pinned);
+          const newTabs = [...pinnedTabs, ...unpinnedTabs, newTab];
+
           set({
-            openTabs: [...openTabs, newTab],
+            openTabs: newTabs,
             activeTab: newTab.id,
           });
         },
@@ -333,10 +339,16 @@ export const useEditorStore = create<EditorState>()(
             content: '',
             filePath: `/${type}`,
             type,
+            pinned: false,
           };
 
+          // Insert new tab after all pinned tabs
+          const pinnedTabs = openTabs.filter(tab => tab.pinned);
+          const unpinnedTabs = openTabs.filter(tab => !tab.pinned);
+          const newTabs = [...pinnedTabs, ...unpinnedTabs, newTab];
+
           set({
-            openTabs: [...openTabs, newTab],
+            openTabs: newTabs,
             activeTab: newTab.id,
           });
         },
@@ -392,6 +404,60 @@ export const useEditorStore = create<EditorState>()(
             const newTabs = [...openTabs];
             const [movedTab] = newTabs.splice(fromIndex, 1);
             newTabs.splice(toIndex, 0, movedTab);
+            set({ openTabs: newTabs });
+          }
+        },
+
+        pinTab: (tabId: string) => {
+          const { openTabs } = get();
+          const tabIndex = openTabs.findIndex(tab => tab.id === tabId);
+          
+          if (tabIndex !== -1) {
+            const tab = openTabs[tabIndex];
+            
+            // Don't pin if already pinned
+            if (tab.pinned) return;
+            
+            // Get the highest pinned order
+            const pinnedTabs = openTabs.filter(t => t.pinned);
+            const nextPinnedOrder = pinnedTabs.length > 0 ? Math.max(...pinnedTabs.map(t => t.pinnedOrder || 0)) + 1 : 1;
+            
+            // Update the tab to be pinned
+            const updatedTab = { ...tab, pinned: true, pinnedOrder: nextPinnedOrder };
+            
+            // Remove tab from current position and add to correct pinned position
+            const newTabs = [...openTabs];
+            newTabs.splice(tabIndex, 1);
+            
+            // Find the correct position among pinned tabs
+            const insertIndex = newTabs.filter(t => t.pinned && (t.pinnedOrder || 0) < nextPinnedOrder).length;
+            newTabs.splice(insertIndex, 0, updatedTab);
+            
+            set({ openTabs: newTabs });
+          }
+        },
+
+        unpinTab: (tabId: string) => {
+          const { openTabs } = get();
+          const tabIndex = openTabs.findIndex(tab => tab.id === tabId);
+          
+          if (tabIndex !== -1) {
+            const tab = openTabs[tabIndex];
+            
+            // Don't unpin if not pinned
+            if (!tab.pinned) return;
+            
+            // Update the tab to be unpinned
+            const updatedTab = { ...tab, pinned: false, pinnedOrder: undefined };
+            
+            // Remove tab from current position
+            const newTabs = [...openTabs];
+            newTabs.splice(tabIndex, 1);
+            
+            // Find the position after all pinned tabs
+            const pinnedCount = newTabs.filter(t => t.pinned).length;
+            newTabs.splice(pinnedCount, 0, updatedTab);
+            
             set({ openTabs: newTabs });
           }
         },
@@ -1026,6 +1092,7 @@ export const useEditorStore = create<EditorState>()(
       }),
       {
         name: 'editor-storage',
+        version: 1, // Add version for tab pinning persistence
         // Only persist specific fields
         partialize: (state) => ({ 
           openTabs: state.openTabs.map(tab => ({
@@ -1035,6 +1102,8 @@ export const useEditorStore = create<EditorState>()(
             content: tab.content,
             filePath: tab.filePath,
             type: tab.type,
+            pinned: tab.pinned, // Persist pinned state
+            pinnedOrder: tab.pinnedOrder, // Persist pinned order
             // We'll need to restore the icon based on file type
           })),
           activeTab: state.activeTab,

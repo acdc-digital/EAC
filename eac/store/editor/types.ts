@@ -10,6 +10,8 @@ export interface EditorTab {
   content: string;
   filePath: string;
   type: 'typescript' | 'json' | 'excel' | 'pdf' | 'markdown' | 'javascript' | 'generals' | 'percent-complete' | 'schedule' | 'materials' | 'social-connect' | 'post-creator' | 'calendar' | 'facebook' | 'reddit' | 'instagram' | 'x' | 'user-profile';
+  pinned?: boolean;
+  pinnedOrder?: number; // Order among pinned tabs (lower numbers appear first)
 }
 
 export interface ProjectFolder {
@@ -66,6 +68,8 @@ export interface EditorState {
   closeAllTabs: () => void;
   setActiveTab: (tabId: string) => void;
   reorderTabs: (fromTabId: string, toTabId: string) => void;
+  pinTab: (tabId: string) => void;
+  unpinTab: (tabId: string) => void;
   updateTabContent: (tabId: string, content: string) => void;
   updateFileContent: (tabId: string, content: string) => void;
   updateFileStatus: (fileId: string, status: 'draft' | 'scheduled' | 'complete') => void;

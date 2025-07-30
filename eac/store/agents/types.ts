@@ -7,7 +7,7 @@ export interface Agent {
   description: string;
   isActive: boolean;
   tools: AgentTool[];
-  icon: string; // emoji or icon name
+  icon: string; // Use string identifier for icon names (e.g., 'FileText', 'Bot', etc.)
 }
 
 export interface AgentTool {

@@ -12,7 +12,7 @@ const initialAgents: Agent[] = [
     name: 'Instructions',
     description: 'Generate and maintain project instructions and documentation',
     isActive: false,
-    icon: '📚',
+    icon: 'FileText', // Use string identifier instead of component reference
     tools: [
       {
         id: 'generate-instructions',
@@ -189,11 +189,23 @@ export const useAgentStore = create<AgentState>()(
       }),
       {
         name: 'agent-storage',
+        version: 2, // Increment version to force migration to new icon format
         partialize: (state) => ({
           agents: state.agents,
           activeAgentId: state.activeAgentId,
           executions: state.executions.slice(0, 50) // Only persist last 50 executions
-        })
+        }),
+        migrate: (persistedState: unknown, version: number) => {
+          // If version is different or missing, reset to fresh state
+          if (version !== 2) {
+            return {
+              agents: initialAgents,
+              activeAgentId: null,
+              executions: []
+            };
+          }
+          return persistedState;
+        }
       }
     ),
     { name: 'agent-store' }

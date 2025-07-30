@@ -10,7 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEditorStore } from "@/store";
 import { ProjectFile } from "@/store/editor/types";
 import { useTerminalStore } from "@/store/terminal";
-import { AtSign, Braces, Camera, ChevronLeft, ChevronRight, Edit3, FileCode, FileSpreadsheet, FileText, FileType, MessageSquare, Plus, User, Users, X } from "lucide-react";
+import { AtSign, Braces, Camera, ChevronLeft, ChevronRight, Edit3, FileCode, FileSpreadsheet, FileText, FileType, MessageSquare, Pin, Plus, User, Users, X } from "lucide-react";
 
 // Dynamic import to avoid SSR issues
 const TiptapEditor = dynamic(() => import('@/app/_components/editor/_components/TiptapEditor'), {
@@ -102,6 +102,8 @@ export function DashEditor() {
     closeTab, 
     setActiveTab, 
     reorderTabs,
+    pinTab,
+    unpinTab,
     updateFileContent,
     createNewFile,
     projectFolders
@@ -121,6 +123,7 @@ export function DashEditor() {
   
   // Drag and drop state for tabs
   const [draggedTab, setDraggedTab] = useState<string | null>(null);
+  const [hoveredTab, setHoveredTab] = useState<string | null>(null);
 
   // Calculate the visible area width (container width minus button widths)
   const TAB_WIDTH = 200;
@@ -295,7 +298,17 @@ export function DashEditor() {
                   transform: `translateX(-${scrollPosition * 200}px)` 
                 }}
               >
-                {openTabs.map((tab) => (
+                {openTabs
+                  .sort((a, b) => {
+                    // Sort pinned tabs first by pinnedOrder, then unpinned tabs
+                    if (a.pinned && b.pinned) {
+                      return (a.pinnedOrder || 0) - (b.pinnedOrder || 0);
+                    }
+                    if (a.pinned && !b.pinned) return -1;
+                    if (!a.pinned && b.pinned) return 1;
+                    return 0; // Maintain original order for unpinned tabs
+                  })
+                  .map((tab) => (
                   <div
                     key={tab.id}
                     draggable
@@ -304,6 +317,8 @@ export function DashEditor() {
                     onDragLeave={handleTabDragLeave}
                     onDrop={(e) => handleTabDrop(e, tab.id)}
                     onDragEnd={handleTabDragEnd}
+                    onMouseEnter={() => setHoveredTab(tab.id)}
+                    onMouseLeave={() => setHoveredTab(null)}
                     className={`
                       flex items-center gap-2 px-3 h-[35px] text-xs border-r border-[#2d2d2d] cursor-pointer flex-shrink-0 transition-colors duration-150
                       ${draggedTab === tab.id
@@ -372,6 +387,25 @@ export function DashEditor() {
                       {tab.name}
                     </span>
                     {tab.modified && <div className="w-2 h-2 bg-[#cccccc] rounded-full flex-shrink-0" />}
+                    
+                    {/* Pin/Unpin Icon - Shows on hover or when pinned */}
+                    {(hoveredTab === tab.id || tab.pinned) && (
+                      <Pin
+                        className={`w-3 h-3 hover:bg-[#2d2d2d] rounded flex-shrink-0 transition-colors ${
+                          tab.pinned ? 'text-[#007acc]' : 'text-[#858585]'
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (tab.pinned) {
+                            unpinTab(tab.id);
+                          } else {
+                            pinTab(tab.id);
+                          }
+                        }}
+                      />
+                    )}
+
+                    {/* Close Button */}
                     <X 
                       className="w-3 h-3 hover:bg-[#2d2d2d] rounded flex-shrink-0" 
                       onClick={(e) => {
