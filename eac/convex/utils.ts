@@ -44,7 +44,8 @@ export async function verifyProjectOwnership(ctx: QueryCtx | MutationCtx, projec
     throw new Error("Project not found");
   }
   // Ensure the project belongs to the current user
-  if (project.userId !== userId) {
+  // Check if this is a projects table document
+  if ('userId' in project && project.userId !== userId) {
     throw new Error("Not authorized to access this project");
   }
   return project;
@@ -58,7 +59,10 @@ export async function verifyFileOwnership(ctx: QueryCtx | MutationCtx, fileId: a
   }
   
   // Verify the user owns the project this file belongs to
-  await verifyProjectOwnership(ctx, file.projectId, userId);
+  // Check if this is a files table document
+  if ('projectId' in file && file.projectId) {
+    await verifyProjectOwnership(ctx, file.projectId, userId);
+  }
   return file;
 }
 

@@ -30,7 +30,7 @@ async function getCurrentUserId(ctx: QueryCtx | MutationCtx) {
     }
   }
   
-  throw new Error("User not found in database");
+  throw new Error("User not found in database - please call upsertUser first");
 }
 
 // Simple test query - FRESH DEPLOY

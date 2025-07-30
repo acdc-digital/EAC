@@ -1,5 +1,6 @@
 "use client";
 
+import { UserInitializer } from "@/components/user-initializer";
 import { useAuth } from "@clerk/nextjs";
 import { ConvexReactClient } from "convex/react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
@@ -18,6 +19,7 @@ interface ConvexClientProviderProps {
 export function ConvexClientProvider({ children }: ConvexClientProviderProps) {
   return (
     <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
+      <UserInitializer />
       {children}
     </ConvexProviderWithClerk>
   );
