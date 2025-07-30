@@ -101,5 +101,9 @@
       "static/css/_app-pages-browser_app__components_editor__components_TiptapEditor_tsx.css",
       "static/chunks/_app-pages-browser_app__components_editor__components_TiptapEditor_tsx.js"
     ]
+  },
+  "store/agents/index.ts -> @/store": {
+    "id": "store/agents/index.ts -> @/store",
+    "files": []
   }
 }

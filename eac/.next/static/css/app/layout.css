@@ -84,6 +84,8 @@
     --text-xl--line-height: calc(1.75 / 1.25);
     --text-2xl: 1.5rem;
     --text-2xl--line-height: calc(2 / 1.5);
+    --text-4xl: 2.25rem;
+    --text-4xl--line-height: calc(2.5 / 2.25);
     --font-weight-normal: 400;
     --font-weight-medium: 500;
     --font-weight-semibold: 600;
@@ -905,6 +907,12 @@
     --tw-translate-y: -50%;
     translate: var(--tw-translate-x) var(--tw-translate-y);
   }
+  .scale-90 {
+    --tw-scale-x: 90%;
+    --tw-scale-y: 90%;
+    --tw-scale-z: 90%;
+    scale: var(--tw-scale-x) var(--tw-scale-y);
+  }
   .scale-95 {
     --tw-scale-x: 95%;
     --tw-scale-y: 95%;
@@ -1242,6 +1250,9 @@
   .border-\[\#1d9bf0\] {
     border-color: #1d9bf0;
   }
+  .border-\[\#1f2937\] {
+    border-color: #1f2937;
+  }
   .border-\[\#2d2d2d\] {
     border-color: #2d2d2d;
   }
@@ -1425,6 +1436,9 @@
   .bg-\[\#0e639c\] {
     background-color: #0e639c;
   }
+  .bg-\[\#0e1419\] {
+    background-color: #0e1419;
+  }
   .bg-\[\#1DA1F2\] {
     background-color: #1DA1F2;
   }
@@ -1439,6 +1453,9 @@
   }
   .bg-\[\#1e1e1e\] {
     background-color: #1e1e1e;
+  }
+  .bg-\[\#1f2937\] {
+    background-color: #1f2937;
   }
   .bg-\[\#2a2a2a\] {
     background-color: #2a2a2a;
@@ -1956,6 +1973,10 @@
     font-size: var(--text-2xl);
     line-height: var(--tw-leading, var(--text-2xl--line-height));
   }
+  .text-4xl {
+    font-size: var(--text-4xl);
+    line-height: var(--tw-leading, var(--text-4xl--line-height));
+  }
   .text-base {
     font-size: var(--text-base);
     line-height: var(--tw-leading, var(--text-base--line-height));
@@ -2088,11 +2109,20 @@
   .text-\[\#555555\] {
     color: #555555;
   }
+  .text-\[\#585858\] {
+    color: #585858;
+  }
+  .text-\[\#656565\] {
+    color: #656565;
+  }
   .text-\[\#858585\] {
     color: #858585;
   }
   .text-\[\#969696\] {
     color: #969696;
+  }
+  .text-\[\#b3b3b3\] {
+    color: #b3b3b3;
   }
   .text-\[\#c586c0\] {
     color: #c586c0;
@@ -2698,6 +2728,13 @@
     &:hover {
       @media (hover: hover) {
         background-color: color-mix(in oklab, #2d2d2d 30%, transparent);
+      }
+    }
+  }
+  .hover\:bg-\[\#2d2d2d\]\/50 {
+    &:hover {
+      @media (hover: hover) {
+        background-color: color-mix(in oklab, #2d2d2d 50%, transparent);
       }
     }
   }

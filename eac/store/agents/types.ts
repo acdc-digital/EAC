@@ -1,0 +1,69 @@
+// Agent Store Types
+// /Users/matthewsimon/Projects/eac/eac/store/agents/types.ts
+
+export interface Agent {
+  id: string;
+  name: string;
+  description: string;
+  isActive: boolean;
+  tools: AgentTool[];
+  icon: string; // emoji or icon name
+}
+
+export interface AgentTool {
+  id: string;
+  name: string;
+  command: string; // slash command to trigger
+  description: string;
+  parameters?: AgentToolParameter[];
+}
+
+export interface AgentToolParameter {
+  name: string;
+  type: 'string' | 'number' | 'boolean' | 'select';
+  description: string;
+  required: boolean;
+  options?: string[]; // for select type
+}
+
+export interface AgentExecution {
+  id: string;
+  agentId: string;
+  toolId: string;
+  timestamp: Date;
+  input: string;
+  output?: string;
+  status: 'pending' | 'completed' | 'error';
+  error?: string;
+}
+
+export interface ConvexMutations {
+  ensureInstructionsProject: () => Promise<unknown>;
+  createInstructionFile: (params: {
+    name: string;
+    content: string;
+    topic?: string;
+    audience?: string;
+  }) => Promise<unknown>;
+}
+
+export interface AgentState {
+  // State
+  agents: Agent[];
+  activeAgentId: string | null;
+  executions: AgentExecution[];
+  isLoading: boolean;
+  error: string | null;
+  
+  // Actions
+  addAgent: (agent: Omit<Agent, 'id'>) => void;
+  updateAgent: (id: string, updates: Partial<Agent>) => void;
+  deleteAgent: (id: string) => void;
+  setActiveAgent: (id: string | null) => void;
+  executeAgentTool: (agentId: string, toolId: string, input: string, convexMutations?: ConvexMutations) => Promise<string>;
+  addExecution: (execution: Omit<AgentExecution, 'id' | 'timestamp'>) => void;
+  clearExecutions: () => void;
+  setError: (error: string | null) => void;
+  setLoading: (loading: boolean) => void;
+  reset: () => void;
+}

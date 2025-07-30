@@ -98,6 +98,54 @@ export const getProjectStats = query({
   },
 });
 
+// Ensure Instructions project exists for user
+export const ensureInstructionsProject = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getCurrentUserId(ctx);
+    
+    // Check if Instructions project already exists for this user
+    const existingInstructions = await ctx.db
+      .query("projects")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .filter((q) => q.eq(q.field("name"), "Instructions"))
+      .first();
+    
+    if (existingInstructions) {
+      return existingInstructions;
+    }
+    
+    // Create Instructions project
+    const now = Date.now();
+    const instructionsProjectId = await ctx.db.insert("projects", {
+      name: "Instructions",
+      description: "Project instruction documents and context for AI assistance",
+      status: "active" as const,
+      userId: userId,
+      createdAt: now,
+      updatedAt: now,
+    });
+    
+    return await ctx.db.get(instructionsProjectId);
+  },
+});
+
+// Get Instructions project for user
+export const getInstructionsProject = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getCurrentUserId(ctx);
+    
+    const instructionsProject = await ctx.db
+      .query("projects")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .filter((q) => q.eq(q.field("name"), "Instructions"))
+      .first();
+    
+    return instructionsProject;
+  },
+});
+
 // User-scoped generateProjectNumber query
 export const generateProjectNumber = query({
   args: {},

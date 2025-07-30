@@ -39,11 +39,30 @@ async function verifyProjectOwnership(ctx: QueryCtx | MutationCtx, projectId: an
   if (!project) {
     throw new Error("Project not found");
   }
-  // Projects table has userId field
-  if (project.userId !== userId) {
-    throw new Error("Not authorized to access this project");
+  // Check if this is a projects table entry by checking for expected fields
+  if ('name' in project && 'status' in project) {
+    // This is a project - check userId
+    if ((project as any).userId !== userId) {
+      throw new Error("Not authorized to access this project");
+    }
+    return project;
   }
-  return project;
+  throw new Error("Invalid project ID");
+}
+
+// Helper function to get Instructions project for user
+async function getInstructionsProject(ctx: QueryCtx | MutationCtx, userId: any) {
+  const instructionsProject = await ctx.db
+    .query("projects")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .filter((q) => q.eq(q.field("name"), "Instructions"))
+    .first();
+  
+  if (!instructionsProject) {
+    throw new Error("Instructions project not found. Please create it first.");
+  }
+  
+  return instructionsProject;
 }
 
 // User-scoped: Get all files for a specific project
@@ -362,5 +381,61 @@ export const searchFiles = query({
     );
 
     return filteredFiles;
+  },
+});
+
+// Create instruction file in Instructions project
+export const createInstructionFile = mutation({
+  args: {
+    name: v.string(),
+    content: v.string(),
+    topic: v.optional(v.string()),
+    audience: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getCurrentUserId(ctx);
+    
+    // Get the Instructions project for this user
+    const instructionsProject = await getInstructionsProject(ctx, userId);
+    
+    const now = Date.now();
+    
+    // Create the instruction file
+    const fileId = await ctx.db.insert("files", {
+      name: args.name,
+      type: "document",
+      extension: "md",
+      content: args.content,
+      projectId: instructionsProject._id,
+      userId: userId,
+      path: "/instructions/",
+      mimeType: "text/markdown",
+      isDeleted: false,
+      lastModified: now,
+      createdAt: now,
+      updatedAt: now,
+    });
+    
+    return await ctx.db.get(fileId);
+  },
+});
+
+// Get all instruction files for user
+export const getInstructionFiles = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getCurrentUserId(ctx);
+    
+    // Get the Instructions project for this user
+    const instructionsProject = await getInstructionsProject(ctx, userId);
+    
+    const files = await ctx.db
+      .query("files")
+      .withIndex("by_project", (q) => q.eq("projectId", instructionsProject._id))
+      .filter((q) => q.neq(q.field("isDeleted"), true))
+      .order("desc")
+      .collect();
+    
+    return files;
   },
 });

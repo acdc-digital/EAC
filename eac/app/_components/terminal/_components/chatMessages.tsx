@@ -5,8 +5,11 @@
 
 import { chatCommands } from "@/lib/chatCommands";
 import { useChat } from "@/lib/hooks/useChat";
+import { useInstructionContext, useInstructions } from "@/lib/hooks/useInstructions";
 import { useMCP } from "@/lib/hooks/useMCP";
+import { useAgentStore } from "@/store";
 import React, { useEffect, useRef, useState } from "react";
+import { ToolsToggle } from "./toolsToggle";
 
 export function ChatMessages() {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -15,8 +18,9 @@ export function ChatMessages() {
   const [showCommandHints, setShowCommandHints] = useState(false);
   const [showMCPTools, setShowMCPTools] = useState(false);
   const [selectedToolIndex, setSelectedToolIndex] = useState(-1);
+  const [toolsMode, setToolsMode] = useState<'mcp' | 'agents'>('mcp');
   
-  const { messages, isLoading: chatLoading, sendMessage, sessionId } = useChat();
+  const { messages, isLoading: chatLoading, sendMessage, sessionId, storeChatMessage } = useChat();
   const {
     isConnected: mcpConnected,
     isLoading: mcpLoading,
@@ -24,6 +28,10 @@ export function ChatMessages() {
     processNaturalLanguage,
     availableTools
   } = useMCP();
+
+  const { agents, activeAgentId, executeAgentTool } = useAgentStore();
+  const { createInstruction, ensureInstructionsProject } = useInstructions();
+  const instructionContext = useInstructionContext();
 
   const isLoading = chatLoading || mcpLoading;
 
@@ -100,6 +108,41 @@ export function ChatMessages() {
       setMessage("");
       setShowMCPTools(false);
       setSelectedToolIndex(-1);
+      
+      // Check for agent tool commands (e.g., /instructions)
+      if (messageContent.startsWith('/') && activeAgentId) {
+        const activeAgent = agents.find(a => a.id === activeAgentId);
+        const command = messageContent.split(' ')[0];
+        const agentTool = activeAgent?.tools.find(t => t.command === command);
+        
+        if (agentTool) {
+          try {
+            // Create Convex mutations object for database operations
+            const convexMutations = {
+              ensureInstructionsProject,
+              createInstructionFile: createInstruction,
+            };
+            
+            const result = await executeAgentTool(activeAgentId, agentTool.id, messageContent, convexMutations);
+            
+            // Store agent result directly to chat without sending to Claude (to avoid MCP intent detection)
+            await storeChatMessage({
+              role: "assistant",
+              content: `🤖 Agent Result:\n\n${result}`,
+              sessionId,
+            });
+            return;
+          } catch (error) {
+            console.error('Agent tool error:', error);
+            await storeChatMessage({
+              role: "assistant", 
+              content: `❌ Agent tool failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              sessionId,
+            });
+            return;
+          }
+        }
+      }
       
       // Check if message starts with MCP tool command (e.g., /eac_project_analyze)
       if (mcpConnected && messageContent.startsWith('/') && messageContent.includes('eac_')) {
@@ -181,29 +224,34 @@ export function ChatMessages() {
           await sendMessage(messageContent);
         }
       } else {
-        // Regular chat message
-        await sendMessage(messageContent);
+        // Regular chat message - add instruction context if available
+        let contextualMessage = messageContent;
+        if (instructionContext) {
+          contextualMessage = `${instructionContext}\n\n---\n\n${messageContent}`;
+        }
+        await sendMessage(contextualMessage);
       }
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (showMCPTools && filteredMCPTools.length > 0) {
+    if (showMCPTools && filteredTools.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         setSelectedToolIndex(prev =>
-          prev < filteredMCPTools.length - 1 ? prev + 1 : 0
+          prev < filteredTools.length - 1 ? prev + 1 : 0
         );
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setSelectedToolIndex(prev =>
-          prev > 0 ? prev - 1 : filteredMCPTools.length - 1
+          prev > 0 ? prev - 1 : filteredTools.length - 1
         );
       } else if (e.key === 'Tab' || e.key === 'Enter') {
         e.preventDefault();
-        if (selectedToolIndex >= 0 && selectedToolIndex < filteredMCPTools.length) {
-          const selectedTool = filteredMCPTools[selectedToolIndex];
-          setMessage(`/${selectedTool.name} `);
+        if (selectedToolIndex >= 0 && selectedToolIndex < filteredTools.length) {
+          const selectedTool = filteredTools[selectedToolIndex];
+          const commandToUse = 'command' in selectedTool ? selectedTool.command : `/${selectedTool.name}`;
+          setMessage(`${commandToUse} `);
           setShowMCPTools(false);
           setSelectedToolIndex(-1);
           inputRef.current?.focus();
@@ -222,16 +270,17 @@ export function ChatMessages() {
     const value = e.target.value;
     setMessage(value);
     
-    // Show MCP tools menu when message starts with '/' and is just one character or when typing tool name
+    // Show tools menu when message starts with '/' and is just one character or when typing tool name
     if (value === '/' || (value.startsWith('/') && !value.includes(' '))) {
       setShowMCPTools(true);
       setShowCommandHints(false);
       // Auto-select first matching tool if typing
       if (value.length > 1) {
         const searchTerm = value.slice(1).toLowerCase();
-        const currentFiltered = availableTools.filter(tool =>
-          tool.name.toLowerCase().includes(searchTerm)
-        );
+        const currentFiltered = filteredTools.filter(tool => {
+          const toolName = 'command' in tool && tool.command ? tool.command.slice(1) : tool.name;
+          return toolName.toLowerCase().includes(searchTerm);
+        });
         setSelectedToolIndex(currentFiltered.length > 0 ? 0 : -1);
       } else {
         setSelectedToolIndex(0);
@@ -248,18 +297,36 @@ export function ChatMessages() {
     }
   };
 
-  const handleToolSelect = (tool: { name: string; description: string }) => {
-    setMessage(`/${tool.name} `);
+  // Helper function to get available tools based on current mode
+  const getAvailableTools = () => {
+    if (toolsMode === 'agents' && activeAgentId) {
+      const activeAgent = agents.find(a => a.id === activeAgentId);
+      return activeAgent?.tools.map(tool => ({
+        name: tool.command.slice(1), // Remove the '/' prefix
+        description: tool.description,
+        command: tool.command
+      })) || [];
+    } else {
+      return availableTools || [];
+    }
+  };
+
+  const currentTools = getAvailableTools();
+
+  const handleToolSelect = (tool: { name: string; description: string; command?: string }) => {
+    const commandToUse = tool.command || `/${tool.name}`;
+    setMessage(`${commandToUse} `);
     setShowMCPTools(false);
     setSelectedToolIndex(-1);
     inputRef.current?.focus();
   };
 
-  // Filter MCP tools based on input
-  const filteredMCPTools = availableTools.filter(tool => {
+  // Filter tools based on input and current mode
+  const filteredTools = currentTools.filter(tool => {
     if (!message.startsWith('/') || message.length === 1) return true;
     const searchTerm = message.slice(1).split(' ')[0].toLowerCase();
-    return tool.name.toLowerCase().includes(searchTerm);
+    const toolName = 'command' in tool && tool.command ? tool.command.slice(1) : tool.name;
+    return toolName.toLowerCase().includes(searchTerm);
   });
 
   return (
@@ -320,25 +387,50 @@ export function ChatMessages() {
 
         {/* Inline Input */}
         <div className="flex flex-col pt-2">
-          {/* MCP Tools Menu */}
-          {showMCPTools && availableTools && availableTools.length > 0 && (
-            <div className="mb-2 p-2 bg-[#1a1a1a] border border-[#333] rounded text-xs max-h-48 overflow-y-auto">
-              <div className="text-[#4ec9b0] mb-1">
-                MCP Tools ({filteredMCPTools.length} of {availableTools.length} available):
-              </div>
-              {filteredMCPTools.map((tool, index) => (
-                <div
-                  key={tool.name}
-                  className={`text-[#cccccc] py-1 px-2 rounded cursor-pointer hover:bg-[#2a2a2a] ${
-                    selectedToolIndex === index ? 'bg-[#0e639c] text-white' : ''
-                  }`}
-                  onClick={() => handleToolSelect(tool)}
-                >
-                  <div className="font-semibold">/{tool.name}</div>
-                  <div className="text-[#858585] text-xs mt-0.5">{tool.description}</div>
+          {/* Tools Menu */}
+          {showMCPTools && currentTools && currentTools.length > 0 && (
+            <div className="mb-2 bg-[#1a1a1a] border border-[#333] rounded text-xs max-h-48 overflow-y-auto">
+              {/* Tools Toggle */}
+              <div className="flex items-center justify-between p-2 border-b border-[#333]">
+                <div className="text-[#4ec9b0] text-xs font-medium">
+                  {toolsMode === 'mcp' ? 'MCP Tools' : 'Agent Tools'} ({filteredTools.length} of {currentTools.length} available)
                 </div>
-              ))}
-              <div className="text-[#858585] text-xs mt-2 border-t border-[#333] pt-1">
+                <ToolsToggle
+                  mode={toolsMode}
+                  onModeChange={setToolsMode}
+                  className="scale-90"
+                />
+              </div>
+              
+              {/* Tools List */}
+              <div className="p-2 space-y-1">
+                {filteredTools.length > 0 ? (
+                  filteredTools.map((tool, index) => {
+                    const displayName = 'command' in tool && tool.command ? tool.command : `/${tool.name}`;
+                    return (
+                      <div
+                        key={tool.name}
+                        className={`text-[#cccccc] py-1 px-2 rounded cursor-pointer hover:bg-[#2a2a2a] ${
+                          selectedToolIndex === index ? 'bg-[#0e639c] text-white' : ''
+                        }`}
+                        onClick={() => handleToolSelect(tool)}
+                      >
+                        <div className="font-semibold">{displayName}</div>
+                        <div className="text-[#858585] text-xs mt-0.5">{tool.description}</div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-[#858585] py-2 text-center">
+                    {toolsMode === 'agents' && !activeAgentId
+                      ? 'No agent selected. Select an agent from the Agents panel.'
+                      : `No ${toolsMode === 'mcp' ? 'MCP' : 'agent'} tools available.`
+                    }
+                  </div>
+                )}
+              </div>
+              
+              <div className="text-[#858585] text-xs p-2 border-t border-[#333]">
                 ↑↓ navigate • Enter/Tab select • Esc cancel
               </div>
             </div>

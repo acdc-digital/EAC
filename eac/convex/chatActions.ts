@@ -19,9 +19,17 @@ function detectMCPIntent(message: string): { tool: string; confidence: number; p
     return null;
   }
 
-  // Project creation triggers  
+  // Skip agent results to avoid false positives
+  if (message.includes('🤖 Agent Result:') || message.includes('Agent tool failed:')) {
+    return null;
+  }
+
+  // Project creation triggers - be more specific to avoid false positives
   if ((msg.includes("create") || msg.includes("new") || msg.includes("make")) && 
-      (msg.includes("project"))) {
+      (msg.includes("project")) &&
+      !msg.includes("instruction") && // Exclude instruction creation
+      !msg.includes("document") &&   // Exclude document creation
+      !msg.includes("file")) {       // Exclude file creation
     return { 
       tool: "eac_project_creator", 
       confidence: 0.9,

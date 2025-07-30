@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { useInstructions } from "@/lib/hooks/useInstructions";
 import { useProjects } from "@/lib/hooks/useProjects";
 import { useEditorStore } from "@/store";
 import {
@@ -37,6 +38,9 @@ export function DashOverview() {
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  // Initialize Instructions project for user
+  useInstructions();
 
   const handleCreateProject = async () => {
     if (newProjectName.trim()) {

@@ -80,5 +80,6 @@ export function useChat() {
     isLoading,
     sendMessage,
     sessionId,
+    storeChatMessage,
   };
 }

@@ -8,6 +8,7 @@ import { useEditorStore } from "@/store/editor";
 import { SignInButton, useUser } from "@clerk/nextjs";
 import { Authenticated, Unauthenticated } from "convex/react";
 import {
+  Bot,
   Bug,
   Calendar,
   Contact,
@@ -50,6 +51,7 @@ export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps
     { id: "social-connectors", icon: Contact, label: "Social Media Connectors" },
     { id: "file-editor", icon: Edit3, label: "File Editor" },
     { id: "calendar", icon: Calendar, label: "Content Calendar" },
+    { id: "agents", icon: Bot, label: "Agents" },
     { id: "trash", icon: Trash2, label: "Trash" },
     { id: "debug", icon: Bug, label: "Debug Tools" },
     { id: "profile", icon: User, label: "User Profile" },

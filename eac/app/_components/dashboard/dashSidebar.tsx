@@ -31,6 +31,7 @@ import {
   X
 } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
+import { DashAgents } from "./dashAgents";
 import { DashDebug } from "./dashDebug";
 import { DashTrash } from "./dashTrash";
 
@@ -525,6 +526,8 @@ export function DashSidebar({ activePanel }: SidebarProps) {
         return <DashTrash />;
       case 'debug':
         return <DashDebug />;
+      case 'agents':
+        return <DashAgents />;
       default:
         return (
           <div className="p-2">

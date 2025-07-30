@@ -74,6 +74,8 @@ const getFileExtension = (type: ProjectFile['type']): string => {
       return '.instagram';
     case 'x':
       return '.x';
+    case 'markdown':
+      return '.md';
     default:
       return '.txt';
   }
