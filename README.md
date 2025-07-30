@@ -16,7 +16,7 @@
 
 [![Next.js](https://img.shields.io/badge/Next.js-15-000000?logo=next.js&logoColor=white&labelColor=101010)](https://nextjs.org/) [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white&labelColor=101010)](https://reactjs.org/) [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white&labelColor=101010)](https://www.typescriptlang.org/) [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white&labelColor=101010)](https://tailwindcss.com/) [![Zustand](https://img.shields.io/badge/Zustand-State_Management-FF6B35?logo=react&logoColor=white&labelColor=101010)](https://github.com/pmndrs/zustand) [![Convex](https://img.shields.io/badge/Convex-DB-FF6B35?logo=data%3Adownload&logoColor=white&labelColor=101010)](https://convex.dev/) [![Anthropic](https://img.shields.io/badge/Anthropic-Claude-FF6B35?logo=anthropic&logoColor=white&labelColor=101010)](https://anthropic.com/) [![pnpm](https://img.shields.io/badge/pnpm-Workspace-F69220?logo=pnpm&logoColor=white&labelColor=101010)](https://pnpm.io/)
 
-> An intelligent social media management platform powered by AI agents and advanced analytics. Built with Next.js, TypeScript, and Convex, EAC provides automated content creation, multi-platform posting, engagement analytics, and AI-driven insights through integrated Claude agents. The VS Code-inspired interface offers a familiar development environment for managing social media campaigns with sophisticated automation and real-time data synchronization.
+> An intelligent social media management platform powered by AI agents and advanced analytics. Built with Next.js, TypeScript, ShadCN, and Tailwind CSS, EAC provides automated content creation, multi-platform posting, engagement analytics, and AI-driven insights through integrated Claude agents. The VS Code-inspired interface offers a familiar development environment for managing social media campaigns with sophisticated automation and real-time data synchronization using Convex DB's reactive database.
 
 ## Features
 
@@ -99,7 +99,10 @@ EAC/
 |                           | WebSocket sync  | Live data synchronization across clients          |
 | **Social Platform APIs**  | Reddit API      | Content posting and engagement tracking           |
 |                           | X (Twitter) API | Social media automation and analytics             |
+|                           | Facebook Graph  | Page management and advertising integration       |
 |                           | Instagram Graph | Visual content management and insights            |
+|                           | LinkedIn API    | Professional networking and B2B content sharing   |
+|                           | TikTok API      | Short-form video content and trend analytics      |
 | **Development Tools**     | ESLint          | Code linting and formatting                       |
 |                           | Trunk           | Additional linting and security scanning          |
 |                           | pnpm workspace  | Monorepo package management                       |
