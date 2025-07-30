@@ -3,6 +3,7 @@
 
 "use client";
 
+import { useTrashSync } from "@/lib/hooks/useTrashSync";
 import { useUserSync } from "@/lib/hooks/useUserSync";
 import { initializeHistory } from "@/lib/initializeHistory";
 import { useSidebarStore } from "@/store";
@@ -25,6 +26,9 @@ export default function HomePage() {
   
   // Sync user data with Convex when authenticated
   useUserSync();
+  
+  // Sync trash items with database when authenticated
+  useTrashSync();
 
   // Initialize history logging on mount
   useEffect(() => {
