@@ -1,7 +1,7 @@
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 
-// Helper function to get current user ID from authentication context
-export async function getCurrentUserId(ctx: QueryCtx | MutationCtx) {
+// Helper function to get current user from authentication context
+export async function getCurrentUserOrThrow(ctx: QueryCtx | MutationCtx) {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) {
     throw new Error("Not authenticated");
@@ -14,7 +14,7 @@ export async function getCurrentUserId(ctx: QueryCtx | MutationCtx) {
     .first();
     
   if (user) {
-    return user._id;
+    return user;
   }
   
   // Fallback to email lookup for legacy users
@@ -24,11 +24,17 @@ export async function getCurrentUserId(ctx: QueryCtx | MutationCtx) {
       .withIndex("by_email", (q) => q.eq("email", identity.email!))
       .first();
     if (emailUser) {
-      return emailUser._id;
+      return emailUser;
     }
   }
   
   throw new Error("User not found in database. Please contact support.");
+}
+
+// Helper function to get current user ID from authentication context
+export async function getCurrentUserId(ctx: QueryCtx | MutationCtx) {
+  const user = await getCurrentUserOrThrow(ctx);
+  return user._id;
 }
 
 // Helper function to verify project ownership

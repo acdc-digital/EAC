@@ -25,19 +25,21 @@ export function useChat() {
   // Mutation to clear chat history
   const clearChatHistory = useMutation(api.chat.clearChatHistory);
   
-  const sendMessage = useCallback(async (content: string) => {
+  const sendMessage = useCallback(async (content: string, originalContent?: string) => {
     if (!content.trim() || isLoading) return;
     
     const trimmedContent = content.trim();
+    const originalTrimmedContent = originalContent?.trim();
     
-    // Handle local commands
-    if (isCommand(trimmedContent)) {
-      const { command } = parseCommand(trimmedContent);
+    // Handle local commands (check original content if provided)
+    const contentToCheck = originalTrimmedContent || trimmedContent;
+    if (isCommand(contentToCheck)) {
+      const { command } = parseCommand(contentToCheck);
       
-      // Store user command
+      // Store user command (store original content if provided)
       await storeChatMessage({
         role: "user",
-        content: trimmedContent,
+        content: originalTrimmedContent || trimmedContent,
         sessionId,
       });
       
@@ -65,6 +67,7 @@ export function useChat() {
     try {
       await sendChatMessage({
         content: trimmedContent,
+        originalContent: originalTrimmedContent,
         sessionId,
       });
     } catch (error) {

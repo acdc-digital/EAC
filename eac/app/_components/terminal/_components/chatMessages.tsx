@@ -8,6 +8,8 @@ import { useChat } from "@/lib/hooks/useChat";
 import { useInstructionContext, useInstructions } from "@/lib/hooks/useInstructions";
 import { useMCP } from "@/lib/hooks/useMCP";
 import { useAgentStore } from "@/store";
+import { useChatStore } from "@/store/terminal/chat";
+import { useUser } from "@clerk/nextjs";
 import React, { useEffect, useRef, useState } from "react";
 import { ToolsToggle } from "./toolsToggle";
 
@@ -20,6 +22,8 @@ export function ChatMessages() {
   const [selectedToolIndex, setSelectedToolIndex] = useState(-1);
   const [toolsMode, setToolsMode] = useState<'mcp' | 'agents'>('agents');
   
+  const { user, isLoaded } = useUser();
+  const { initializeUserSession } = useChatStore();
   const { messages, isLoading: chatLoading, sendMessage, sessionId, storeChatMessage } = useChat();
   const {
     isConnected: mcpConnected,
@@ -34,6 +38,13 @@ export function ChatMessages() {
   const instructionContext = useInstructionContext();
 
   const isLoading = chatLoading || mcpLoading;
+
+  // Initialize user-specific session when user is loaded
+  useEffect(() => {
+    if (isLoaded && user?.id) {
+      initializeUserSession(user.id);
+    }
+  }, [isLoaded, user?.id, initializeUserSession]);
 
   // Helper function to strip markdown formatting and convert to plain text
   const stripMarkdown = (text: string): string => {
@@ -89,13 +100,27 @@ export function ChatMessages() {
       return false;
     }
     
-    const mcpKeywords = [
-      'reddit', 'analyze', 'generate', 'optimize', 'workflow', 'integration',
-      'component', 'project', 'architecture', 'post', 'social'
+    // Skip simple greetings and short messages
+    const msg = input.toLowerCase().trim();
+    if (msg.length < 10 || 
+        ['hi', 'hello', 'hey', 'thanks', 'thank you', 'ok', 'okay', 'yes', 'no'].includes(msg) ||
+        msg.match(/^(hi|hello|hey|thanks?|ok|okay|yes|no)[!.?]*$/)) {
+      return false;
+    }
+
+    // Only trigger on very specific, explicit requests
+    const explicitMCPPatterns = [
+      /analyze.+(reddit|project|workflow|integration)/,
+      /generate.+(post|content|component)/,
+      /optimize.+(workflow|process)/,
+      /show.+(reddit|project|component|architecture)/,
+      /create.+(project|component).+/,
+      /reddit.+(analyze|post|integration)/
     ];
     
     const lowerInput = input.toLowerCase();
-    return mcpKeywords.some(keyword => lowerInput.includes(keyword)) ||
+    
+    return explicitMCPPatterns.some(pattern => pattern.test(lowerInput)) ||
            input.startsWith('/reddit') ||
            input.startsWith('/mcp') ||
            input.startsWith('/workflow');
@@ -229,7 +254,10 @@ export function ChatMessages() {
         if (instructionContext) {
           contextualMessage = `${instructionContext}\n\n---\n\n${messageContent}`;
         }
-        await sendMessage(contextualMessage);
+        
+        // Use the useChat hook which will call the sendChatMessage action
+        // We need to modify the useChat hook to support passing the original message
+        await sendMessage(contextualMessage, messageContent);
       }
     }
   };

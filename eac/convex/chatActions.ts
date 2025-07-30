@@ -12,7 +12,7 @@ const anthropic = new Anthropic({
 
 // MCP Intent Detection Helper
 function detectMCPIntent(message: string): { tool: string; confidence: number; params?: any } | null {
-  const msg = message.toLowerCase();
+  const msg = message.toLowerCase().trim();
 
   // Skip direct tool commands - these are handled by the terminal chat directly
   if (message.startsWith('/') && message.includes('eac_')) {
@@ -24,9 +24,15 @@ function detectMCPIntent(message: string): { tool: string; confidence: number; p
     return null;
   }
 
-  // Project creation triggers - be more specific to avoid false positives
-  if ((msg.includes("create") || msg.includes("new") || msg.includes("make")) && 
-      (msg.includes("project")) &&
+  // Skip simple greetings and short messages
+  if (msg.length < 10 || 
+      ['hi', 'hello', 'hey', 'thanks', 'thank you', 'ok', 'okay', 'yes', 'no'].includes(msg) ||
+      msg.match(/^(hi|hello|hey|thanks?|ok|okay|yes|no)[!.?]*$/)) {
+    return null;
+  }
+
+  // Project creation triggers - be very specific
+  if (msg.includes("create") && msg.includes("project") && msg.length > 15 &&
       !msg.includes("instruction") && // Exclude instruction creation
       !msg.includes("document") &&   // Exclude document creation
       !msg.includes("file")) {       // Exclude file creation
@@ -37,23 +43,27 @@ function detectMCPIntent(message: string): { tool: string; confidence: number; p
     };
   }
 
-  // Project analysis triggers
-  if (msg.includes("project") && (msg.includes("structure") || msg.includes("analyze") || msg.includes("overview"))) {
+  // Project analysis triggers - be very specific
+  if ((msg.includes("analyze") || msg.includes("structure") || msg.includes("overview")) && 
+      msg.includes("project") && msg.length > 15) {
     return { tool: "eac_project_analyze", confidence: 0.9 };
   }
 
-  // Component discovery triggers  
-  if (msg.includes("component") || msg.includes("dashboard") || (msg.includes("what") && msg.includes("ui"))) {
+  // Component discovery triggers - be very specific
+  if ((msg.includes("find") || msg.includes("show") || msg.includes("list")) &&
+      (msg.includes("component") || msg.includes("dashboard")) && msg.length > 15) {
     return { tool: "eac_component_finder", confidence: 0.8 };
   }
 
-  // Store analysis triggers
-  if (msg.includes("state") || msg.includes("store") || msg.includes("zustand")) {
+  // Store analysis triggers - be very specific
+  if ((msg.includes("analyze") || msg.includes("show") || msg.includes("inspect")) &&
+      (msg.includes("state") || msg.includes("store") || msg.includes("zustand")) && msg.length > 15) {
     return { tool: "eac_store_inspector", confidence: 0.8 };
   }
 
-  // Convex analysis triggers
-  if (msg.includes("convex") || msg.includes("database") || msg.includes("schema")) {
+  // Convex analysis triggers - be very specific
+  if ((msg.includes("analyze") || msg.includes("show") || msg.includes("inspect")) &&
+      (msg.includes("convex") || msg.includes("database") || msg.includes("schema")) && msg.length > 15) {
     return { tool: "eac_convex_analyzer", confidence: 0.8 };
   }
 
@@ -77,21 +87,23 @@ function detectMCPIntent(message: string): { tool: string; confidence: number; p
 export const sendChatMessage = action({
   args: {
     content: v.string(),
+    originalContent: v.optional(v.string()), // Add this to check only the user's original message for MCP intent
     sessionId: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<any> => {
     try {
-      // Store the user message first
+      // Store the user message first (store the original content, not the contextual one)
       await ctx.runMutation(api.chat.storeChatMessage, {
         role: "user",
-        content: args.content,
+        content: args.originalContent || args.content,
         sessionId: args.sessionId,
       });
 
-      // Check if message requires MCP analysis
-      const mcpIntent = detectMCPIntent(args.content);
+      // Check if message requires MCP analysis - use ONLY the original user message
+      const messageForMCPDetection = args.originalContent || args.content;
+      const mcpIntent = detectMCPIntent(messageForMCPDetection);
       
-      if (mcpIntent && mcpIntent.confidence > 0.7) {
+      if (mcpIntent && mcpIntent.confidence > 0.85) {
         // Handle project creation directly here
         if (mcpIntent.tool === "eac_project_creator") {
           try {

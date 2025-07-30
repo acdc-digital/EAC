@@ -62,27 +62,21 @@ export function DashAgents() {
             
             return (
               <div key={agent.id} className="rounded bg-[#1e1e1e] border border-[#2d2d2d]">
-                {/* Agent Header - Clickable for activation */}
+                {/* Agent Header - Clickable for expansion */}
                 <div
                   className={cn(
                     "flex items-center gap-2 p-2 cursor-pointer transition-colors hover:bg-[#2d2d2d]/30",
                     isActive && "bg-[#2d2d2d]/50"
                   )}
-                  onClick={() => handleAgentSelect(agent.id)}
+                  onClick={() => toggleAgentDetails(agent.id)}
                 >
                   {/* Expand/Collapse Button */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleAgentDetails(agent.id);
-                    }}
-                    className="hover:bg-[#2d2d2d] rounded p-0.5"
-                  >
+                  <div className="hover:bg-[#2d2d2d] rounded p-0.5">
                     {isExpanded ?
                       <ChevronDown className="w-3.5 h-3.5 text-[#858585]" /> :
                       <ChevronRight className="w-3.5 h-3.5 text-[#858585]" />
                     }
-                  </button>
+                  </div>
 
                   {/* Agent Icon */}
                   <div className="flex-shrink-0 text-sm text-[#858585]">
@@ -106,14 +100,21 @@ export function DashAgents() {
                     {agent.name}
                   </span>
 
-                  {/* Status Indicators */}
-                  <div className="flex items-center gap-1">
+                  {/* Status Indicators - Clickable for agent activation */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAgentSelect(agent.id);
+                    }}
+                    className="flex items-center gap-1 hover:bg-[#2d2d2d] rounded p-1 transition-colors"
+                    title={isActive ? "Deactivate agent" : "Activate agent"}
+                  >
                     {isActive ? (
                       <CheckCircle className="w-3.5 h-3.5 text-[#007acc]" />
                     ) : (
                       <Circle className="w-3.5 h-3.5 text-[#585858]" />
                     )}
-                  </div>
+                  </button>
                 </div>
                 
                 {/* Expanded Details */}

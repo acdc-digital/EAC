@@ -10,11 +10,11 @@ import { Label } from "@/components/ui/label";
 import { api } from "@/convex/_generated/api";
 import { useSocialConnectionSync } from "@/lib/hooks/useSocialConnectionSync";
 import { useMutation } from "convex/react";
-import { AlertCircle, CheckCircle, Facebook, Instagram, MessageSquare, Twitter } from "lucide-react";
+import { AlertCircle, CheckCircle, Facebook, Instagram, Linkedin, MessageSquare, Music, Twitter } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface SocialAccount {
-  platform: 'facebook' | 'instagram' | 'twitter' | 'reddit';
+  platform: 'facebook' | 'instagram' | 'twitter' | 'reddit' | 'linkedin' | 'tiktok';
   username: string;
   connected: boolean;
   lastSync?: Date;
@@ -24,7 +24,7 @@ interface SocialAccount {
 
 interface SocialConnection {
   _id: string;
-  platform: 'facebook' | 'instagram' | 'twitter' | 'reddit';
+  platform: 'facebook' | 'instagram' | 'twitter' | 'reddit' | 'linkedin' | 'tiktok';
   username: string;
   userId: string;
   clientId?: string;
@@ -39,6 +39,8 @@ type SocialFormData = {
   instagram: { username: string; apiKey: string; accessToken: string };
   twitter: { username: string; clientId: string; clientSecret: string; apiTier: string };
   reddit: { username: string; clientId: string; clientSecret: string; userAgent: string };
+  linkedin: { username: string; clientId: string; clientSecret: string; accessToken: string };
+  tiktok: { username: string; clientKey: string; clientSecret: string; accessToken: string };
 };
 
 export function SocialConnectors() {
@@ -59,6 +61,8 @@ export function SocialConnectors() {
     { platform: 'instagram', username: '', connected: false },
     { platform: 'twitter', username: '', connected: false },
     { platform: 'reddit', username: '', connected: false },
+    { platform: 'linkedin', username: '', connected: false },
+    { platform: 'tiktok', username: '', connected: false },
   ]);
 
   // Handle OAuth callback success
@@ -86,6 +90,8 @@ export function SocialConnectors() {
     instagram: { username: '', apiKey: '', accessToken: '' },
     twitter: { username: '', clientId: '', clientSecret: '', apiTier: 'free' },
     reddit: { username: '', clientId: '', clientSecret: '', userAgent: '' },
+    linkedin: { username: '', clientId: '', clientSecret: '', accessToken: '' },
+    tiktok: { username: '', clientKey: '', clientSecret: '', accessToken: '' },
   });
 
   const platformIcons = {
@@ -93,6 +99,8 @@ export function SocialConnectors() {
     instagram: Instagram,
     twitter: Twitter,
     reddit: MessageSquare,
+    linkedin: Linkedin,
+    tiktok: Music,
   };
 
   const platformNames = {
@@ -100,6 +108,8 @@ export function SocialConnectors() {
     instagram: 'Instagram',
     twitter: 'X (Twitter)',
     reddit: 'Reddit',
+    linkedin: 'LinkedIn',
+    tiktok: 'TikTok',
   };
 
   const handleConnect = async (platform: keyof typeof formData) => {
@@ -174,6 +184,26 @@ export function SocialConnectors() {
       } finally {
         setIsConnecting(false);
       }
+    } else if (platform === 'linkedin') {
+      // Placeholder for LinkedIn connection - backend to be implemented
+      console.log('LinkedIn connection will be implemented with backend');
+      setAccounts(prev =>
+        prev.map(acc =>
+          acc.platform === platform
+            ? { ...acc, connected: true, username: formData[platform].username, lastSync: new Date() }
+            : acc
+        )
+      );
+    } else if (platform === 'tiktok') {
+      // Placeholder for TikTok connection - backend to be implemented
+      console.log('TikTok connection will be implemented with backend');
+      setAccounts(prev =>
+        prev.map(acc =>
+          acc.platform === platform
+            ? { ...acc, connected: true, username: formData[platform].username, lastSync: new Date() }
+            : acc
+        )
+      );
     } else {
       // Simulate connection for other platforms
       setAccounts(prev =>
@@ -278,6 +308,12 @@ export function SocialConnectors() {
           await disconnectSocialConnection({ connectionId: connection._id });
         } else if (platform === 'twitter') {
           await disconnectXConnection({ connectionId: connection._id });
+        } else if (platform === 'linkedin') {
+          // Placeholder for LinkedIn disconnect - backend to be implemented
+          console.log('LinkedIn disconnect will be implemented with backend');
+        } else if (platform === 'tiktok') {
+          // Placeholder for TikTok disconnect - backend to be implemented
+          console.log('TikTok disconnect will be implemented with backend');
         }
         
         // Clear the form data for the platform
@@ -287,6 +323,10 @@ export function SocialConnectors() {
             ? { username: '', clientId: '', clientSecret: '', userAgent: '' }
             : platform === 'twitter'
             ? { username: '', clientId: '', clientSecret: '', apiTier: 'free' }
+            : platform === 'linkedin'
+            ? { username: '', clientId: '', clientSecret: '', accessToken: '' }
+            : platform === 'tiktok'
+            ? { username: '', clientKey: '', clientSecret: '', accessToken: '' }
             : prev[platform]
         }));
         
@@ -572,6 +612,88 @@ export function SocialConnectors() {
                           <p className="text-xs text-[#888] mt-1">
                             Select your X API subscription tier for rate limiting
                           </p>
+                        </div>
+                      </>
+                    ) : platform === 'linkedin' ? (
+                      <>
+                        <div>
+                          <Label htmlFor={`${platform}-client-id`} className="text-sm text-[#cccccc]">
+                            Client ID
+                          </Label>
+                          <Input
+                            id={`${platform}-client-id`}
+                            value={(data as { clientId: string }).clientId}
+                            onChange={(e) => updateFormData(typedPlatform, 'clientId', e.target.value)}
+                            placeholder="LinkedIn App Client ID"
+                            className="mt-1 bg-[#1e1e1e] border-[#454545] text-[#cccccc]"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor={`${platform}-client-secret`} className="text-sm text-[#cccccc]">
+                            Client Secret
+                          </Label>
+                          <Input
+                            id={`${platform}-client-secret`}
+                            type="password"
+                            value={(data as { clientSecret: string }).clientSecret}
+                            onChange={(e) => updateFormData(typedPlatform, 'clientSecret', e.target.value)}
+                            placeholder="LinkedIn App Client Secret"
+                            className="mt-1 bg-[#1e1e1e] border-[#454545] text-[#cccccc]"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor={`${platform}-access-token`} className="text-sm text-[#cccccc]">
+                            Access Token
+                          </Label>
+                          <Input
+                            id={`${platform}-access-token`}
+                            type="password"
+                            value={(data as { accessToken: string }).accessToken}
+                            onChange={(e) => updateFormData(typedPlatform, 'accessToken', e.target.value)}
+                            placeholder="LinkedIn Access Token"
+                            className="mt-1 bg-[#1e1e1e] border-[#454545] text-[#cccccc]"
+                          />
+                        </div>
+                      </>
+                    ) : platform === 'tiktok' ? (
+                      <>
+                        <div>
+                          <Label htmlFor={`${platform}-client-key`} className="text-sm text-[#cccccc]">
+                            Client Key
+                          </Label>
+                          <Input
+                            id={`${platform}-client-key`}
+                            value={(data as { clientKey: string }).clientKey}
+                            onChange={(e) => updateFormData(typedPlatform, 'clientKey', e.target.value)}
+                            placeholder="TikTok App Client Key"
+                            className="mt-1 bg-[#1e1e1e] border-[#454545] text-[#cccccc]"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor={`${platform}-client-secret`} className="text-sm text-[#cccccc]">
+                            Client Secret
+                          </Label>
+                          <Input
+                            id={`${platform}-client-secret`}
+                            type="password"
+                            value={(data as { clientSecret: string }).clientSecret}
+                            onChange={(e) => updateFormData(typedPlatform, 'clientSecret', e.target.value)}
+                            placeholder="TikTok App Client Secret"
+                            className="mt-1 bg-[#1e1e1e] border-[#454545] text-[#cccccc]"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor={`${platform}-access-token`} className="text-sm text-[#cccccc]">
+                            Access Token
+                          </Label>
+                          <Input
+                            id={`${platform}-access-token`}
+                            type="password"
+                            value={(data as { accessToken: string }).accessToken}
+                            onChange={(e) => updateFormData(typedPlatform, 'accessToken', e.target.value)}
+                            placeholder="TikTok Access Token"
+                            className="mt-1 bg-[#1e1e1e] border-[#454545] text-[#cccccc]"
+                          />
                         </div>
                       </>
                     ) : (

@@ -14,9 +14,12 @@ export default defineSchema({
     role: v.union(v.literal("user"), v.literal("assistant"), v.literal("system")),
     content: v.string(),
     sessionId: v.optional(v.string()),
+    userId: v.optional(v.union(v.string(), v.id("users"))), // Associate messages with users
     createdAt: v.number(),
   }).index("by_created_at", ["createdAt"])
-    .index("by_session", ["sessionId", "createdAt"]),
+    .index("by_session", ["sessionId", "createdAt"])
+    .index("by_user", ["userId", "createdAt"])
+    .index("by_user_session", ["userId", "sessionId", "createdAt"]),
   
   // Add more tables as needed for your EAC dashboard
   projects: defineTable({
