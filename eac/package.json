@@ -4,9 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:convex": "npx convex dev",
+    "dev:new": "rm -f .env.local && npx convex dev --configure=new",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "convex:dev": "npx convex dev",
+    "convex:deploy": "npx convex deploy",
+    "convex:dashboard": "npx convex dashboard"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.27.1",

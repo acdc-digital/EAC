@@ -5,16 +5,16 @@
   "description": "EAC Financial Dashboard - Project Management & Analytics",
   "workspaces": [
     "eac",
-    "convex"
+    "mcp-server"
   ],
   "scripts": {
     "dev": "cd eac && pnpm dev",
     "build": "cd eac && pnpm build",
     "start": "cd eac && pnpm start",
     "lint": "cd eac && pnpm lint",
-    "convex:dev": "cd convex && npx convex dev --env-file ../.env.local",
-    "convex:deploy": "cd convex && npx convex deploy --env-file ../.env.local",
-    "convex:dashboard": "cd convex && npx convex dashboard --env-file ../.env.local",
+    "convex:dev": "cd eac && npx convex dev",
+    "convex:deploy": "cd eac && npx convex deploy",
+    "convex:dashboard": "cd eac && npx convex dashboard",
     "install:all": "pnpm install --recursive",
     "clean": "pnpm --recursive --parallel run clean"
   },

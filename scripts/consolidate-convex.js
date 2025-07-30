@@ -125,7 +125,7 @@ async function updateEnvironmentFiles() {
   console.log(`EAC env deployment:`, eacEnv?.match(/CONVEX_DEPLOYMENT=([^\s]+)/)?.[1] || 'Not found');
   
   // For now, keep the EAC deployment as it's in production
-  console.log(`✅ Keeping EAC deployment configuration (prod:calm-akita-97)`);
+  console.log(`✅ Keeping EAC deployment configuration (dev:pleasant-grouse-284)`);
   
   // Remove root env files to avoid confusion
   try {

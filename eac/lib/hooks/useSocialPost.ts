@@ -1,6 +1,6 @@
+import { api } from "@/convex/_generated/api";
 import { useMutation, useQuery } from "convex/react";
 import { useCallback, useMemo, useRef } from "react";
-import { api } from "../../convex/_generated/api";
 
 export type PostStatus = 'draft' | 'scheduled' | 'posting' | 'posted' | 'failed';
 

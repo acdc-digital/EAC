@@ -8,6 +8,9 @@ node_modules/
 !.yarn/releases
 !.yarn/versions
 
+# Convex (should only be in eac/ subdirectory)
+/convex/
+
 # pnpm
 .pnpm-store/
 # Keep pnpm-lock.yaml for reproducible builds

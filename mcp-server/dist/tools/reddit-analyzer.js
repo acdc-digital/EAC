@@ -39,8 +39,8 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.EACRedditAnalyzer = void 0;
 const fs = __importStar(require("fs/promises"));
-const path = __importStar(require("path"));
 const glob_1 = require("glob");
+const path = __importStar(require("path"));
 class EACRedditAnalyzer {
     projectRoot;
     constructor(projectRoot) {

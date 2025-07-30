@@ -8,14 +8,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const index_js_1 = require("@modelcontextprotocol/sdk/server/index.js");
 const stdio_js_1 = require("@modelcontextprotocol/sdk/server/stdio.js");
 const types_js_1 = require("@modelcontextprotocol/sdk/types.js");
-const project_analyzer_js_1 = require("./tools/project-analyzer.js");
-const component_finder_js_1 = require("./tools/component-finder.js");
-const store_inspector_js_1 = require("./tools/store-inspector.js");
-const convex_analyzer_js_1 = require("./tools/convex-analyzer.js");
 const code_generator_js_1 = require("./tools/code-generator.js");
+const component_finder_js_1 = require("./tools/component-finder.js");
+const convex_analyzer_js_1 = require("./tools/convex-analyzer.js");
+const project_analyzer_js_1 = require("./tools/project-analyzer.js");
 const reddit_analyzer_js_1 = require("./tools/reddit-analyzer.js");
 const reddit_post_generator_js_1 = require("./tools/reddit-post-generator.js");
 const social_workflow_optimizer_js_1 = require("./tools/social-workflow-optimizer.js");
+const store_inspector_js_1 = require("./tools/store-inspector.js");
 class EACMCPServer {
     server;
     projectAnalyzer;

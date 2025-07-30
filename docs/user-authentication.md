@@ -93,7 +93,7 @@ NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_*
 CLERK_SECRET_KEY=sk_test_*
 NEXT_PUBLIC_CLERK_FRONTEND_API_URL=https://delicate-man-63.clerk.accounts.dev
 CLERK_JWT_ISSUER_DOMAIN=https://delicate-man-63.clerk.accounts.dev
-NEXT_PUBLIC_CONVEX_URL=https://calm-akita-97.convex.cloud
+NEXT_PUBLIC_CONVEX_URL=https://pleasant-grouse-284.convex.cloud
 ```
 
 ### 2. Clerk JWT Template Configuration

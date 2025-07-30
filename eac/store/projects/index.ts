@@ -1,4 +1,4 @@
-import { Id } from "@/../../convex/_generated/dataModel";
+import { Id } from "@/convex/_generated/dataModel";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import type {

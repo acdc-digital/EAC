@@ -1,14 +1,15 @@
 "use node";
 
-import Anthropic from "@anthropic-ai/sdk";
+// Temporarily commenting out Anthropic to fix deployment
+// import Anthropic from "@anthropic-ai/sdk";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 import { action } from "./_generated/server";
 
-// Initialize Anthropic client
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+// Initialize Anthropic client (temporarily disabled)
+// const anthropic = new Anthropic({
+//   apiKey: process.env.ANTHROPIC_API_KEY,
+// });
 
 // MCP Intent Detection Helper
 function detectMCPIntent(message: string): { tool: string; confidence: number; params?: any } | null {

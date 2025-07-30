@@ -1,9 +1,9 @@
 // X/Twitter Posts Store (Zustand)
 // /Users/matthewsimon/Projects/eac/eac/store/social/xPosts.ts
 
+import type { Id } from '@/convex/_generated/dataModel';
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
-import type { Id } from '../../../convex/_generated/dataModel';
 
 export interface XPostFormData {
   text: string;

@@ -155,7 +155,7 @@ export function ConvexDebug() {
             <div>Convex URL: {process.env.NEXT_PUBLIC_CONVEX_URL ? '✅ Set' : '❌ Missing'}</div>
             <div>Node Env: {process.env.NODE_ENV}</div>
             <div>User ID: {currentUserId}</div>
-            <div>Deployment: prod:calm-akita-97</div>
+            <div>Deployment: dev:pleasant-grouse-284</div>
           </div>
         </div>
 
