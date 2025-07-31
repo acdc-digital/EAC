@@ -5,8 +5,8 @@
 
 import { Button } from "@/components/ui/button";
 import { useEditorStore } from "@/store/editor";
-import { SignInButton, useUser } from "@clerk/nextjs";
-import { Authenticated, Unauthenticated } from "convex/react";
+import { useUser } from "@clerk/nextjs";
+import { Authenticated, Unauthenticated, useConvexAuth } from "convex/react";
 import {
   Bot,
   Bug,
@@ -25,8 +25,9 @@ interface ActivityBarProps {
 }
 
 export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps) {
-  const { openSpecialTab } = useEditorStore();
+  const { openSpecialTab, activeTab, openTabs } = useEditorStore();
   const { user } = useUser();
+  const { isAuthenticated } = useConvexAuth();
 
   // Get the first letter of user's name (fallback to 'U')
   const getUserInitial = () => {
@@ -46,6 +47,9 @@ export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps
     return 'U';
   };
 
+  // Show the activity indicator based on what was last clicked by the user
+  const effectiveActivePanel = activePanel;
+
   const activityItems = [
     { id: "explorer", icon: FileText, label: "Explorer" },
     { id: "social-connectors", icon: Contact, label: "Social Media Connectors" },
@@ -64,24 +68,24 @@ export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps
       return;
     }
     
-    // For social connectors and file editor, open tabs directly
+    // For social connectors and file editor, open tabs and set panel indicator
     if (id === 'social-connectors') {
       openSpecialTab('social-connectors', 'Social Media Connectors', 'social-connect');
-      onPanelChange('explorer'); // Reset to explorer panel
+      onPanelChange('social-connectors'); // Set indicator to social-connectors button
       return;
     }
     if (id === 'file-editor') {
       openSpecialTab('file-editor', 'File Editor', 'post-creator');
-      onPanelChange('explorer'); // Reset to explorer panel
+      onPanelChange('file-editor'); // Set indicator to file-editor button
       return;
     }
     if (id === 'calendar') {
       openSpecialTab('calendar', 'Content Calendar', 'calendar');
-      onPanelChange('explorer'); // Reset to explorer panel
+      onPanelChange('calendar'); // Set indicator to calendar button
       return;
     }
     
-    // For other panels, toggle sidebar visibility
+    // For other panels, change sidebar panel
     onPanelChange(id);
   };
 
@@ -91,40 +95,52 @@ export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps
       <div className="flex flex-col items-center py-2 space-y-1">
         {activityItems.map((item) => {
           const Icon = item.icon;
-          const isActive = activePanel === item.id;
+          const isActive = effectiveActivePanel === item.id;
           
           // Special handling for profile icon
           if (item.id === 'profile') {
             return (
               <div key={item.id}>
                 <Unauthenticated>
-                  <SignInButton mode="modal">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="w-11 h-11 rounded-none hover:bg-[#2d2d2d] border-l-2 border-transparent"
-                      title="Sign In"
-                    >
-                      <Icon className="w-5 h-5 text-[#858585]" />
-                    </Button>
-                  </SignInButton>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`w-9 h-9 rounded-none hover:bg-[#2d2d2d] relative z-[60] ${
+                      effectiveActivePanel === 'profile'
+                        ? 'bg-[#2d2d2d] border-l-2 border-[#007acc]'
+                        : 'border-l-2 border-transparent'
+                    }`}
+                    title="Sign In"
+                    onClick={() => {
+                      openSpecialTab('sign-in', 'Sign In', 'sign-in');
+                      onPanelChange('profile'); // Set to profile panel to show indicator
+                    }}
+                  >
+                    <div className={`w-6 h-6 rounded-full border flex items-center justify-center text-xs font-medium transition-colors ${
+                      effectiveActivePanel === 'profile'
+                        ? 'border-white text-white bg-white/20'
+                        : 'border-white text-white bg-white/10 hover:bg-white/20'
+                    }`}>
+                      U
+                    </div>
+                  </Button>
                 </Unauthenticated>
                 <Authenticated>
                   <button
-                    className={`w-11 h-11 rounded-none hover:bg-[#2d2d2d] flex items-center justify-center cursor-pointer ${
-                      activePanel === 'profile'
+                    className={`w-9 h-9 rounded-none hover:bg-[#2d2d2d] flex items-center justify-center cursor-pointer ${
+                      effectiveActivePanel === 'profile'
                         ? 'bg-[#2d2d2d] border-l-2 border-[#007acc]'
                         : 'border-l-2 border-transparent'
                     }`}
                     onClick={() => {
                       openSpecialTab('user-profile', 'User Profile', 'user-profile');
-                      onPanelChange('explorer'); // Reset to explorer panel
+                      onPanelChange('profile'); // Set to profile panel to show indicator
                     }}
                     title="User Profile"
                   >
                     <div
                       className={`w-6 h-6 rounded-full border flex items-center justify-center text-xs font-medium ${
-                        activePanel === 'profile'
+                        effectiveActivePanel === 'profile'
                           ? 'border-[#cccccc] text-[#cccccc]'
                           : 'border-[#858585] text-[#858585]'
                       }`}
@@ -143,14 +159,16 @@ export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps
               variant="ghost"
               size="icon"
               onClick={() => handleActivityClick(item.id)}
+              disabled={!isAuthenticated} // Disable when not authenticated
               className={`
                 w-9 h-9 rounded-none hover:bg-[#2d2d2d] relative
                 ${isActive 
                   ? 'bg-[#2d2d2d] border-l-2 border-[#007acc]' 
                   : 'border-l-2 border-transparent'
                 }
+                ${!isAuthenticated ? 'opacity-50 cursor-not-allowed' : ''}
               `}
-              title={item.label}
+              title={isAuthenticated ? item.label : 'Sign in to access'}
             >
               <Icon 
                 className={`w-5 h-5 ${
@@ -167,8 +185,9 @@ export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps
         <Button
           variant="ghost"
           size="icon"
-          className="w-11 h-11 rounded-none hover:bg-[#2d2d2d]"
-          title="Settings"
+          disabled={!isAuthenticated} // Disable when not authenticated
+          className={`w-11 h-11 rounded-none hover:bg-[#2d2d2d] ${!isAuthenticated ? 'opacity-50 cursor-not-allowed' : ''}`}
+          title={isAuthenticated ? "Settings" : "Sign in to access"}
         >
           <Settings className="w-5 h-5 text-[#858585]" />
         </Button>

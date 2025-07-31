@@ -9,27 +9,37 @@ import { useProjects } from "@/lib/hooks/useProjects";
 import { useProjectSync } from "@/lib/hooks/useProjectSync";
 import { clearAllPersistedState, performFullSync } from "@/lib/utils/stateSync";
 import { useEditorStore } from "@/store";
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import {
-  Activity,
-  AtSign,
-  CheckCircle,
-  ChevronDown,
-  ChevronRight,
-  Clock,
-  Database,
-  Eye,
-  FileText,
-  Hash,
-  Settings2,
-  Terminal,
-  Wifi,
-  XCircle
+    Activity,
+    AtSign,
+    CheckCircle,
+    ChevronDown,
+    ChevronRight,
+    Clock,
+    Database,
+    Eye,
+    FileText,
+    Hash,
+    Settings2,
+    Terminal,
+    Wifi,
+    XCircle
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export function DashDebug() {
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['storage']));
+  const { isAuthenticated } = useConvexAuth();
+  const [isExpanded, setIsExpanded] = useState({
+    state: false,
+    actions: false,
+    projects: false,
+    files: false,
+    socialPosts: false,
+    messages: false,
+    connectionTests: false,
+  });
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [connectionTests, setConnectionTests] = useState<{[key: string]: 'idle' | 'loading' | 'success' | 'error'}>({});
   const [currentHost, setCurrentHost] = useState<string>('localhost:3000');
   const [convexDebugUser] = useState('debug-user-' + Date.now());
@@ -45,10 +55,19 @@ export function DashDebug() {
   const { projects: convexProjects, error: projectsError } = useProjects();
   const { syncStatus, isLoading: isSyncLoading, error: syncError } = useProjectSync();
 
-  // Convex queries for debugging
-  const convexProjectsQuery = useQuery(api.projects.getProjects, {});
-  const convexSocialPosts = useQuery(api.socialPosts.getAllPosts, {});
-  const convexMessages = useQuery(api.messages.getMessages, {});
+  // Convex queries for debugging - only when authenticated
+  const convexProjectsQuery = useQuery(
+    api.projects.getProjects, 
+    isAuthenticated ? {} : "skip"
+  );
+  const convexSocialPosts = useQuery(
+    api.socialPosts.getAllPosts, 
+    isAuthenticated ? {} : "skip"
+  );
+  const convexMessages = useQuery(
+    api.messages.getMessages, 
+    isAuthenticated ? {} : "skip"
+  );
 
   // Convex mutations for testing
   const createTestProject = useMutation(api.projects.createProject);

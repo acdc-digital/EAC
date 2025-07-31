@@ -5,6 +5,7 @@
 
 import { ResizablePanel } from "@/components/ui/resizable";
 import { useTerminalStore } from "@/store/terminal";
+import { useConvexAuth } from "convex/react";
 import { AlertCircle, ChevronDown, ChevronUp, History, Settings, Terminal as TerminalIcon } from "lucide-react";
 import { useState } from "react";
 import { ChatMessages } from "./_components";
@@ -16,6 +17,7 @@ export function Terminal() {
     toggleCollapse, 
     setSize 
   } = useTerminalStore();
+  const { isAuthenticated } = useConvexAuth();
   
   const [activeTab, setActiveTab] = useState("terminal");
 
@@ -44,8 +46,18 @@ export function Terminal() {
           <div className="flex items-center">
             <div className="h-[25px] bg-transparent rounded-none border-none justify-start p-0 flex items-center">
               <button
-                className={`rounded-none text-xs h-[25px] ${!isCollapsed && activeTab === 'terminal' ? 'bg-[#0e639c] text-white' : 'bg-transparent text-white'} hover:bg-[#ffffff20] px-3 min-w-[70px] flex items-center justify-center ${isCollapsed ? 'cursor-pointer' : ''}`}
+                className={`rounded-none text-xs h-[25px] px-3 min-w-[70px] flex items-center justify-center ${
+                  !isCollapsed && activeTab === 'terminal' 
+                    ? 'bg-[#0e639c] text-white' 
+                    : 'bg-transparent text-white'
+                } ${
+                  isAuthenticated 
+                    ? 'hover:bg-[#ffffff20] cursor-pointer' 
+                    : 'opacity-60 cursor-default pointer-events-none'
+                }`}
                 onClick={() => {
+                  if (!isAuthenticated) return;
+                  
                   // Handle terminal tab click behavior
                   if (isCollapsed) {
                     // If collapsed, expand and set as active tab
@@ -59,13 +71,17 @@ export function Terminal() {
                     setActiveTab("terminal");
                   }
                 }}
+                disabled={!isAuthenticated}
+                title={isAuthenticated ? "Terminal" : ""}
               >
                 <TerminalIcon className="w-3 h-3 mr-1" />
                 Terminal
               </button>
               <button
-                className={`rounded-none text-xs h-[25px] ${!isCollapsed && activeTab === 'history' ? 'bg-[#094771] text-white' : 'bg-transparent text-white'} hover:bg-[#ffffff20] px-3 min-w-[70px] flex items-center justify-center ${isCollapsed ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`rounded-none text-xs h-[25px] ${!isCollapsed && activeTab === 'history' ? 'bg-[#094771] text-white' : 'bg-transparent text-white'} ${isAuthenticated && !isCollapsed ? 'hover:bg-[#ffffff20] cursor-pointer' : 'opacity-60 cursor-default'} px-3 min-w-[70px] flex items-center justify-center`}
                 onClick={() => {
+                  if (!isAuthenticated) return;
+                  
                   // Only handle history tab click if terminal is expanded
                   if (!isCollapsed) {
                     if (activeTab === 'history') {
@@ -78,7 +94,8 @@ export function Terminal() {
                   }
                   // If collapsed, do nothing - don't expand the terminal
                 }}
-                disabled={isCollapsed}
+                disabled={!isAuthenticated || isCollapsed}
+                title={isAuthenticated ? "History" : ""}
               >
                 <History className="w-3 h-3 mr-1" />
                 History
@@ -103,8 +120,12 @@ export function Terminal() {
           {/* Collapse/Expand Button */}
           <button
             onClick={toggleCollapse}
-            className="w-5 h-5 hover:bg-[#ffffff20] rounded-sm flex items-center justify-center transition-colors mr-3 cursor-pointer"
+            disabled={!isAuthenticated}
+            className={`w-5 h-5 hover:bg-[#ffffff20] rounded-sm flex items-center justify-center transition-colors mr-3 cursor-pointer ${
+              !isAuthenticated ? 'opacity-30 cursor-not-allowed' : ''
+            }`}
             aria-label={isCollapsed ? "Expand terminal" : "Collapse terminal"}
+            title={isAuthenticated ? (isCollapsed ? "Expand terminal" : "Collapse terminal") : "Sign in to access terminal"}
           >
             {isCollapsed ? (
               <ChevronUp className="w-2.5 h-2.5 text-white font-bold stroke-2" />

@@ -1,3 +1,4 @@
+import { AuthWatcher } from "@/components/auth-watcher";
 import { ConvexClientProvider } from "@/components/convex-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ClerkProvider } from '@clerk/nextjs';
@@ -28,6 +29,7 @@ export default function RootLayout({
               enableSystem
               disableTransitionOnChange
             >
+              <AuthWatcher />
               {children}
             </ThemeProvider>
           </ConvexClientProvider>

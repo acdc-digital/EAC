@@ -13,9 +13,15 @@ import { useEffect } from 'react';
 export function useInstructions() {
   const { isSignedIn } = useAuth();
   
-  // Queries
-  const instructionsProject = useQuery(api.projects.getInstructionsProject, {});
-  const instructionFiles = useQuery(api.files.getInstructionFiles, {});
+  // Queries - only run when user is signed in
+  const instructionsProject = useQuery(
+    api.projects.getInstructionsProject, 
+    isSignedIn ? {} : "skip"
+  );
+  const instructionFiles = useQuery(
+    api.files.getInstructionFiles, 
+    isSignedIn && instructionsProject ? {} : "skip"
+  );
   
   // Mutations
   const ensureInstructionsProject = useMutation(api.projects.ensureInstructionsProject);

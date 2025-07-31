@@ -6,29 +6,31 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Id } from "@/convex/_generated/dataModel";
 import { useFiles } from "@/lib/hooks/useFiles";
+import { useInstructions } from "@/lib/hooks/useInstructions";
 import { useProjects } from "@/lib/hooks/useProjects";
 import { useProjectSync } from "@/lib/hooks/useProjectSync";
 import { useEditorStore, useSidebarStore } from "@/store";
+import { useConvexAuth } from "convex/react";
 // TODO: Re-enable once files have Convex IDs
 // import { useMutation } from "convex/react";
 // import { api } from "@/convex/_generated/api";
 import {
-  AtSign,
-  Braces,
-  Camera,
-  ChevronDown,
-  ChevronRight,
-  ChevronsDown,
-  FileCode,
-  FileSpreadsheet,
-  FileText,
-  FileType,
-  Folder,
-  GripVertical,
-  MessageSquare,
-  Pin,
-  Plus,
-  X
+    AtSign,
+    Braces,
+    Camera,
+    ChevronDown,
+    ChevronRight,
+    ChevronsDown,
+    FileCode,
+    FileSpreadsheet,
+    FileText,
+    FileType,
+    Folder,
+    GripVertical,
+    MessageSquare,
+    Pin,
+    Plus,
+    X
 } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
 import { DashAgents } from "./dashAgents";
@@ -37,12 +39,12 @@ import { DashTrash } from "./dashTrash";
 
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog";
 import { FileCreationDropdown } from "./_components/fileCreationDropdown";
 
@@ -55,13 +57,17 @@ export function DashSidebar({ activePanel }: SidebarProps) {
   const { projectFiles, financialFiles, projectFolders, showProjectsCategory, showFinancialCategory, openTab, openSpecialTab, renameFile, renameFolder, createFolder, deleteProjectsCategory, deleteFinancialCategory, reorderProjectFolders, reorderFilesInFolder, closeAllTabs, moveToTrash } = useEditorStore();
   const { createProject, deleteProject } = useProjects();
   const { deleteFile } = useFiles(null); // We'll get file-specific functions as needed
-  
+  const { isAuthenticated } = useConvexAuth();
+
+  // Initialize Instructions project for authenticated users
+  const { instructionsProject, instructionFiles } = useInstructions();
+
   // Initialize project synchronization between Convex and Zustand
   useProjectSync();
-  
+
   // TODO: Re-enable once files have Convex IDs
   // const deleteFile = useMutation(api.files.deleteFile);
-  
+
   const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean; fileId: string; fileName: string }>({
     isOpen: false,
     fileId: '',
@@ -94,7 +100,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
         // First move to local trash
         moveToTrash(file, 'file');
         console.log(`📁 File "${file.name}" moved to local trash`);
-        
+
         // If file has a convex ID, also move to database trash
         if (file.convexId) {
           try {
@@ -165,7 +171,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
   const handleFolderNameSubmit = async () => {
     if (newFolderName.trim()) {
       setIsCreatingProject(true);
-      
+
       try {
         // First create the project in the Convex database
         const newProject = await createProject({
@@ -174,12 +180,12 @@ export function DashSidebar({ activePanel }: SidebarProps) {
           // You can add userId here if you have user context
           // userId: currentUser?.id,
         });
-        
+
         console.log('Project created in database:', newProject);
-        
+
         // Then create folder in the local editor store with the Convex ID
         createFolder(newFolderName.trim(), 'project', newProject?._id);
-        
+
       } catch (error) {
         console.error('Failed to create project in database:', error);
         // Create folder locally even if database creation fails
@@ -216,7 +222,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
   const handleDragOver = useCallback((e: React.DragEvent, folderId: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    
+
     // Only update drag over item if it's different from the current one
     if (draggedItem && draggedItem !== folderId && dragOverItem !== folderId) {
       setDragOverItem(folderId);
@@ -229,17 +235,17 @@ export function DashSidebar({ activePanel }: SidebarProps) {
 
   const handleDrop = useCallback((e: React.DragEvent, folderId: string) => {
     e.preventDefault();
-    
+
     // Perform the actual reordering on drop
     if (draggedItem && draggedItem !== folderId) {
       const draggedIndex = projectFolders.findIndex(folder => folder.id === draggedItem);
       const dropIndex = projectFolders.findIndex(folder => folder.id === folderId);
-      
+
       if (draggedIndex !== -1 && dropIndex !== -1 && draggedIndex !== dropIndex) {
         reorderProjectFolders(draggedIndex, dropIndex);
       }
     }
-    
+
     setDraggedItem(null);
     setDragOverItem(null);
   }, [draggedItem, projectFolders, reorderProjectFolders]);
@@ -260,7 +266,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
   const handleFileDragOver = useCallback((e: React.DragEvent, fileId: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    
+
     if (draggedFile && draggedFile !== fileId && dragOverFile !== fileId) {
       setDragOverFile(fileId);
     }
@@ -272,18 +278,18 @@ export function DashSidebar({ activePanel }: SidebarProps) {
 
   const handleFileDrop = useCallback((e: React.DragEvent, dropFileId: string, folderId: string) => {
     e.preventDefault();
-    
+
     if (draggedFile && draggedFile !== dropFileId) {
       // Get files in the same folder
       const folderFiles = projectFiles.filter(file => file.folderId === folderId);
       const draggedIndex = folderFiles.findIndex(file => file.id === draggedFile);
       const dropIndex = folderFiles.findIndex(file => file.id === dropFileId);
-      
+
       if (draggedIndex !== -1 && dropIndex !== -1 && draggedIndex !== dropIndex) {
         reorderFilesInFolder(folderId, draggedIndex, dropIndex, 'project');
       }
     }
-    
+
     setDraggedFile(null);
     setDragOverFile(null);
   }, [draggedFile, projectFiles, reorderFilesInFolder]);
@@ -306,11 +312,18 @@ export function DashSidebar({ activePanel }: SidebarProps) {
   // Create dynamic file structure using store data
   const fileStructure = useMemo(() => {
     // Separate pinned and regular folders
-    const pinnedFolders = projectFolders.filter(folder => folder.pinned);
-    const regularFolders = projectFolders.filter(folder => !folder.pinned);
-    
-    const sections = [];
-    
+    const pinnedFolders = projectFolders.filter(folder => 
+      folder.pinned && 
+      folder.name.toLowerCase() !== 'instructions' &&
+      !folder.id.toLowerCase().includes('instructions')
+    );
+    // Filter out Instructions project from regular folders - it only appears in System section
+    const regularFolders = projectFolders.filter(folder => 
+      !folder.pinned && 
+      folder.name.toLowerCase() !== 'instructions' &&
+      !folder.id.toLowerCase().includes('instructions')
+    );    const sections = [];
+
     // Always add System section header when projects category is visible
     if (showProjectsCategory) {
       sections.push({
@@ -319,7 +332,42 @@ export function DashSidebar({ activePanel }: SidebarProps) {
         type: 'header' as const,
         isHeader: true,
       });
-      
+
+      // Add Instructions project under System section
+      if (instructionsProject) {
+        sections.push({
+          id: `instructions-${instructionsProject._id}`,
+          name: 'Instructions',
+          icon: Folder,
+          type: 'folder' as const,
+          isFolder: true,
+          isPinned: false,
+          isSystemFolder: true, // Mark as system folder (non-deletable)
+          children: [
+            // Show instruction files that belong to this project
+            ...(instructionFiles || []).map(file => ({
+              id: file._id,
+              name: file.name,
+              icon: FileText, // Use FileText icon for instruction files
+              type: 'markdown' as const, // Instructions are markdown files
+              file: {
+                id: file._id,
+                name: file.name,
+                icon: FileText,
+                type: 'markdown' as const,
+                category: 'project' as const,
+                content: file.content || '',
+                filePath: file.path || `/instructions/${file.name}`,
+                createdAt: new Date(file._creationTime),
+                modifiedAt: new Date(file._creationTime),
+                folderId: `instructions-${instructionsProject._id}`,
+                convexId: file._id,
+              },
+            }))
+          ]
+        });
+      }
+
       // Add pinned folders if they exist
       if (pinnedFolders.length > 0) {
         sections.push(...pinnedFolders.map(folder => ({
@@ -342,7 +390,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
         })));
       }
     }
-    
+
     // Always add Projects section header when projects category is visible
     if (showProjectsCategory) {
       sections.push({
@@ -351,7 +399,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
         type: 'header' as const,
         isHeader: true,
       });
-      
+
       // Add regular folders if they exist
       if (regularFolders.length > 0) {
         sections.push(...regularFolders.map(folder => ({
@@ -374,7 +422,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
         })));
       }
     }
-    
+
     // Add loose project files
     if (showProjectsCategory) {
       const looseFiles = projectFiles.filter(file => !file.folderId);
@@ -388,7 +436,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
         })));
       }
     }
-    
+
     // Add Financial section if it exists
     if (showFinancialCategory) {
       sections.push({
@@ -404,9 +452,9 @@ export function DashSidebar({ activePanel }: SidebarProps) {
         }))
       });
     }
-    
+
     return sections;
-  }, [showProjectsCategory, showFinancialCategory, projectFolders, projectFiles, financialFiles]);
+  }, [showProjectsCategory, showFinancialCategory, projectFolders, projectFiles, financialFiles, instructionsProject, instructionFiles]);
 
   const getFileIconComponent = (type: string) => {
     switch (type) {
@@ -537,38 +585,66 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                 <button
                   ref={createButtonRef}
                   onClick={() => {
-                    setIsCreatingFolder(true);
+                    if (isAuthenticated) {
+                      setIsCreatingFolder(true);
+                    }
                   }}
-                  className="hover:bg-[#2d2d2d] p-0.5 rounded transition-colors"
+                  disabled={!isAuthenticated}
+                  className={`p-0.5 rounded transition-colors ${
+                    isAuthenticated
+                      ? 'hover:bg-[#2d2d2d] cursor-pointer'
+                      : 'opacity-30 cursor-default'
+                  }`}
                   aria-label="Create new project"
+                  title={isAuthenticated ? "Create new project" : "Authentication required"}
                 >
                   <Plus className="w-3 h-3" />
                 </button>
                 <button
-                  onClick={collapseAllSections}
-                  className="hover:bg-[#2d2d2d] p-0.5 rounded transition-colors border border-[#454545]"
+                  onClick={() => {
+                    if (isAuthenticated) {
+                      collapseAllSections();
+                    }
+                  }}
+                  disabled={!isAuthenticated}
+                  className={`p-0.5 rounded transition-colors border border-[#454545] ${
+                    isAuthenticated
+                      ? 'hover:bg-[#2d2d2d] cursor-pointer'
+                      : 'opacity-30 cursor-default'
+                  }`}
                   aria-label="Collapse all folders"
+                  title={isAuthenticated ? "Collapse all folders" : "Authentication required"}
                 >
                   <ChevronsDown className="w-3 h-3" />
                 </button>
                 <button
-                  onClick={closeAllTabs}
-                  className="hover:bg-[#2d2d2d] p-0.5 rounded transition-colors border border-[#454545]"
+                  onClick={() => {
+                    if (isAuthenticated) {
+                      closeAllTabs();
+                    }
+                  }}
+                  disabled={!isAuthenticated}
+                  className={`p-0.5 rounded transition-colors border border-[#454545] ${
+                    isAuthenticated
+                      ? 'hover:bg-[#2d2d2d] cursor-pointer'
+                      : 'opacity-30 cursor-default'
+                  }`}
                   aria-label="Close all tabs"
+                  title={isAuthenticated ? "Close all tabs" : "Authentication required"}
                 >
                   <X className="w-3 h-3" />
                 </button>
               </div>
             </div>
-            
+
             <div className="pt-2">
               {fileStructure.map((section, sectionIndex) => {
               // Check if this is a header section
               const isHeader = 'isHeader' in section && section.isHeader;
-              
+
               // Create unique key that combines section ID with index to prevent duplicates
               const uniqueKey = `${section.id}-${sectionIndex}`;
-              
+
               // Render header sections differently
               if (isHeader) {
                 return (
@@ -608,18 +684,18 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                   </div>
                 );
               }
-              
+
               const isOpen = openSections.has(section.id);
               const isFolder = 'isFolder' in section && section.isFolder;
               const isDraggedOver = dragOverItem === section.id;
               const isBeingDragged = draggedItem === section.id;
               const isCurrentlyRenamingFolder = renamingFolder?.folderId === section.id;
-              
+
               // Check if this is a user-created folder (not main categories)
               const isUserFolder = isFolder && section.id !== 'projects' && section.id !== 'financial';
               const isPinnedFolder = 'isPinned' in section && section.isPinned;
               const isDraggableFolder = isUserFolder && !isPinnedFolder;
-              
+
               const sectionContent = (
                 <div
                   className={`flex items-center w-full hover:bg-[#2d2d2d] px-1 py-0.5 rounded group transition-all duration-150 ${
@@ -674,13 +750,18 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                             <Pin className="w-3 h-3 ml-1 text-[#007acc]" />
                           </div>
                         )}
+                        {(section as any).isSystemFolder && (
+                          <div title="System folder">
+                            <Pin className="w-3 h-3 ml-1 text-blue-400" />
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
-                  {(section.id === 'projects' || section.id === 'financial' || 'isFolder' in section) && !isCurrentlyRenamingFolder && (
+                  {((section.id === 'projects' || section.id === 'financial' || (section.id === 'system-header' && !instructionsProject) || 'isFolder' in section) && !isCurrentlyRenamingFolder && !(section as any).isSystemFolder) && (
                     <div className="opacity-0 group-hover:opacity-100 ml-auto flex items-center">
                       {isUserFolder && (
-                        <div 
+                        <div
                           className="p-0.5 hover:bg-[#3d3d3d] rounded transition-opacity cursor-grab active:cursor-grabbing mr-1"
                           aria-label={`Drag to reorder ${section.name}`}
                         >
@@ -690,16 +771,36 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          const folderId = section.id === 'projects' ? '' : section.id === 'financial' ? '' : section.id;
+                          // Special handling for Instructions folder
+                          if (section.id && section.id.startsWith('instructions-')) {
+                            // Use instructions-specific creation (handled by chat terminal)
+                            console.log('Instructions folder - files should be created via chat terminal');
+                            return;
+                          }
+                          
+                          // Prevent creation in System section when Instructions already exists
+                          if (section.id === 'system-header' && instructionsProject) {
+                            console.log('System section already has Instructions project - no additional projects allowed');
+                            return;
+                          }
+
+                          const folderId = section.id === 'projects' ? '' : section.id === 'financial' ? '' : section.id === 'system-header' ? '' : section.id;
                           const category = section.id === 'financial' ? 'financial' : 'project';
                           handleCreateFileInFolder(folderId, section.name, category);
                         }}
                         className="p-0.5 hover:bg-[#3d3d3d] rounded transition-opacity"
                         aria-label={`Create file in ${section.name}`}
+                        title={
+                          section.id && section.id.startsWith('instructions-') 
+                            ? 'Use chat terminal to create instruction files' 
+                            : section.id === 'system-header' && instructionsProject
+                            ? 'System section is limited to Instructions project only'
+                            : `Create file in ${section.name}`
+                        }
                       >
                         <Plus className="w-3 h-3 text-[#858585] hover:text-[#cccccc]" />
                       </button>
-                      {!isPinnedFolder && (
+                      {!isPinnedFolder && !(section as any).isSystemFolder && (
                         <button
                           onClick={async (e) => {
                             e.stopPropagation();
@@ -710,12 +811,12 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                               // Delete the entire financial category
                               deleteFinancialCategory();
                             } else {
-                              // Move user folder to trash (only if not pinned)
+                              // Move user folder to trash (only if not pinned and not system folder)
                               const folder = [...projectFolders].find(f => f.id === section.id);
                               if (folder && !folder.pinned) {
                                 // First move to local trash
                                 moveToTrash(folder, 'folder');
-                                
+
                                 // If folder has a convex ID, also move to database trash
                                 if (folder.convexId) {
                                   try {
@@ -740,7 +841,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                   )}
                 </div>
               );
-              
+
               return (
                 <div key={uniqueKey} className="mb-1">
                   {isUserFolder ? (
@@ -750,7 +851,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                   ) : (
                     sectionContent
                   )}
-                  
+
                   {isOpen && 'children' in section && section.children && (
                     <div className="ml-4 space-y-0.5 mt-1">
                       {section.children.map((file, index) => {
@@ -760,7 +861,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                         const fileId = 'id' in file ? file.id : '';
                         const isDraggedFile = draggedFile === fileId;
                         const isDraggedOverFile = dragOverFile === fileId;
-                        
+
                         return (
                           <div key={'id' in file ? file.id : `${section.id}-${index}`}>
                               <div
@@ -809,7 +910,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                                 </div>
                                 {isProjectFile && file.file && !isCurrentlyRenaming && (
                                   <div className="opacity-0 group-hover:opacity-100 ml-auto flex items-center">
-                                    <div 
+                                    <div
                                       className="p-0.5 hover:bg-[#3d3d3d] rounded transition-opacity cursor-grab active:cursor-grabbing mr-1"
                                       aria-label={`Drag to reorder ${file.name}`}
                                     >
@@ -833,7 +934,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                       })}
                     </div>
                   )}
-                  
+
                   {/* Handle top-level files (files without folders) */}
                   {'file' in section && (
                     <div>
@@ -957,4 +1058,4 @@ export function DashSidebar({ activePanel }: SidebarProps) {
       />
     </>
   );
-} 
+}

@@ -7,8 +7,8 @@ import { useTrashSync } from "@/lib/hooks/useTrashSync";
 import { useUserSync } from "@/lib/hooks/useUserSync";
 import { initializeHistory } from "@/lib/initializeHistory";
 import { useSidebarStore } from "@/store";
-import { SignInButton } from "@clerk/nextjs";
-import { Authenticated, AuthLoading, Unauthenticated } from "convex/react";
+import { useEditorStore } from "@/store/editor";
+import { AuthLoading, useConvexAuth } from "convex/react";
 import {
     AlertCircle,
     Copyright,
@@ -23,6 +23,8 @@ import { FileSync } from "./_components/dashboard/fileSync";
 
 export default function HomePage() {
   const { activePanel, setActivePanel } = useSidebarStore();
+  const { isAuthenticated, isLoading } = useConvexAuth();
+  const { openSpecialTab, openTabs } = useEditorStore();
   
   // Sync user data with Convex when authenticated
   useUserSync();
@@ -35,6 +37,28 @@ export default function HomePage() {
     initializeHistory();
   }, []);
 
+  // Set active panel and open appropriate tab based on authentication state
+  useEffect(() => {
+    if (!isLoading) {
+      if (!isAuthenticated) {
+        // When not authenticated, show profile panel (user icon) as active
+        setActivePanel('profile');
+        // Auto-open sign-in tab if no tabs are open or no sign-in tab exists
+        const hasSignInTab = openTabs.some(tab => tab.type === 'sign-in');
+        if (!hasSignInTab) {
+          openSpecialTab('sign-in', 'Sign In', 'sign-in');
+        }
+      } else {
+        // When authenticated, auto-open user profile tab if no user profile tab exists
+        const hasUserProfileTab = openTabs.some(tab => tab.type === 'user-profile');
+        if (!hasUserProfileTab) {
+          openSpecialTab('user-profile', 'User Profile', 'user-profile');
+        }
+        // Keep current panel as is - don't force any changes when user is authenticated
+      }
+    }
+  }, [isAuthenticated, isLoading, setActivePanel, openSpecialTab, openTabs, activePanel]);
+
   return (
     <>
       <AuthLoading>
@@ -46,83 +70,68 @@ export default function HomePage() {
         </div>
       </AuthLoading>
       
-      <Unauthenticated>
-        <div className="h-screen w-screen flex items-center justify-center bg-[#0e0e0e] text-[#cccccc]">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold mb-4">EAC Dashboard</h1>
-            <p className="mb-6">Please sign in to access your dashboard.</p>
-            <SignInButton mode="modal">
-              <button className="bg-[#0e639c] hover:bg-[#1177bb] text-white px-6 py-2 rounded">
-                Sign In to Continue
-              </button>
-            </SignInButton>
+      {/* Always show the same dashboard layout regardless of authentication */}
+      <div className="h-screen w-screen flex flex-col bg-[#0e0e0e] text-[#cccccc] font-mono text-sm overflow-hidden relative">
+        {/* File Sync Component - Hidden utility for syncing files to database */}
+        <FileSync />
+        
+        {/* Title Bar - 32px */}
+        <header className={`h-8 bg-[#181818] border-b border-[#2d2d2d] flex items-center px-0 select-none ${!isAuthenticated ? 'opacity-50' : ''}`}>
+          {/* Title */}
+          <div className="flex-1 flex justify-start ml-2">
+            <span className="text-xs text-[#858585]">
+              EAC Financial Dashboard & Project Management Editor
+            </span>
+          </div>
+        </header>
+
+        {/* Main Content Area */}
+        <div className={`flex-1 flex overflow-hidden ${!isAuthenticated ? 'opacity-50' : ''}`}>
+          {/* Activity Bar - Only user icon is active when not authenticated */}
+          <DashActivityBar
+            activePanel={activePanel}
+            onPanelChange={setActivePanel}
+          />
+          {/* Main work area */}
+          <div className="flex flex-1 overflow-hidden">
+            {/* Sidebar */}
+            <DashSidebar activePanel={activePanel} />
+
+            {/* Editor Area */}
+            <DashEditor />
           </div>
         </div>
-      </Unauthenticated>
-      
-      <Authenticated>
-        <div className="h-screen w-screen flex flex-col bg-[#0e0e0e] text-[#cccccc] font-mono text-sm overflow-hidden">
-          {/* File Sync Component - Hidden utility for syncing files to database */}
-          <FileSync />
+
+        {/* Status Bar - 22px */}
+        <footer className={`h-[22px] bg-[#2d2d2d] text-[#cccccc] text-xs flex items-center px-2 justify-between ${!isAuthenticated ? 'opacity-50' : ''}`}>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-1">
+              <Copyright className="w-3 h-3" />
+              <span>ACDC.digital</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <AlertCircle className="w-3 h-3" />
+              <span>0</span>
+            </div>
+            <span>EAC Dashboard v1.0.0</span>
+          </div>
           
-          {/* Title Bar - 32px */}
-          <header className="h-8 bg-[#181818] border-b border-[#2d2d2d] flex items-center px-0 select-none">
-            {/* Title */}
-            <div className="flex-1 flex justify-start ml-2">
-              <span className="text-xs text-[#858585]">
-                EAC Financial Dashboard & Project Management Editor
-              </span>
+          <div className="flex items-center space-x-4">
+            <span>TypeScript React</span>
+            <div className="flex items-center space-x-1">
+              <Cpu className="w-3 h-3" />
+              <span>85%</span>
             </div>
-          </header>
-
-          {/* Main Content Area */}
-          <div className="flex-1 flex overflow-hidden">
-            {/* Activity Bar */}
-            <DashActivityBar 
-              activePanel={activePanel} 
-              onPanelChange={setActivePanel} 
-            />
-            {/* Main work area */}
-            <div className="flex flex-1 overflow-hidden">
-              {/* Sidebar */}
-              <DashSidebar activePanel={activePanel} />
-
-              {/* Editor Area */}
-              <DashEditor />
+            <div className="flex items-center space-x-1">
+              <Wifi className="w-3 h-3" />
+              <span>Connected</span>
             </div>
+            <span>UTF-8</span>
+            <span>CRLF</span>
+            <span>Ln 24, Col 16</span>
           </div>
-
-          {/* Status Bar - 22px */}
-          <footer className="h-[22px] bg-[#2d2d2d] text-[#cccccc] text-xs flex items-center px-2 justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-1">
-                <Copyright className="w-3 h-3" />
-                <span>ACDC.digital</span>
-              </div>
-              <div className="flex items-center space-x-1">
-                <AlertCircle className="w-3 h-3" />
-                <span>0</span>
-              </div>
-              <span>EAC Dashboard v1.0.0</span>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <span>TypeScript React</span>
-              <div className="flex items-center space-x-1">
-                <Cpu className="w-3 h-3" />
-                <span>85%</span>
-              </div>
-              <div className="flex items-center space-x-1">
-                <Wifi className="w-3 h-3" />
-                <span>Connected</span>
-              </div>
-              <span>UTF-8</span>
-              <span>CRLF</span>
-              <span>Ln 24, Col 16</span>
-            </div>
-          </footer>
-        </div>
-      </Authenticated>
+        </footer>
+      </div>
     </>
   );
 }

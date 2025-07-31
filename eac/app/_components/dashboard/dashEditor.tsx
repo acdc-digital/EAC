@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEditorStore } from "@/store";
 import { ProjectFile } from "@/store/editor/types";
 import { useTerminalStore } from "@/store/terminal";
+import { useConvexAuth } from "convex/react";
 import { AtSign, Braces, Camera, ChevronLeft, ChevronRight, Edit3, FileCode, FileSpreadsheet, FileText, FileType, MessageSquare, Pin, Plus, User, Users, X } from "lucide-react";
 
 // Dynamic import to avoid SSR issues
@@ -55,6 +56,12 @@ const CalendarPage = dynamic(() => import('../calendar/page'), {
 const UserProfile = dynamic(() => import('../user-profile/UserProfile').then(mod => ({ default: mod.UserProfile })), {
   ssr: false,
   loading: () => <div className="p-4 text-[#858585]">Loading profile...</div>
+});
+
+// Dynamic import for Sign In component
+const SignInTab = dynamic(() => import('./signInTab').then(mod => ({ default: mod.SignInTab })), {
+  ssr: false,
+  loading: () => <div className="p-4 text-[#858585]">Loading sign in...</div>
 });
 
 // Dynamic import for Terminal component
@@ -110,6 +117,7 @@ export function DashEditor() {
   } = useEditorStore();
 
   const { isCollapsed: isTerminalCollapsed } = useTerminalStore();
+  const { isAuthenticated } = useConvexAuth();
 
   const [scrollPosition, setScrollPosition] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -243,14 +251,32 @@ export function DashEditor() {
     }
   };
 
-  // Calculate line count based on active tab's content height - using a simple static approach
-  const lineCount = 50; // Fixed line count to prevent infinite loops
-
   // Get current tab to check if it's editable - memoized to prevent remounting
   const currentTab = useMemo(() => 
     openTabs.find((t) => t.id === activeTab), 
     [openTabs, activeTab]
   );
+
+  // Calculate line count based on active tab's content - dynamic based on content type
+  const getLineCount = () => {
+    if (!currentTab) return 1;
+    
+    // For special tabs (non-code), use minimal or no line numbers
+    if (['sign-in', 'user-profile', 'calendar', 'social-connect', 'post-creator'].includes(currentTab.type)) {
+      return 1; // Minimal line numbers for special tabs
+    }
+    
+    // For code/text files, calculate based on content
+    if (currentTab.content) {
+      const lines = currentTab.content.split('\n').length;
+      return Math.max(lines, 10); // Minimum 10 lines, but grow with content
+    }
+    
+    return 10; // Default for empty files
+  };
+  
+  const lineCount = getLineCount();
+
   const isEditable = currentTab ? ['typescript', 'javascript', 'json', 'markdown'].includes(currentTab.type) : false;
   const isMarkdownFile = currentTab?.type === 'markdown';
   const isGeneralsModule = currentTab?.type === 'generals';
@@ -261,6 +287,7 @@ export function DashEditor() {
   const isPostCreatorModule = currentTab?.type === 'post-creator';
   const isCalendarModule = currentTab?.type === 'calendar';
   const isUserProfileModule = currentTab?.type === 'user-profile';
+  const isSignInModule = currentTab?.type === 'sign-in';
 
   // Memoized change handlers for different editor types to prevent infinite re-renders
   const handleRedditChange = useCallback((content: string) => {
@@ -299,6 +326,13 @@ export function DashEditor() {
                 }}
               >
                 {openTabs
+                  // Filter out sign-in tab when user is authenticated
+                  .filter((tab) => {
+                    if (isAuthenticated && tab.type === 'sign-in') {
+                      return false;
+                    }
+                    return true;
+                  })
                   .sort((a, b) => {
                     // Sort pinned tabs first by pinnedOrder, then unpinned tabs
                     if (a.pinned && b.pinned) {
@@ -320,7 +354,7 @@ export function DashEditor() {
                     onMouseEnter={() => setHoveredTab(tab.id)}
                     onMouseLeave={() => setHoveredTab(null)}
                     className={`
-                      flex items-center gap-2 px-3 h-[35px] text-xs border-r border-[#2d2d2d] cursor-pointer flex-shrink-0 transition-colors duration-150
+                      flex items-center gap-2 px-3 h-[35px] text-xs border-r border-[#2d2d2d] ${isAuthenticated ? 'cursor-pointer' : 'cursor-default'} flex-shrink-0 transition-colors duration-150
                       ${draggedTab === tab.id
                         ? 'bg-[#0e639c] text-white' // Blue color when being dragged (matches terminal header)
                         : activeTab === tab.id
@@ -376,6 +410,8 @@ export function DashEditor() {
                             return AtSign;
                           case 'user-profile':
                             return User;
+                          case 'sign-in':
+                            return User;
                           default:
                             return FileCode;
                         }
@@ -388,11 +424,11 @@ export function DashEditor() {
                     </span>
                     {tab.modified && <div className="w-2 h-2 bg-[#cccccc] rounded-full flex-shrink-0" />}
                     
-                    {/* Pin/Unpin Icon - Shows on hover or when pinned */}
-                    {(hoveredTab === tab.id || tab.pinned) && (
+                    {/* Pin/Unpin Icon - Shows on hover or when pinned for all tabs when authenticated */}
+                    {isAuthenticated && (hoveredTab === tab.id || tab.pinned) && (
                       <Pin
-                        className={`w-3 h-3 hover:bg-[#2d2d2d] rounded flex-shrink-0 transition-colors ${
-                          tab.pinned ? 'text-[#007acc]' : 'text-[#858585]'
+                        className={`w-3 h-3 hover:bg-[#2d2d2d] rounded flex-shrink-0 transition-colors cursor-pointer ${
+                          tab.pinned ? 'text-[#007acc]' : 'text-[#858585] hover:text-[#cccccc]'
                         }`}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -405,14 +441,16 @@ export function DashEditor() {
                       />
                     )}
 
-                    {/* Close Button */}
-                    <X 
-                      className="w-3 h-3 hover:bg-[#2d2d2d] rounded flex-shrink-0" 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        closeTab(tab.id);
-                      }}
-                    />
+                    {/* Close Button - Shows on hover for all tabs when authenticated */}
+                    {isAuthenticated && hoveredTab === tab.id && (
+                      <X
+                        className="w-3 h-3 hover:bg-[#2d2d2d] rounded flex-shrink-0 text-[#858585] hover:text-[#cccccc] transition-colors cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          closeTab(tab.id);
+                        }}
+                      />
+                    )}
                   </div>
                 ))}
               </div>
@@ -586,14 +624,16 @@ export function DashEditor() {
                 }
               `}</style>
               <div className="flex min-h-full">
-                {/* Line numbers - synchronized with content */}
-                <div className="bg-[#1a1a1a] text-[#858585] text-center px-2 select-none w-[40px] border-r border-[#2d2d2d] flex-shrink-0">
-                  {Array.from({ length: lineCount }, (_, i) => (
-                    <div key={i} className="leading-5 text-xs font-mono h-5">
-                      {i + 1}
-                    </div>
-                  ))}
-                </div>
+                {/* Line numbers - synchronized with content - only show for code/text files */}
+                {!['sign-in', 'user-profile', 'calendar', 'social-connect', 'post-creator'].includes(currentTab?.type || '') && (
+                  <div className="bg-[#1a1a1a] text-[#858585] text-center px-2 select-none w-[40px] border-r border-[#2d2d2d] flex-shrink-0">
+                    {Array.from({ length: lineCount }, (_, i) => (
+                      <div key={i} className="leading-5 text-xs font-mono h-5">
+                        {i + 1}
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* Editor content */}
                 <div ref={contentRef} className="flex-1">
@@ -615,6 +655,8 @@ export function DashEditor() {
                         <CalendarPage />
                       ) : isUserProfileModule ? (
                         <UserProfile />
+                      ) : isSignInModule ? (
+                        <SignInTab />
                       ) : currentTab?.type === 'facebook' ? (
                         <FacebookPostEditor
                           fileName={currentTab.name}

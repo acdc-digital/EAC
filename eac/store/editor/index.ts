@@ -321,7 +321,7 @@ export const useEditorStore = create<EditorState>()(
           });
         },
 
-        openSpecialTab: (id: string, name: string, type: 'social-connect' | 'post-creator' | 'calendar' | 'user-profile') => {
+        openSpecialTab: (id: string, name: string, type: 'social-connect' | 'post-creator' | 'calendar' | 'user-profile' | 'sign-in') => {
           const { openTabs } = get();
           
           // Check if tab is already open
@@ -1087,6 +1087,21 @@ export const useEditorStore = create<EditorState>()(
             showFinancialCategory: false, // Don't auto-show financial category on reset
             isLoading: false,
             error: null,
+          });
+        },
+
+        // Clear user data when signing out (but keep UI state like theme, etc.)
+        clearUserData: () => {
+          set({
+            openTabs: [],
+            activeTab: '',
+            projectFiles: [],
+            financialFiles: [],
+            projectFolders: [],
+            financialFolders: [],
+            trashItems: [],
+            showProjectsCategory: true,
+            showFinancialCategory: false,
           });
         },
       }),

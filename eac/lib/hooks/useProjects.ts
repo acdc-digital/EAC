@@ -3,7 +3,7 @@ import { Id } from "@/convex/_generated/dataModel";
 // import { useEditorStore } from "@/store";
 import { useProjectStore } from "@/store/projects";
 import { CreateProjectArgs, UpdateProjectArgs } from "@/store/projects/types";
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import React from "react";
 
 /**
@@ -11,6 +11,7 @@ import React from "react";
  * Provides methods to interact with projects in the database
  */
 export const useProjects = () => {
+  const { isAuthenticated } = useConvexAuth();
   const {
     setProjects,
     setProjectStats,
@@ -29,12 +30,21 @@ export const useProjects = () => {
   const createProjectMutation = useMutation(api.projects.createProject);
   const deleteProjectMutation = useMutation(api.trash.deleteProject);
   
-  // Re-enable Convex queries now that functions are deployed
-  const generateProjectNumberQuery = useQuery(api.projects.generateProjectNumber, {});
+  // Re-enable Convex queries now that functions are deployed - only when authenticated
+  const generateProjectNumberQuery = useQuery(
+    api.projects.generateProjectNumber, 
+    isAuthenticated ? {} : "skip"
+  );
 
-  // Convex queries  
-  const projectsQuery = useQuery(api.projects.getProjects, {});
-  const projectStatsQuery = useQuery(api.projects.getProjectStats, {});
+  // Convex queries - only when authenticated
+  const projectsQuery = useQuery(
+    api.projects.getProjects, 
+    isAuthenticated ? {} : "skip"
+  );
+  const projectStatsQuery = useQuery(
+    api.projects.getProjectStats, 
+    isAuthenticated ? {} : "skip"
+  );
 
   // Update store when data changes
   React.useEffect(() => {
