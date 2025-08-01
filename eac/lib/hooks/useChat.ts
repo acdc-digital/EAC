@@ -8,12 +8,12 @@ import { useCallback } from "react";
 import { handleCommand, isCommand, parseCommand } from "../chatCommands";
 
 export function useChat() {
-  const { sessionId, isLoading, setLoading } = useChatStore();
+  const { sessionId, isLoading, setLoading, addTerminalFeedback } = useChatStore();
   
   // Get messages from Convex
   const messages = useQuery(api.chat.getChatMessages, {
     sessionId,
-    limit: 50,
+    limit: 500,
   });
   
   // Action to send messages to Claude
@@ -91,11 +91,66 @@ export function useChat() {
     }
   }, [sendChatMessage, storeChatMessage, clearChatHistory, sessionId, isLoading, setLoading]);
 
+  // Check if session is approaching or at limit
+  const messageCount = messages?.length ?? 0;
+  const isNearSessionLimit = messageCount >= 450; // Warning at 450 messages
+  const isAtSessionLimit = messageCount >= 500; // Hard limit at 500 messages
+
+  // Function to check if new messages can be added
+  const canAddMessages = () => {
+    return messageCount < 500;
+  };
+
+  // Function to get session status
+  const getSessionStatus = () => {
+    if (isAtSessionLimit) {
+      return {
+        status: 'limit_reached',
+        message: '🚨 Session limit reached (500 messages). Please start a new session to continue.',
+        messageCount,
+        limit: 500
+      };
+    } else if (isNearSessionLimit) {
+      return {
+        status: 'near_limit',
+        message: `⚠️ Approaching session limit (${messageCount}/500 messages). Consider starting a new session soon.`,
+        messageCount,
+        limit: 500
+      };
+    }
+    return {
+      status: 'normal',
+      message: null,
+      messageCount,
+      limit: 500
+    };
+  };
+
+  // Placeholder function for starting a new session (to be implemented later)
+  const startNewSession = useCallback(() => {
+    console.log("🔄 Starting new session... (placeholder function)");
+    // TODO: Implement session creation logic
+    // This will include:
+    // 1. Generate new session ID
+    // 2. Clear current messages (optional)
+    // 3. Update session ID in store
+    // 4. Optionally archive current session
+    alert("New session functionality will be implemented soon!");
+  }, []);
+
   return {
     messages: messages ?? [],
     isLoading,
     sendMessage,
     sessionId,
     storeChatMessage,
+    addTerminalFeedback,
+    // Session limit functionality
+    messageCount,
+    isNearSessionLimit,
+    isAtSessionLimit,
+    canAddMessages,
+    getSessionStatus,
+    startNewSession,
   };
 }

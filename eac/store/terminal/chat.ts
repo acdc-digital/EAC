@@ -7,12 +7,16 @@ import { persist } from 'zustand/middleware';
 
 export interface ChatMessage {
   _id: string;
-  role: 'user' | 'assistant' | 'system';
+  role: 'user' | 'assistant' | 'system' | 'terminal';
   content: string;
   sessionId?: string;
   userId?: string;
   createdAt: number;
   _creationTime: number;
+  operation?: {
+    type: 'file_created' | 'project_created' | 'tool_executed' | 'error';
+    details?: Record<string, any>;
+  };
 }
 
 interface ChatState {
@@ -21,6 +25,7 @@ interface ChatState {
   sessionId: string;
   
   addMessage: (message: Omit<ChatMessage, '_id' | 'createdAt' | '_creationTime'>) => void;
+  addTerminalFeedback: (operation: ChatMessage['operation'], details: string) => void;
   sendMessage: (content: string) => Promise<void>;
   loadMessages: (convexQuery: any) => Promise<void>;
   clearMessages: (convexMutation: any) => Promise<void>;
@@ -64,6 +69,50 @@ export const useChatStore = create<ChatState>()(
         }));
       },
       
+      addTerminalFeedback: (operation, details) => {
+        const { sessionId } = get();
+        
+        // Format terminal-style feedback based on operation type
+        let terminalOutput = '';
+        const timestamp = new Date().toLocaleTimeString('en-US', { 
+          hour12: false, 
+          hour: '2-digit', 
+          minute: '2-digit', 
+          second: '2-digit' 
+        });
+        
+        switch (operation?.type) {
+          case 'file_created':
+            terminalOutput = `[${timestamp}] ✅ File created: ${operation.details?.fileName || 'unknown'}\n${details}`;
+            break;
+          case 'project_created':
+            terminalOutput = `[${timestamp}] ✅ Project created: ${operation.details?.projectName || 'unknown'}\n${details}`;
+            break;
+          case 'tool_executed':
+            terminalOutput = `[${timestamp}] 🔧 Tool executed: ${operation.details?.toolName || 'unknown'}\n${details}`;
+            break;
+          case 'error':
+            terminalOutput = `[${timestamp}] ❌ Operation failed: ${operation.details?.error || 'unknown error'}\n${details}`;
+            break;
+          default:
+            terminalOutput = `[${timestamp}] ℹ️ ${details}`;
+        }
+        
+        const terminalMessage: ChatMessage = {
+          _id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          role: 'terminal',
+          content: terminalOutput,
+          sessionId,
+          createdAt: Date.now(),
+          _creationTime: Date.now(),
+          operation,
+        };
+        
+        set(state => ({
+          messages: [...state.messages, terminalMessage]
+        }));
+      },
+      
       sendMessage: async (content: string) => {
         // This is a placeholder - the actual sending is handled by useChat hook
         // The chat store just maintains local state
@@ -87,7 +136,7 @@ export const useChatStore = create<ChatState>()(
         try {
           const messages = await convexQuery(api.chat.getChatMessages, {
             sessionId,
-            limit: 50,
+            limit: 500,
           });
           
           set({ messages: messages || [] });

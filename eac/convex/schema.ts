@@ -11,11 +11,21 @@ export default defineSchema({
   
   // Chat messages for AI assistant
   chatMessages: defineTable({
-    role: v.union(v.literal("user"), v.literal("assistant"), v.literal("system")),
+    role: v.union(v.literal("user"), v.literal("assistant"), v.literal("system"), v.literal("terminal")),
     content: v.string(),
     sessionId: v.optional(v.string()),
     userId: v.optional(v.union(v.string(), v.id("users"))), // Associate messages with users
     createdAt: v.number(),
+    // Operation tracking for terminal messages
+    operation: v.optional(v.object({
+      type: v.union(
+        v.literal("file_created"), 
+        v.literal("project_created"), 
+        v.literal("tool_executed"), 
+        v.literal("error")
+      ),
+      details: v.optional(v.any()),
+    })),
   }).index("by_created_at", ["createdAt"])
     .index("by_session", ["sessionId", "createdAt"])
     .index("by_user", ["userId", "createdAt"])

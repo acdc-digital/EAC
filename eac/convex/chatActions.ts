@@ -156,6 +156,73 @@ Type \`/\` to see detailed usage examples.`;
       sessionId: sessionId,
     });
 
+    // Add terminal feedback for file/content creation
+    if (agentCommand === '/instructions' && result.includes('Created Successfully!')) {
+      // Extract filename from result
+      const fileMatch = result.match(/\*\*File:\*\*\s*`([^`]+)`/);
+      const fileName = fileMatch?.[1] || 'instruction.md';
+      
+      const terminalFeedback = `[${new Date().toLocaleTimeString('en-US', { 
+        hour12: false, 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit' 
+      })}] ✅ Instruction file created: ${fileName}
+Operation: Instructions agent created markdown document
+Status: Ready for editor integration`;
+
+      await ctx.runMutation(api.chat.storeChatMessage, {
+        role: "terminal",
+        content: terminalFeedback,
+        sessionId: sessionId,
+        operation: {
+          type: "file_created",
+          details: {
+            fileName: fileName,
+            agentType: "instructions",
+            fileType: "markdown",
+          }
+        }
+      });
+    } 
+    
+    if (agentCommand === '/twitter' && result.includes('Created Successfully!')) {
+      console.log('🔧 Twitter terminal feedback triggered!', { agentCommand, resultIncludes: result.includes('Created Successfully!') });
+      
+      // Extract filename from result
+      const fileMatch = result.match(/\*\*File:\*\*\s*`([^`]+)`/);
+      const fileName = fileMatch?.[1] || 'twitter-post.x';
+      
+      console.log('📁 Extracted filename:', fileName);
+      
+      const terminalFeedback = `[${new Date().toLocaleTimeString('en-US', { 
+        hour12: false, 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit' 
+      })}] ✅ Twitter post created: ${fileName}
+Operation: Twitter agent created post file
+Status: Draft ready for publishing`;
+
+      console.log('📝 Terminal feedback content:', terminalFeedback);
+
+      await ctx.runMutation(api.chat.storeChatMessage, {
+        role: "terminal",
+        content: terminalFeedback,
+        sessionId: sessionId,
+        operation: {
+          type: "file_created",
+          details: {
+            fileName: fileName,
+            agentType: "twitter",
+            fileType: "post",
+          }
+        }
+      });
+      
+      console.log('✅ Terminal feedback stored successfully');
+    }
+
     return { 
       agentTriggered: true, 
       command: agentCommand,
@@ -311,11 +378,11 @@ ${cleanContent}
 **Audience:** ${audience}
 **Content:** "${cleanContent.substring(0, 100)}${cleanContent.length > 100 ? '...' : ''}"
 
-*This is a basic implementation. The full Instructions agent with project integration will be available when you're signed in and using the editor interface.*
+✅ Instruction file ready for use in EAC editor interface.
 
 **Next Steps:**
 1. Sign in to access the full editor
-2. Open the instruction file to edit and organize
+2. Open the instruction file to edit and organize  
 3. Use the project management interface for better organization`;
 
   } catch (error) {
@@ -399,6 +466,25 @@ export const sendChatMessage = action({
 Project "${newProject.name}" has been created in your database!`;
 
             await ctx.runMutation(api.chat.storeChatMessage, {
+              role: "terminal",
+              content: successMessage,
+              sessionId: args.sessionId,
+              operation: {
+                type: "project_created",
+                details: {
+                  projectName: newProject.name,
+                  projectId: newProject._id,
+                }
+              }
+            });
+
+            return { 
+              mcpTriggered: true, 
+              tool: mcpIntent?.tool || "eac_project_creator",
+              result: successMessage
+            };
+
+            await ctx.runMutation(api.chat.storeChatMessage, {
               role: "assistant",
               content: successMessage,
               sessionId: args.sessionId,
@@ -406,7 +492,7 @@ Project "${newProject.name}" has been created in your database!`;
             
             return { 
               mcpTriggered: true, 
-              tool: mcpIntent.tool, 
+              tool: mcpIntent?.tool || "eac_project_creator", 
               project: newProject 
             };
           } catch (error) {

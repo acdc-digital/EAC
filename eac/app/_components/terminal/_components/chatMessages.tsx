@@ -11,7 +11,7 @@ import { useMCP } from "@/lib/hooks/useMCP";
 import { useAgentStore } from "@/store";
 import { useChatStore } from "@/store/terminal/chat";
 import { useUser } from "@clerk/nextjs";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import React, { useEffect, useRef, useState } from "react";
 import { ToolSelector } from "./toolSelector";
 import { ToolsToggle } from "./toolsToggle";
@@ -28,8 +28,21 @@ export function ChatMessages() {
   const [selectedSelectorIndex, setSelectedSelectorIndex] = useState(0);
   
   const { user, isLoaded } = useUser();
-  const { initializeUserSession } = useChatStore();
-  const { messages, isLoading: chatLoading, sendMessage, sessionId, storeChatMessage } = useChat();
+  const { initializeUserSession, addTerminalFeedback } = useChatStore();
+  const { 
+    messages, 
+    isLoading: chatLoading, 
+    sendMessage, 
+    sessionId, 
+    storeChatMessage, 
+    addTerminalFeedback: useTerminalFeedback,
+    messageCount,
+    isNearSessionLimit,
+    isAtSessionLimit,
+    canAddMessages,
+    getSessionStatus,
+    startNewSession
+  } = useChat();
   const {
     isConnected: mcpConnected,
     isLoading: mcpLoading,
@@ -44,6 +57,7 @@ export function ChatMessages() {
   
   // Convex mutations for social posts
   const upsertPost = useMutation(api.socialPosts.upsertPost);
+  const getChatMessages = useQuery;
 
   const isLoading = chatLoading || mcpLoading;
 
@@ -94,12 +108,25 @@ export function ChatMessages() {
     }
   }, [messages, isLoading]);
 
-  // Auto-focus input on mount and after messages
+    // Auto-focus input on mount and after messages
   useEffect(() => {
     if (inputRef.current && !isLoading) {
       inputRef.current.focus();
     }
-  }, [isLoading, messages]);
+  }, [isLoading]);
+
+  // Debug: Log messages when they change
+  useEffect(() => {
+    console.log("🖥️ Messages updated:", { 
+      totalMessages: messages?.length || 0, 
+      messageTypes: messages?.map(m => m.role) || [],
+      terminalMessages: messages?.filter(m => m.role === 'terminal').length || 0,
+      lastMessage: messages?.[messages.length - 1],
+      sessionId,
+      sessionStatus: getSessionStatus().status,
+      limit: '500 messages'
+    });
+  }, [messages, sessionId, getSessionStatus]);
 
   // Helper function to detect MCP-related queries (excluding direct tool commands)
   const isMCPQuery = (input: string): boolean => {
@@ -149,6 +176,25 @@ export function ChatMessages() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check session limit before processing
+    if (!canAddMessages()) {
+      console.warn("Cannot send message: Session limit reached");
+      // Optionally add a terminal feedback message about the limit
+      await storeChatMessage({
+        role: "terminal",
+        content: `[${new Date().toLocaleTimeString('en-US', { 
+          hour12: false, 
+          hour: '2-digit', 
+          minute: '2-digit', 
+          second: '2-digit' 
+        })}] 🚨 Message not sent: Session limit reached (500 messages)
+Please start a new session to continue chatting.`,
+        sessionId,
+      });
+      return;
+    }
+    
     if (message.trim() && !isLoading) {
       const messageContent = message.trim();
       setMessage("");
@@ -191,24 +237,180 @@ export function ChatMessages() {
             
             console.log("🎯 Agent execution completed, storing messages...", { result, sessionId });
             
-            // Store messages using Promise.all for parallel execution
-            const messageResults = await Promise.all([
+            // Extract filename from result for better terminal feedback
+            let extractedFileName = 'unknown';
+            const fileMatch = result.match(/\*\*File:\*\*\s*`([^`]+)`/);
+            if (fileMatch) {
+              extractedFileName = fileMatch[1];
+            } else if (messageContent.startsWith('/twitter')) {
+              // Try to extract from Twitter agent result
+              const twitterFileMatch = result.match(/File:\s*([^\s\n]+)/);
+              if (twitterFileMatch) {
+                extractedFileName = twitterFileMatch[1];
+              }
+            }
+            
+            // Prepare all messages to store
+            const messagesToStore = [
+              // User message
               storeChatMessage({
                 role: "user",
                 content: messageContent,
                 sessionId,
               }),
+              // Assistant result message
               storeChatMessage({
                 role: "assistant",
                 content: `🤖 Agent Result:\n\n${result}`,
                 sessionId,
               }),
-            ]);
+            ];
             
-            console.log("✅ Agent executed and messages stored:", { messageResults, result });
+            // Add terminal feedback message
+            const isFileCreation = messageContent.startsWith('/instructions') || messageContent.startsWith('/twitter');
+            const hasSuccess = result.includes('Created Successfully!');
+            
+            console.log("🔍 Terminal feedback debug:", { 
+              isFileCreation, 
+              hasSuccess, 
+              messageContent, 
+              resultSnippet: result.substring(0, 200) 
+            });
+            
+            if (isFileCreation && hasSuccess) {
+              const terminalFeedback = `[${new Date().toLocaleTimeString('en-US', { 
+                hour12: false, 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit' 
+              })}] ✅ ${targetAgent.name} file created: ${extractedFileName}
+Operation: ${targetAgent.name} created ${messageContent.startsWith('/instructions') ? 'instruction document' : 'Twitter post'}
+Status: Ready for editing and publishing`;
+
+              console.log("📝 Adding terminal feedback:", terminalFeedback);
+
+              messagesToStore.push(
+                storeChatMessage({
+                  role: "terminal",
+                  content: terminalFeedback,
+                  sessionId,
+                  operation: {
+                    type: "file_created",
+                    details: {
+                      agentId: targetAgent.id,
+                      agentName: targetAgent.name,
+                      toolId: agentTool.id,
+                      fileName: extractedFileName,
+                    }
+                  }
+                })
+              );
+            } else if (isFileCreation) {
+              // Fallback for file creation without "Created Successfully!" 
+              const terminalFeedback = `[${new Date().toLocaleTimeString('en-US', { 
+                hour12: false, 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit' 
+              })}] 📄 ${targetAgent.name} operation: ${extractedFileName}
+Operation: ${targetAgent.name} ${messageContent.startsWith('/instructions') ? 'instruction document' : 'Twitter post'} processing
+Result: ${result.substring(0, 150)}${result.length > 150 ? '...' : ''}`;
+
+              console.log("📝 Adding fallback terminal feedback:", terminalFeedback);
+
+              messagesToStore.push(
+                storeChatMessage({
+                  role: "terminal",
+                  content: terminalFeedback,
+                  sessionId,
+                  operation: {
+                    type: "file_created",
+                    details: {
+                      agentId: targetAgent.id,
+                      agentName: targetAgent.name,
+                      toolId: agentTool.id,
+                      fileName: extractedFileName,
+                    }
+                  }
+                })
+              );
+            } else {
+              const terminalFeedback = `[${new Date().toLocaleTimeString('en-US', { 
+                hour12: false, 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit' 
+              })}] 🔧 ${targetAgent.name} executed: ${agentTool.command}
+Operation: Agent tool execution completed
+Result: ${result.substring(0, 100)}${result.length > 100 ? '...' : ''}`;
+
+              console.log("📝 Adding terminal feedback:", terminalFeedback);
+
+              messagesToStore.push(
+                storeChatMessage({
+                  role: "terminal",
+                  content: terminalFeedback,
+                  sessionId,
+                  operation: {
+                    type: "tool_executed",
+                    details: {
+                      agentId: targetAgent.id,
+                      agentName: targetAgent.name,
+                      toolId: agentTool.id,
+                      success: true,
+                    }
+                  }
+                })
+              );
+            }
+            
+            // Store all messages together
+            const messageResults = await Promise.all(messagesToStore);
+            
+            console.log("✅ Agent executed and messages stored:", { 
+              messageCount: messageResults.length, 
+              messages: messageResults.map(m => m ? 'success' : 'failed'),
+              result: result.substring(0, 100) + '...',
+              sessionId,
+              terminalMessageStored: messageResults[2] ? 'YES' : 'NO'
+            });
+            
+            // Small delay to ensure database consistency, then scroll to bottom
+            setTimeout(() => {
+              if (scrollRef.current) {
+                scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+              }
+            }, 100);
+            
             return;
           } catch (error) {
             console.error('Agent tool error:', error);
+            
+            // Add terminal feedback for agent tool errors
+            const terminalFeedback = `[${new Date().toLocaleTimeString('en-US', { 
+              hour12: false, 
+              hour: '2-digit', 
+              minute: '2-digit', 
+              second: '2-digit' 
+            })}] ❌ ${targetAgent.name} failed: ${agentTool.command}
+Operation: Agent tool execution failed
+Error: ${error instanceof Error ? error.message : 'Unknown error'}`;
+
+            await storeChatMessage({
+              role: "terminal",
+              content: terminalFeedback,
+              sessionId,
+              operation: {
+                type: "error",
+                details: {
+                  agentId: targetAgent.id,
+                  agentName: targetAgent.name,
+                  toolId: agentTool.id,
+                  error: error instanceof Error ? error.message : 'Unknown error',
+                }
+              }
+            });
+            
             const errorResults = await Promise.all([
               storeChatMessage({
                 role: "user",
@@ -276,8 +478,54 @@ export function ChatMessages() {
             // Strip markdown formatting and convert to plain text
             const plainText = stripMarkdown(textContent);
             
+            // Add terminal feedback for MCP tool execution
+            const terminalFeedback = `[${new Date().toLocaleTimeString('en-US', { 
+              hour12: false, 
+              hour: '2-digit', 
+              minute: '2-digit', 
+              second: '2-digit' 
+            })}] 🔧 MCP tool executed: ${toolName}
+Operation: MCP tool execution completed
+Result: ${plainText.substring(0, 100)}${plainText.length > 100 ? '...' : ''}`;
+
+            await storeChatMessage({
+              role: "terminal",
+              content: terminalFeedback,
+              sessionId,
+              operation: {
+                type: "tool_executed",
+                details: {
+                  toolName: toolName,
+                  success: true,
+                }
+              }
+            });
+            
             await sendMessage(`🔧 ${toolName} Results:\n\n${plainText}`);
           } else {
+            // Add terminal feedback for failed MCP tool execution
+            const terminalFeedback = `[${new Date().toLocaleTimeString('en-US', { 
+              hour12: false, 
+              hour: '2-digit', 
+              minute: '2-digit', 
+              second: '2-digit' 
+            })}] ❌ MCP tool failed: ${toolName}
+Operation: MCP tool execution failed
+Error: ${mcpResponse.error || 'Unknown error'}`;
+
+            await storeChatMessage({
+              role: "terminal",
+              content: terminalFeedback,
+              sessionId,
+              operation: {
+                type: "error",
+                details: {
+                  toolName: toolName,
+                  error: mcpResponse.error || 'Unknown error',
+                }
+              }
+            });
+            
             await sendMessage(`❌ Failed to execute ${toolName}: ${mcpResponse.error || 'Unknown error'}`);
           }
         } catch (error) {
@@ -461,6 +709,32 @@ export function ChatMessages() {
           )}
           <div className="text-[#858585] mt-2">AI Assistant ready for EAC project questions.</div>
           <div className="text-[#858585] text-xs">Session: {sessionId.slice(-8)}</div>
+          <div className="text-[#858585] text-xs">Messages: {messageCount}/500</div>
+          
+          {/* Session Limit Warning */}
+          {isAtSessionLimit && (
+            <div className="text-[#f48771] text-xs bg-[#1a1a1a] border border-[#f48771] rounded px-2 py-1 mt-2">
+              🚨 Session limit reached (500 messages). Please start a new session to continue.
+              <button 
+                onClick={startNewSession}
+                className="ml-2 px-2 py-1 bg-[#007acc] text-white rounded text-xs hover:bg-[#005a9e] transition-colors"
+              >
+                Start New Session
+              </button>
+            </div>
+          )}
+          {isNearSessionLimit && !isAtSessionLimit && (
+            <div className="text-[#ffcc02] text-xs bg-[#1a1a1a] border border-[#ffcc02] rounded px-2 py-1 mt-2">
+              ⚠️ Approaching session limit ({messageCount}/500 messages). Consider starting a new session soon.
+              <button 
+                onClick={startNewSession}
+                className="ml-2 px-2 py-1 bg-[#ffcc02] text-black rounded text-xs hover:bg-[#e6b800] transition-colors"
+              >
+                Start New Session
+              </button>
+            </div>
+          )}
+          
           <div className="text-[#858585] border-t border-[#333] pt-2 mt-3">
             Type your questions about projects, financials, Reddit integration, or development below.
             {mcpConnected && <div className="text-xs text-[#4ec9b0] mt-1">Enhanced: Try &ldquo;analyze my reddit integration&rdquo; or &ldquo;optimize my workflow&rdquo;</div>}
@@ -486,6 +760,14 @@ export function ChatMessages() {
             {msg.role === 'system' && (
               <div className="text-[#f48771]">
                 <span className="text-[#f48771]">$ error:</span> {msg.content}
+              </div>
+            )}
+            
+            {msg.role === 'terminal' && (
+              <div className="text-[#cccccc] font-mono">
+                <div className="whitespace-pre-wrap bg-[#1a1a1a] border-l-2 border-[#4ec9b0] pl-3 py-1 my-1">
+                  {msg.content}
+                </div>
               </div>
             )}
           </div>
@@ -582,9 +864,17 @@ export function ChatMessages() {
                 value={message}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
-                placeholder={isLoading ? "AI is thinking..." : "Type / for MCP tools or ask about your EAC project..."}
-                disabled={isLoading}
-                className="w-full bg-transparent text-[#cccccc] border-none outline-none placeholder:text-[#858585] disabled:opacity-50 disabled:cursor-not-allowed caret-[#cccccc]"
+                placeholder={
+                  isAtSessionLimit 
+                    ? "Session limit reached - Start new session to continue..." 
+                    : isLoading 
+                      ? "AI is thinking..." 
+                      : "Type / for MCP tools or ask about your EAC project..."
+                }
+                disabled={isLoading || isAtSessionLimit}
+                className={`w-full bg-transparent border-none outline-none placeholder:text-[#858585] disabled:opacity-50 disabled:cursor-not-allowed caret-[#cccccc] ${
+                  isAtSessionLimit ? 'text-[#f48771]' : 'text-[#cccccc]'
+                }`}
               />
             </form>
           </div>

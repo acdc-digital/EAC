@@ -18,17 +18,17 @@ export const getChatMessages = query({
         .withIndex("by_user_session", (q) =>
           q.eq("userId", user._id).eq("sessionId", args.sessionId)
         )
-        .order("asc")
-        .take(args.limit ?? 50);
-      return messages;
+        .order("desc")
+        .take(args.limit ?? 500);
+      return messages.reverse(); // Reverse to get chronological order
     } else {
       // Get all messages for this user if no session specified
       const messages = await ctx.db
         .query("chatMessages")
         .withIndex("by_user", (q) => q.eq("userId", user._id))
-        .order("asc")
-        .take(args.limit ?? 50);
-      return messages;
+        .order("desc")
+        .take(args.limit ?? 500);
+      return messages.reverse(); // Reverse to get chronological order
     }
   },
 });
@@ -36,9 +36,18 @@ export const getChatMessages = query({
 // Mutation to store a chat message (user-specific)
 export const storeChatMessage = mutation({
   args: {
-    role: v.union(v.literal("user"), v.literal("assistant"), v.literal("system")),
+    role: v.union(v.literal("user"), v.literal("assistant"), v.literal("system"), v.literal("terminal")),
     content: v.string(),
     sessionId: v.optional(v.string()),
+    operation: v.optional(v.object({
+      type: v.union(
+        v.literal("file_created"), 
+        v.literal("project_created"), 
+        v.literal("tool_executed"), 
+        v.literal("error")
+      ),
+      details: v.optional(v.any()),
+    })),
   },
   handler: async (ctx, args) => {
     // Get authenticated user
@@ -50,9 +59,10 @@ export const storeChatMessage = mutation({
       sessionId: args.sessionId,
       userId: user._id,
       createdAt: Date.now(),
+      ...(args.operation && { operation: args.operation }),
     });
     
-    return await ctx.db.get(messageId);
+    return messageId;
   },
 });
 
