@@ -19,7 +19,8 @@ const TiptapEditor = dynamic(() => import('@/app/_components/editor/_components/
   loading: () => <div className="p-4 text-[#858585]">Loading editor...</div>
 });
 
-const SocialMediaEditor = dynamic(() => import('@/app/_components/editor/_components/SocialMediaEditor'), {
+// Dynamic import for social media form editor
+const SocialMediaFormEditor = dynamic(() => import('@/app/_components/editor/_components/SocialMediaFormEditor'), {
   ssr: false,
   loading: () => <div className="p-4 text-[#858585]">Loading social media editor...</div>
 });
@@ -690,35 +691,51 @@ export function DashEditor() {
                       ) : isSignInModule ? (
                         <SignInTab />
                       ) : currentTab?.type === 'facebook' ? (
-                        <FacebookPostEditor
+                        <SocialMediaFormEditor
+                          content={currentTabContent}
+                          onChange={handleContentChange}
+                          editable={isEditable}
+                          platform="facebook"
                           fileName={currentTab.name}
-                          // Don't pass onChange to prevent overwriting rich content
+                        />
+                      ) : currentTab?.type === 'x' ? (
+                        <SocialMediaFormEditor
+                          content={currentTabContent}
+                          onChange={handleContentChange}
+                          editable={isEditable}
+                          platform="x"
+                          fileName={currentTab.name}
+                        />
+                      ) : currentTab?.type === 'instagram' ? (
+                        <SocialMediaFormEditor
+                          content={currentTabContent}
+                          onChange={handleContentChange}
+                          editable={isEditable}
+                          platform="instagram"
+                          fileName={currentTab.name}
+                        />
+                      ) : currentTab?.type === 'reddit' ? (
+                        <SocialMediaFormEditor
+                          content={currentTabContent}
+                          onChange={handleContentChange}
+                          editable={isEditable}
+                          platform="reddit"
+                          fileName={currentTab.name}
+                        />
+                      ) : isMarkdownFile ? (
+                        <MarkdownEditor
+                          content={currentTabContent}
+                          onChange={handleContentChange}
+                          editable={isEditable}
                         />
                       ) : (
-                        // Use SocialMediaEditor for social media files (x, instagram, reddit, facebook), MarkdownEditor for markdown, TiptapEditor for others
-                        isSocialMediaFile && currentTab ? (
-                          <SocialMediaEditor
-                            fileName={currentTab.name}
-                            platform={currentTab.type as 'x' | 'instagram' | 'reddit' | 'facebook'}
+                        <div className="p-4">
+                          <TiptapEditor
                             content={currentTabContent}
                             onChange={handleContentChange}
                             editable={isEditable}
                           />
-                        ) : isMarkdownFile ? (
-                          <MarkdownEditor
-                            content={currentTabContent}
-                            onChange={handleContentChange}
-                            editable={isEditable}
-                          />
-                        ) : (
-                          <div className="p-4">
-                            <TiptapEditor
-                              content={currentTabContent}
-                              onChange={handleContentChange}
-                              editable={isEditable}
-                            />
-                          </div>
-                        )
+                        </div>
                       )}
                     </>
                   ) : (
