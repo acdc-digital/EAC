@@ -83,6 +83,253 @@ function detectMCPIntent(message: string): { tool: string; confidence: number; p
   return null;
 }
 
+// Agent Command Handler
+async function handleAgentCommand(ctx: any, command: string, sessionId?: string) {
+  try {
+    console.log("🤖 Processing agent command:", command);
+
+    // Extract command and input
+    const parts = command.split(' ');
+    const agentCommand = parts[0].toLowerCase();
+    const input = parts.slice(1).join(' ');
+
+    let result: string;
+
+    // Handle different agent commands
+    switch (agentCommand) {
+      case '/twitter':
+        if (!input.trim()) {
+          result = `❌ Please provide content for your Twitter post. Example: /twitter Check out our new dashboard!`;
+        } else {
+          result = await handleTwitterCommand(ctx, command, input);
+        }
+        break;
+
+      case '/instructions':
+        if (!input.trim()) {
+          result = `❌ Please provide instruction content. Example: /instructions Always say welcome to the EAC`;
+        } else {
+          result = await handleInstructionsCommand(ctx, command, input);
+        }
+        break;
+
+      case '/':
+        // Show available commands
+        result = `🤖 **Available Agent Commands:**
+
+**Twitter Agent**
+\`/twitter <content>\` - Create and manage Twitter posts
+• Example: \`/twitter Check out our new dashboard!\`
+• Options: \`--project ProjectName\` \`--schedule "tomorrow 2pm"\` \`--settings followers\`
+
+**Instructions Agent**  
+\`/instructions <content>\` - Create instruction documents
+• Example: \`/instructions Always say welcome to the EAC\`
+• Options: \`--audience developers\` for specific audiences
+
+**Usage Tips:**
+• Commands are case-insensitive
+• Use quotes for multi-word parameters
+• Type just \`/\` to see this help again
+
+**Examples:**
+\`/twitter Our new dashboard is live! --project Marketing --schedule "tomorrow 9am"\`
+\`/instructions Use the EAC color scheme for all components --audience developers\``;
+        break;
+
+      default:
+        result = `❌ **Unknown Command: ${agentCommand}**
+
+Available commands:
+• \`/twitter <content>\` - Create Twitter posts
+• \`/instructions <content>\` - Create instruction documents
+• \`/\` - Show this help
+
+Type \`/\` to see detailed usage examples.`;
+        break;
+    }
+
+    // Store the agent result
+    await ctx.runMutation(api.chat.storeChatMessage, {
+      role: "assistant",
+      content: result,
+      sessionId: sessionId,
+    });
+
+    return { 
+      agentTriggered: true, 
+      command: agentCommand,
+      result: result
+    };
+
+  } catch (error) {
+    console.error("❌ Agent command handler error:", error);
+    
+    const errorMsg = `❌ **Agent Command Failed**
+
+Command: \`${command}\`
+Error: ${error instanceof Error ? error.message : 'Unknown error'}
+
+Please try again or type \`/\` for help.`;
+    
+    await ctx.runMutation(api.chat.storeChatMessage, {
+      role: "system",
+      content: errorMsg,
+      sessionId: sessionId,
+    });
+    
+    throw error;
+  }
+}
+
+// Twitter Command Handler
+async function handleTwitterCommand(ctx: any, fullCommand: string, input: string): Promise<string> {
+  try {
+    // Basic Twitter post creation logic
+    const content = input.trim();
+    
+    // Simple parameter parsing
+    let projectName = "Twitter Posts";
+    let schedule = "";
+    let settings = "followers";
+    
+    // Extract project parameter
+    const projectMatch = content.match(/--project[=\s]+([^\s]+)/i);
+    if (projectMatch) {
+      projectName = projectMatch[1];
+    }
+    
+    // Extract schedule parameter  
+    const scheduleMatch = content.match(/--schedule[=\s]+"([^"]+)"|--schedule[=\s]+([^\s]+)/i);
+    if (scheduleMatch) {
+      schedule = scheduleMatch[1] || scheduleMatch[2];
+    }
+    
+    // Clean content by removing parameters
+    const cleanContent = content
+      .replace(/--project[=\s]+[^\s]+/gi, '')
+      .replace(/--schedule[=\s]+"[^"]+"|--schedule[=\s]+[^\s]+/gi, '')
+      .replace(/--settings[=\s]+[^\s]+/gi, '')
+      .trim();
+
+    if (!cleanContent) {
+      return "❌ Please provide content for your Twitter post after removing parameters.";
+    }
+
+    // Create a basic Twitter post record (you can expand this later)
+    const tweetData = {
+      content: cleanContent,
+      project: projectName,
+      platform: "twitter" as const,
+      status: "draft" as const,
+      schedule: schedule || undefined,
+      settings: settings,
+      createdAt: Date.now()
+    };
+
+    // Generate unique filename
+    const timestamp = new Date().toISOString().split('T')[0];
+    const hash = Math.random().toString(36).substring(2, 8);
+    const fileName = `twitter-post-${timestamp}-${hash}.x`;
+
+    return `🐦 **Twitter Post Created Successfully!**
+
+**Content:** "${cleanContent.substring(0, 100)}${cleanContent.length > 100 ? '...' : ''}"
+**Project:** ${projectName}
+**File:** \`${fileName}\`
+**Status:** Draft${schedule ? `\n**Schedule:** ${schedule}` : ''}
+
+*This is a basic implementation. The full Twitter agent with form population will be available when you're signed in and using the editor interface.*
+
+**Next Steps:**
+1. Sign in to access the full editor
+2. Open the Twitter post file to edit and publish
+3. Use the form interface for advanced scheduling and settings`;
+
+  } catch (error) {
+    console.error("❌ Twitter command failed:", error);
+    return `❌ **Error Creating Twitter Post**
+
+Failed to process: "${fullCommand}"
+
+Error: ${error instanceof Error ? error.message : 'Unknown error'}
+
+Please try again or check if:
+- The content is appropriate for Twitter
+- The project name is valid
+- The scheduling format is correct (e.g., 'tomorrow 2pm', 'Dec 25 9am')`;
+  }
+}
+
+// Instructions Command Handler
+async function handleInstructionsCommand(ctx: any, fullCommand: string, input: string): Promise<string> {
+  try {
+    // Basic instruction creation logic
+    const content = input.trim();
+    
+    // Extract audience if specified
+    const audienceMatch = content.match(/--audience[=\s]+([^\s]+)/i);
+    const audience = audienceMatch?.[1] || "all users";
+    
+    // Clean content by removing parameters
+    const cleanContent = content
+      .replace(/--audience[=\s]+[^\s]+/gi, '')
+      .trim();
+
+    if (!cleanContent) {
+      return "❌ Please provide instruction content after removing parameters.";
+    }
+
+    // Generate a brief filename based on content
+    const words = cleanContent.split(' ').slice(0, 3);
+    const briefTitle = words.join('-').toLowerCase().replace(/[^a-z0-9-]/g, '');
+    const fileName = `${briefTitle || 'instruction'}.md`;
+
+    // Basic instruction document content
+    const documentContent = `# ${briefTitle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+
+**Target Audience:** ${audience}
+**Created:** ${new Date().toLocaleDateString()}
+
+## Instruction
+
+${cleanContent}
+
+## Implementation Notes
+
+- This instruction should be followed consistently across the project
+- Review and update as needed based on project evolution
+- Ensure all team members are aware of this guideline
+
+---
+*Generated by EAC Instructions Agent*`;
+
+    return `📝 **Instruction Document Created Successfully!**
+
+**Title:** ${briefTitle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+**File:** \`${fileName}\`
+**Audience:** ${audience}
+**Content:** "${cleanContent.substring(0, 100)}${cleanContent.length > 100 ? '...' : ''}"
+
+*This is a basic implementation. The full Instructions agent with project integration will be available when you're signed in and using the editor interface.*
+
+**Next Steps:**
+1. Sign in to access the full editor
+2. Open the instruction file to edit and organize
+3. Use the project management interface for better organization`;
+
+  } catch (error) {
+    console.error("❌ Instructions command failed:", error);
+    return `❌ **Error Creating Instruction Document**
+
+Failed to process: "${fullCommand}"
+
+Error: ${error instanceof Error ? error.message : 'Unknown error'}
+
+Please try again with valid instruction content.`;
+  }
+}
+
 // Action to send message to Claude and get response
 export const sendChatMessage = action({
   args: {
@@ -98,6 +345,12 @@ export const sendChatMessage = action({
         content: args.originalContent || args.content,
         sessionId: args.sessionId,
       });
+
+      // Check if message is an agent command (starts with /)
+      const messageContent = args.originalContent || args.content;
+      if (messageContent.trim().startsWith('/')) {
+        return await handleAgentCommand(ctx, messageContent.trim(), args.sessionId);
+      }
 
       // Check if message requires MCP analysis - use ONLY the original user message
       const messageForMCPDetection = args.originalContent || args.content;

@@ -1,11 +1,12 @@
 // Debug Panel Component
 // Quick access to development and debugging tools
 
+import { AuthDebugger } from '@/components/AuthDebugger';
 import { ClearStorageButton } from '@/components/ClearStorageButton';
 import { StorageDebugger } from '@/components/StorageDebugger';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Bug, Database, Eye, Settings2 } from 'lucide-react';
+import { Bug, Database, Eye, Settings2, Shield } from 'lucide-react';
 
 export function DebugPanel() {
   return (
@@ -21,6 +22,16 @@ export function DebugPanel() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
+        <div className="flex items-start gap-3">
+          <Shield className="w-4 h-4 mt-1 text-emerald-500" />
+          <div className="flex-1 space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Check authentication status and user details
+            </p>
+            <AuthDebugger />
+          </div>
+        </div>
+        
         <div className="flex items-start gap-3">
           <Database className="w-4 h-4 mt-1 text-blue-500" />
           <div className="flex-1 space-y-2">

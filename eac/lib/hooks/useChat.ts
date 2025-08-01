@@ -31,34 +31,47 @@ export function useChat() {
     const trimmedContent = content.trim();
     const originalTrimmedContent = originalContent?.trim();
     
-    // Handle local commands (check original content if provided)
+    // Handle specific local commands only
     const contentToCheck = originalTrimmedContent || trimmedContent;
     if (isCommand(contentToCheck)) {
       const { command } = parseCommand(contentToCheck);
       
-      // Store user command (store original content if provided)
-      await storeChatMessage({
-        role: "user",
-        content: originalTrimmedContent || trimmedContent,
-        sessionId,
-      });
-      
+      // Only handle /clear locally, let all other commands go to Convex
       if (command === '/clear') {
+        // Store user command
+        await storeChatMessage({
+          role: "user",
+          content: originalTrimmedContent || trimmedContent,
+          sessionId,
+        });
+        
         await clearChatHistory({ sessionId });
         return;
       }
       
-      const commandResponse = handleCommand(command);
-      
-      if (commandResponse) {
-        // Store system response for command
+      // Check if it's a local help command (not agent command)
+      if (['/help', '/project', '/tech', '/files', '/components', '/stores', '/convex'].includes(command)) {
+        // Store user command
         await storeChatMessage({
-          role: "system",
-          content: commandResponse,
+          role: "user",
+          content: originalTrimmedContent || trimmedContent,
           sessionId,
         });
-        return;
+        
+        const commandResponse = handleCommand(command);
+        
+        if (commandResponse) {
+          // Store system response for command
+          await storeChatMessage({
+            role: "system",
+            content: commandResponse,
+            sessionId,
+          });
+          return;
+        }
       }
+      
+      // All other commands (like /twitter, /instructions, /) go to Convex
     }
     
     // Handle regular AI chat messages

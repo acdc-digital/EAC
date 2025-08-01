@@ -1,0 +1,172 @@
+// Agent Registry
+// /Users/matthewsimon/Projects/eac/eac/store/agents/registry.ts
+
+import { BaseAgent } from './base';
+import { instructionsAgent } from './instructionsAgent';
+import { twitterAgent } from './twitterAgent';
+
+/**
+ * Central registry for all available agents
+ */
+export class AgentRegistry {
+  private agents: Map<string, BaseAgent> = new Map();
+
+  constructor() {
+    this.registerAgent(instructionsAgent);
+    this.registerAgent(twitterAgent);
+  }
+
+  /**
+   * Register a new agent
+   */
+  registerAgent(agent: BaseAgent): void {
+    this.agents.set(agent.id, agent);
+  }
+
+  /**
+   * Get an agent by ID
+   */
+  getAgent(id: string): BaseAgent | undefined {
+    return this.agents.get(id);
+  }
+
+  /**
+   * Get all available agents
+   */
+  getAllAgents(): BaseAgent[] {
+    return Array.from(this.agents.values());
+  }
+
+  /**
+   * Get all agent tools (flattened)
+   */
+  getAllTools() {
+    const tools: Array<{ agent: BaseAgent; tool: any }> = [];
+    
+    for (const agent of this.agents.values()) {
+      for (const tool of agent.tools) {
+        tools.push({ agent, tool });
+      }
+    }
+    
+    return tools;
+  }
+
+  /**
+   * Find agent by tool command
+   */
+  findAgentByCommand(command: string): { agent: BaseAgent; tool: any } | undefined {
+    for (const agent of this.agents.values()) {
+      const tool = agent.tools.find(t => t.command === command);
+      if (tool) {
+        return { agent, tool };
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Execute an agent tool
+   */
+  async executeAgent(
+    agentId: string,
+    toolId: string,
+    input: string,
+    convexMutations: any
+  ): Promise<string> {
+    const agent = this.getAgent(agentId);
+    if (!agent) {
+      throw new Error(`Agent not found: ${agentId}`);
+    }
+
+    const tool = agent.tools.find(t => t.id === toolId);
+    if (!tool) {
+      throw new Error(`Tool not found: ${toolId} for agent ${agentId}`);
+    }
+
+    return await agent.execute(tool, input, convexMutations);
+  }
+
+  /**
+   * Execute agent by command (legacy support)
+   */
+  async executeByCommand(
+    command: string,
+    input: string,
+    convexMutations: any
+  ): Promise<string> {
+    const result = this.findAgentByCommand(command);
+    if (!result) {
+      throw new Error(`No agent found for command: ${command}`);
+    }
+
+    return await result.agent.execute(result.tool, input, convexMutations);
+  }
+}
+
+/**
+ * Singleton agent registry instance
+ */
+export const agentRegistry = new AgentRegistry();
+
+/**
+ * Legacy support functions for backward compatibility
+ */
+export async function executeInstructionsAgent(
+  input: string,
+  convexMutations: any
+): Promise<string> {
+  return await agentRegistry.executeAgent(
+    'instructions',
+    'generate-instructions',
+    input,
+    convexMutations
+  );
+}
+
+export async function executeTwitterPostAgent(
+  input: string,
+  convexMutations: any
+): Promise<string> {
+  return await agentRegistry.executeAgent(
+    'twitter-post',
+    'create-twitter-post',
+    input,
+    convexMutations
+  );
+}
+
+/**
+ * Get all available agents for UI display
+ */
+export function getAvailableAgents() {
+  return agentRegistry.getAllAgents().map(agent => ({
+    id: agent.id,
+    name: agent.name,
+    description: agent.description,
+    icon: agent.icon,
+    isActive: false, // Default to inactive
+    tools: agent.tools.map(tool => ({
+      id: tool.id,
+      name: tool.name,
+      command: tool.command,
+      description: tool.description,
+      parameters: tool.parameters,
+    })),
+  }));
+}
+
+/**
+ * Get available commands for autocomplete
+ */
+export function getAvailableCommands(): string[] {
+  const commands: string[] = [];
+  
+  for (const agent of agentRegistry.getAllAgents()) {
+    for (const tool of agent.tools) {
+      commands.push(tool.command);
+    }
+  }
+  
+  return commands;
+}

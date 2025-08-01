@@ -18,6 +18,23 @@ export const chatCommands: ChatCommand[] = [
     description: "Clear chat history",
     example: "$ user: /clear"
   },
+  // Agent Commands
+  {
+    command: "/",
+    description: "Show available agent tools and commands",
+    example: "$ user: /"
+  },
+  {
+    command: "/twitter",
+    description: "Create Twitter posts with the Twitter agent",
+    example: "$ user: /twitter Check out our new dashboard!"
+  },
+  {
+    command: "/instructions",
+    description: "Create instruction documents with the Instructions agent",
+    example: "$ user: /instructions Always say welcome to the EAC"
+  },
+  // Local Info Commands
   {
     command: "/project",
     description: "Get project structure (or ask: 'analyze the project structure')",
@@ -81,8 +98,25 @@ export function parseCommand(message: string): { command: string; args: string[]
 export function getCommandHelp(): string {
   return `Available Commands:
 
-${chatCommands.map(cmd => `${cmd.command} - ${cmd.description}
-  Example: ${cmd.example}`).join('\n\n')}
+**Agent Commands (AI-Powered):**
+/ - Show available agent tools and commands
+/twitter <content> - Create Twitter posts with AI assistance
+/instructions <content> - Create instruction documents
+
+**Local Info Commands:**
+/help - Show this help
+/clear - Clear chat history
+/project - Get project structure  
+/components - List components
+/stores - Analyze state stores
+/convex - Convex database info
+/generate - Generate code
+
+**Enhanced MCP Commands:**
+/reddit-analyze - Analyze Reddit integration
+/reddit-post - Generate Reddit post
+/workflow-optimize - Optimize workflows
+/mcp-tools - List MCP server tools
 
 **Natural Language Examples:**
 - "What's the project structure?"
@@ -92,6 +126,11 @@ ${chatCommands.map(cmd => `${cmd.command} - ${cmd.description}
 - "Generate a new analytics component"
 - "What components use the editor store?"
 - "How do components connect to Convex?"
+
+**Agent Examples:**
+- "/twitter Check out our new dashboard!"
+- "/instructions Always use TypeScript strict mode"
+- "/" (shows detailed agent tools and usage)
 
 You can use either commands or natural language - the AI will understand both!`;
 }

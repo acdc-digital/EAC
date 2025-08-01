@@ -14,6 +14,7 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as activityLogs from "../activityLogs.js";
+import type * as auth from "../auth.js";
 import type * as chat from "../chat.js";
 import type * as chatActions from "../chatActions.js";
 import type * as crons from "../crons.js";
@@ -48,6 +49,7 @@ import type * as xApi_clean from "../xApi_clean.js";
  */
 declare const fullApi: ApiFromModules<{
   activityLogs: typeof activityLogs;
+  auth: typeof auth;
   chat: typeof chat;
   chatActions: typeof chatActions;
   crons: typeof crons;

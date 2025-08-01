@@ -9,19 +9,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
-import { 
-  AtSign, 
-  Calendar, 
-  CheckCircle, 
-  Clock, 
-  Edit3, 
-  Eye, 
-  Globe, 
-  MessageCircle, 
-  Users,
-  Twitter,
+import {
+  AtSign,
+  Calendar,
+  CheckCircle,
+  Edit3,
+  Eye,
+  Facebook,
+  Globe,
   Instagram,
-  Facebook
+  MessageCircle,
+  Twitter,
+  Users
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 

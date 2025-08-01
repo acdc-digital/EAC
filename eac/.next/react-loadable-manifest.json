@@ -101,6 +101,12 @@
       "static/chunks/_app-pages-browser_app__components_editor__components_MarkdownEditor_tsx.js"
     ]
   },
+  "app/_components/dashboard/dashEditor.tsx -> @/app/_components/editor/_components/SocialMediaFormEditor": {
+    "id": "app/_components/dashboard/dashEditor.tsx -> @/app/_components/editor/_components/SocialMediaFormEditor",
+    "files": [
+      "static/chunks/_app-pages-browser_app__components_editor__components_SocialMediaFormEditor_tsx.js"
+    ]
+  },
   "app/_components/dashboard/dashEditor.tsx -> @/app/_components/editor/_components/TiptapEditor": {
     "id": "app/_components/dashboard/dashEditor.tsx -> @/app/_components/editor/_components/TiptapEditor",
     "files": [
@@ -108,26 +114,32 @@
       "static/chunks/_app-pages-browser_app__components_editor__components_TiptapEditor_tsx.js"
     ]
   },
-  "store/agents/index.ts -> ../": {
-    "id": "store/agents/index.ts -> ../",
+  "store/agents/twitterAgent.ts -> ../": {
+    "id": "store/agents/twitterAgent.ts -> ../",
     "files": []
   },
-  "store/agents/index.ts -> ../../../.claude/.tools/twitter/index": {
-    "id": "store/agents/index.ts -> ../../../.claude/.tools/twitter/index",
+  "store/agents/twitterAgent.ts -> ../../lib/twitter-tools": {
+    "id": "store/agents/twitterAgent.ts -> ../../lib/twitter-tools",
     "files": [
-      "static/chunks/_app-pages-browser_claude_tools_twitter_index_ts.js"
+      "static/chunks/_app-pages-browser_lib_twitter-tools_index_js.js"
     ]
   },
-  "store/agents/index.ts -> @/convex/_generated/api": {
-    "id": "store/agents/index.ts -> @/convex/_generated/api",
-    "files": []
+  "store/agents/twitterAgent.ts -> ../../lib/twitter-tools/fileNamer": {
+    "id": "store/agents/twitterAgent.ts -> ../../lib/twitter-tools/fileNamer",
+    "files": [
+      "static/chunks/_app-pages-browser_lib_twitter-tools_fileNamer_ts.js"
+    ]
   },
-  "store/agents/index.ts -> @/store": {
-    "id": "store/agents/index.ts -> @/store",
-    "files": []
+  "store/agents/twitterAgent.ts -> ../../lib/twitter-tools/index.js": {
+    "id": "store/agents/twitterAgent.ts -> ../../lib/twitter-tools/index.js",
+    "files": [
+      "static/chunks/_app-pages-browser_lib_twitter-tools_index_js.js"
+    ]
   },
-  "store/agents/index.ts -> convex/browser": {
-    "id": "store/agents/index.ts -> convex/browser",
-    "files": []
+  "store/agents/twitterAgent.ts -> ../../lib/twitter-tools/index.mjs": {
+    "id": "store/agents/twitterAgent.ts -> ../../lib/twitter-tools/index.mjs",
+    "files": [
+      "static/chunks/_app-pages-browser_lib_twitter-tools_index_mjs.js"
+    ]
   }
 }

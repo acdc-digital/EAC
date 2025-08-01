@@ -21,7 +21,7 @@ interface ChatState {
   sessionId: string;
   
   addMessage: (message: Omit<ChatMessage, '_id' | 'createdAt' | '_creationTime'>) => void;
-  sendMessage: (content: string, convexActions: any) => Promise<void>;
+  sendMessage: (content: string) => Promise<void>;
   loadMessages: (convexQuery: any) => Promise<void>;
   clearMessages: (convexMutation: any) => Promise<void>;
   setLoading: (loading: boolean) => void;
@@ -64,31 +64,21 @@ export const useChatStore = create<ChatState>()(
         }));
       },
       
-      sendMessage: async (content: string, convexActions: any) => {
-        const { sessionId, setLoading } = get();
+      sendMessage: async (content: string) => {
+        // This is a placeholder - the actual sending is handled by useChat hook
+        // The chat store just maintains local state
+        console.log('Chat store sendMessage called with:', content);
         
-        setLoading(true);
+        // Add the user message locally for immediate UI feedback
+        const { sessionId, addMessage } = get();
+        addMessage({
+          role: 'user',
+          content,
+          sessionId,
+        });
         
-        try {
-          // The Convex action will handle storing both user and assistant messages
-          await convexActions.chatActions.sendChatMessage({
-            content,
-            sessionId,
-          });
-          
-          // Reload messages to get the latest from the server
-          // This will be handled by the React component using useQuery
-        } catch (error) {
-          console.error('Error sending message:', error);
-          // Add local error message if needed
-          get().addMessage({
-            role: 'system',
-            content: `Error: ${error instanceof Error ? error.message : "Failed to send message"}`,
-            sessionId,
-          });
-        } finally {
-          setLoading(false);
-        }
+        // Note: The actual Convex interaction is handled by the useChat hook
+        // This is just for local state management
       },
       
       loadMessages: async (convexQuery: any) => {

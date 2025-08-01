@@ -299,8 +299,8 @@ export default defineSchema({
     .index("by_project", ["projectId", "deletedAt"])
     .index("by_original_id", ["originalId"]),
 
-  // Social posts with unified status tracking
-  socialPosts: defineTable({
+  // Agent posts with unified status tracking
+  agentPosts: defineTable({
     // File identification
     fileName: v.string(),
     fileType: v.union(v.literal('reddit'), v.literal('twitter')),

@@ -19,7 +19,6 @@ import { useEffect } from "react";
 import { DashActivityBar } from "./_components/dashboard/dashActivityBar";
 import { DashEditor } from "./_components/dashboard/dashEditor";
 import { DashSidebar } from "./_components/dashboard/dashSidebar";
-import { FileSync } from "./_components/dashboard/fileSync";
 
 export default function HomePage() {
   const { activePanel, setActivePanel } = useSidebarStore();
@@ -80,8 +79,8 @@ export default function HomePage() {
       
       {/* Always show the same dashboard layout regardless of authentication */}
       <div className="h-screen w-screen flex flex-col bg-[#0e0e0e] text-[#cccccc] font-mono text-sm overflow-hidden relative">
-        {/* File Sync Component - Hidden utility for syncing files to database */}
-        <FileSync />
+        {/* File Sync Component - Hidden utility for syncing files to database - TEMPORARILY DISABLED */}
+        {/* <FileSync /> */}
         
         {/* Title Bar - 32px */}
         <header className={`h-8 bg-[#181818] border-b border-[#2d2d2d] flex items-center px-0 select-none ${!isAuthenticated && !isSignInTabActive ? 'opacity-50' : ''}`}>

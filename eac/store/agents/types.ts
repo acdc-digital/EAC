@@ -39,11 +39,21 @@ export interface AgentExecution {
 
 export interface ConvexMutations {
   ensureInstructionsProject: () => Promise<unknown>;
-  createInstructionFile: (params: {
+  createInstructionFile?: (params: {
     name: string;
     content: string;
     topic?: string;
     audience?: string;
+  }) => Promise<unknown>;
+  upsertPost: (params: {
+    fileName: string;
+    fileType: 'reddit' | 'twitter';
+    content: string;
+    title?: string;
+    platformData?: string;
+    status?: 'draft' | 'scheduled' | 'posting' | 'posted' | 'failed';
+    scheduledFor?: number;
+    userId?: string;
   }) => Promise<unknown>;
 }
 

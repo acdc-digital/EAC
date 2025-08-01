@@ -3,6 +3,7 @@
 
 "use client";
 
+import { api } from "@/convex/_generated/api";
 import { chatCommands } from "@/lib/chatCommands";
 import { useChat } from "@/lib/hooks/useChat";
 import { useInstructionContext, useInstructions } from "@/lib/hooks/useInstructions";
@@ -10,7 +11,9 @@ import { useMCP } from "@/lib/hooks/useMCP";
 import { useAgentStore } from "@/store";
 import { useChatStore } from "@/store/terminal/chat";
 import { useUser } from "@clerk/nextjs";
+import { useMutation } from "convex/react";
 import React, { useEffect, useRef, useState } from "react";
+import { ToolSelector } from "./toolSelector";
 import { ToolsToggle } from "./toolsToggle";
 
 export function ChatMessages() {
@@ -21,6 +24,8 @@ export function ChatMessages() {
   const [showMCPTools, setShowMCPTools] = useState(false);
   const [selectedToolIndex, setSelectedToolIndex] = useState(-1);
   const [toolsMode, setToolsMode] = useState<'mcp' | 'agents'>('agents');
+  const [showToolSelector, setShowToolSelector] = useState(false);
+  const [selectedSelectorIndex, setSelectedSelectorIndex] = useState(0);
   
   const { user, isLoaded } = useUser();
   const { initializeUserSession } = useChatStore();
@@ -33,9 +38,12 @@ export function ChatMessages() {
     availableTools
   } = useMCP();
 
-  const { agents, activeAgentId, executeAgentTool } = useAgentStore();
+  const { agents, activeAgentId, executeAgentTool, setActiveAgent } = useAgentStore();
   const { createInstruction, ensureInstructionsProject } = useInstructions();
   const instructionContext = useInstructionContext();
+  
+  // Convex mutations for social posts
+  const upsertPost = useMutation(api.socialPosts.upsertPost);
 
   const isLoading = chatLoading || mcpLoading;
 
@@ -126,6 +134,19 @@ export function ChatMessages() {
            input.startsWith('/workflow');
   };
 
+  // ToolSelector handlers
+  const handleToolSelectorSelect = (command: string) => {
+    setMessage(command + " ");
+    setShowToolSelector(false);
+    inputRef.current?.focus();
+  };
+
+  const handleToolSelectorClose = () => {
+    setShowToolSelector(false);
+    setMessage("");
+    inputRef.current?.focus();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim() && !isLoading) {
@@ -134,36 +155,73 @@ export function ChatMessages() {
       setShowMCPTools(false);
       setSelectedToolIndex(-1);
       
-      // Check for agent tool commands (e.g., /instructions)
-      if (messageContent.startsWith('/') && activeAgentId) {
-        const activeAgent = agents.find(a => a.id === activeAgentId);
+      // Check for agent tool commands (e.g., /twitter, /instructions)
+      if (messageContent.startsWith('/')) {
         const command = messageContent.split(' ')[0];
-        const agentTool = activeAgent?.tools.find(t => t.command === command);
         
-        if (agentTool) {
+        // Find agent that has this command
+        let targetAgent = null;
+        let agentTool = null;
+        
+        for (const agent of agents) {
+          const tool = agent.tools.find(t => t.command === command);
+          if (tool) {
+            targetAgent = agent;
+            agentTool = tool;
+            break;
+          }
+        }
+        
+        if (targetAgent && agentTool) {
+          // Set the active agent if it's not already set or if it's different
+          if (activeAgentId !== targetAgent.id) {
+            setActiveAgent(targetAgent.id);
+          }
+          
           try {
             // Create Convex mutations object for database operations
             const convexMutations = {
               ensureInstructionsProject,
-              createInstructionFile: createInstruction,
+              // Only pass createInstructionFile to the instructions agent, not other agents
+              ...(targetAgent.id === 'instructions' ? { createInstructionFile: createInstruction } : {}),
+              upsertPost,
             };
             
-            const result = await executeAgentTool(activeAgentId, agentTool.id, messageContent, convexMutations);
+            const result = await executeAgentTool(targetAgent.id, agentTool.id, messageContent, convexMutations);
             
-            // Store agent result directly to chat without sending to Claude (to avoid MCP intent detection)
-            await storeChatMessage({
-              role: "assistant",
-              content: `🤖 Agent Result:\n\n${result}`,
-              sessionId,
-            });
+            console.log("🎯 Agent execution completed, storing messages...", { result, sessionId });
+            
+            // Store messages using Promise.all for parallel execution
+            const messageResults = await Promise.all([
+              storeChatMessage({
+                role: "user",
+                content: messageContent,
+                sessionId,
+              }),
+              storeChatMessage({
+                role: "assistant",
+                content: `🤖 Agent Result:\n\n${result}`,
+                sessionId,
+              }),
+            ]);
+            
+            console.log("✅ Agent executed and messages stored:", { messageResults, result });
             return;
           } catch (error) {
             console.error('Agent tool error:', error);
-            await storeChatMessage({
-              role: "assistant", 
-              content: `❌ Agent tool failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-              sessionId,
-            });
+            const errorResults = await Promise.all([
+              storeChatMessage({
+                role: "user",
+                content: messageContent,
+                sessionId,
+              }),
+              storeChatMessage({
+                role: "assistant",
+                content: `❌ Agent tool failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                sessionId,
+              }),
+            ]);
+            console.log("❌ Error messages stored:", errorResults);
             return;
           }
         }
@@ -263,6 +321,11 @@ export function ChatMessages() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // If ToolSelector is open, let it handle keyboard events
+    if (showToolSelector) {
+      return; // ToolSelector component will handle its own keyboard events
+    }
+    
     if (showMCPTools && filteredTools.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -298,8 +361,19 @@ export function ChatMessages() {
     const value = e.target.value;
     setMessage(value);
     
+    // Show ToolSelector when message is exactly '/'
+    if (value === '/') {
+      setShowToolSelector(true);
+      setSelectedSelectorIndex(0);
+      setShowMCPTools(false);
+      setShowCommandHints(false);
+      return;
+    } else {
+      setShowToolSelector(false);
+    }
+    
     // Show tools menu when message starts with '/' and is just one character or when typing tool name
-    if (value === '/' || (value.startsWith('/') && !value.includes(' '))) {
+    if (value.startsWith('/') && !value.includes(' ')) {
       setShowMCPTools(true);
       setShowCommandHints(false);
       // Auto-select first matching tool if typing
@@ -472,6 +546,18 @@ export function ChatMessages() {
               <div className="text-[#858585] text-xs p-2 border-t border-[#333]">
                 ↑↓ navigate • Enter/Tab select • Esc cancel
               </div>
+            </div>
+          )}
+
+          {/* Tool Selector */}
+          {showToolSelector && (
+            <div className="mb-2 relative">
+              <ToolSelector
+                onToolSelect={handleToolSelectorSelect}
+                onClose={handleToolSelectorClose}
+                selectedIndex={selectedSelectorIndex}
+                onIndexChange={setSelectedSelectorIndex}
+              />
             </div>
           )}
 

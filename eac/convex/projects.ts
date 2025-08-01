@@ -1,37 +1,6 @@
 import { v } from "convex/values";
-import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
-
-// Helper function to get current user
-async function getCurrentUserId(ctx: QueryCtx | MutationCtx) {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity) {
-    throw new Error("Not authenticated");
-  }
-  
-  // First try to find user by clerk ID
-  const user = await ctx.db
-    .query("users")
-    .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-    .first();
-    
-  if (user) {
-    return user._id;
-  }
-  
-  // Fallback to email lookup for legacy users
-  if (identity.email) {
-    const emailUser = await ctx.db
-      .query("users")
-      .withIndex("by_email", (q) => q.eq("email", identity.email!))
-      .first();
-    if (emailUser) {
-      return emailUser._id;
-    }
-  }
-  
-  throw new Error("User not found in database - please call upsertUser first");
-}
+import { getAuthContext, getCurrentUserId } from "./auth";
 
 // Simple test query - FRESH DEPLOY
 export const test = query({
@@ -45,7 +14,14 @@ export const test = query({
 export const getProjects = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getCurrentUserId(ctx);
+    const auth = await getAuthContext(ctx);
+    
+    // If not authenticated, return empty array instead of throwing
+    if (!auth.isAuthenticated) {
+      return [];
+    }
+
+    const userId = auth.requireAuth();
     return await ctx.db
       .query("projects")
       .withIndex("by_user", (q) => q.eq("userId", userId))
@@ -83,7 +59,19 @@ export const createProject = mutation({
 export const getProjectStats = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getCurrentUserId(ctx);
+    const auth = await getAuthContext(ctx);
+    
+    // If not authenticated, return empty stats
+    if (!auth.isAuthenticated) {
+      return {
+        total: 0,
+        active: 0,
+        completed: 0,
+        onHold: 0,
+      };
+    }
+
+    const userId = auth.requireAuth();
     const projects = await ctx.db
       .query("projects")
       .withIndex("by_user", (q) => q.eq("userId", userId))
@@ -134,11 +122,16 @@ export const ensureInstructionsProject = mutation({
 export const getInstructionsProject = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getCurrentUserId(ctx);
+    const auth = await getAuthContext(ctx);
+    
+    // Return null if not authenticated instead of throwing
+    if (!auth.isAuthenticated || !auth.userId) {
+      return null;
+    }
     
     const instructionsProject = await ctx.db
       .query("projects")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_user", (q) => q.eq("userId", auth.userId!))
       .filter((q) => q.eq(q.field("name"), "Instructions"))
       .first();
     

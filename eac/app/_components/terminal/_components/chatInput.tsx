@@ -1,10 +1,11 @@
-// Chat Input Component
+// Chat Input Component with Tool Selection Panel
 // /Users/matthewsimon/Projects/EAC/eac/app/_components/terminal/_components/chatInput.tsx
 
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
-import { useChatStore } from "@/store/terminal/chat";
+import { useChat } from "@/lib/hooks/useChat";
+import React, { useEffect, useRef, useState } from "react";
+import { ToolSelector } from "./toolSelector";
 
 interface ChatInputProps {
   placeholder?: string;
@@ -12,8 +13,10 @@ interface ChatInputProps {
 
 export function ChatInput({ placeholder = "Ask me about your EAC project..." }: ChatInputProps) {
   const [message, setMessage] = useState("");
+  const [showToolSelector, setShowToolSelector] = useState(false);
+  const [selectedToolIndex, setSelectedToolIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { sendMessage, isLoading } = useChatStore();
+  const { sendMessage, isLoading } = useChat();
 
   // Auto-focus input on mount
   useEffect(() => {
@@ -22,15 +25,42 @@ export function ChatInput({ placeholder = "Ask me about your EAC project..." }: 
     }
   }, [isLoading]);
 
+  // Handle tool selector display
+  useEffect(() => {
+    if (message === '/') {
+      setShowToolSelector(true);
+      setSelectedToolIndex(0);
+    } else {
+      setShowToolSelector(false);
+    }
+  }, [message]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (message.trim() && !isLoading) {
+    if (message.trim() && !isLoading && !showToolSelector) {
       sendMessage(message.trim());
       setMessage("");
     }
   };
 
+  const handleToolSelect = (command: string) => {
+    setMessage(command + " ");
+    setShowToolSelector(false);
+    inputRef.current?.focus();
+  };
+
+  const handleToolSelectorClose = () => {
+    setShowToolSelector(false);
+    setMessage("");
+    inputRef.current?.focus();
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // If tool selector is open, let it handle keyboard events
+    if (showToolSelector) {
+      return; // ToolSelector component will handle its own keyboard events
+    }
+    
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
@@ -38,7 +68,17 @@ export function ChatInput({ placeholder = "Ask me about your EAC project..." }: 
   };
 
   return (
-    <div className="border-t border-[#2d2d2d] bg-[#0e0e0e] p-2 flex-shrink-0">
+    <div className="relative border-t border-[#2d2d2d] bg-[#0e0e0e] p-2 flex-shrink-0">
+      {/* Tool Selector */}
+      {showToolSelector && (
+        <ToolSelector
+          onToolSelect={handleToolSelect}
+          onClose={handleToolSelectorClose}
+          selectedIndex={selectedToolIndex}
+          onIndexChange={setSelectedToolIndex}
+        />
+      )}
+      
       <form onSubmit={handleSubmit} className="flex items-center gap-2">
         {/* Terminal prompt */}
         <div className="text-[#007acc] font-mono text-xs flex-shrink-0">
@@ -80,7 +120,10 @@ export function ChatInput({ placeholder = "Ask me about your EAC project..." }: 
       
       {/* Help text */}
       <div className="text-[#454545] font-mono text-[10px] mt-1">
-        Press Enter to send • Shift+Enter for new line
+        {showToolSelector 
+          ? "Select a tool to use"
+          : "Press Enter to send • Type / to select tools • Shift+Enter for new line"
+        }
       </div>
     </div>
   );
