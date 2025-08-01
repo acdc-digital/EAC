@@ -7,7 +7,7 @@ export const getPostByFileName = query({
   args: { fileName: v.string() },
   handler: async (ctx, args) => {
     const post = await ctx.db
-      .query("socialPosts")
+      .query("agentPosts")
       .withIndex("by_fileName", (q) => q.eq("fileName", args.fileName))
       .first();
     
@@ -26,7 +26,7 @@ export const getPostsByStatus = query({
   ) },
   handler: async (ctx, args) => {
     const posts = await ctx.db
-      .query("socialPosts")
+      .query("agentPosts")
       .withIndex("by_status", (q) => q.eq("status", args.status))
       .collect();
     
@@ -39,7 +39,7 @@ export const getAllPosts = query({
   args: {},
   handler: async (ctx) => {
     const posts = await ctx.db
-      .query("socialPosts")
+      .query("agentPosts")
       .collect();
     
     return posts;
@@ -51,7 +51,7 @@ export const getPostsByFileType = query({
   args: { fileType: v.union(v.literal('reddit'), v.literal('twitter')) },
   handler: async (ctx, args) => {
     const posts = await ctx.db
-      .query("socialPosts")
+      .query("agentPosts")
       .withIndex("by_fileType", (q) => q.eq("fileType", args.fileType))
       .collect();
     
@@ -79,7 +79,7 @@ export const upsertPost = mutation({
   },
   handler: async (ctx, args) => {
     const existingPost = await ctx.db
-      .query("socialPosts")
+      .query("agentPosts")
       .withIndex("by_fileName", (q) => q.eq("fileName", args.fileName))
       .first();
     
@@ -107,7 +107,7 @@ export const upsertPost = mutation({
       return await ctx.db.get(existingPost._id);
     } else {
       // Create new post - always set status to draft if not provided
-      const id = await ctx.db.insert("socialPosts", {
+      const id = await ctx.db.insert("agentPosts", {
         ...postData,
         status: args.status || 'draft',
         createdAt: now,
@@ -135,13 +135,10 @@ export const updatePostStatus = mutation({
     errorMessage: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    console.log(`🔍 Looking for post to update status:`, { 
-      fileName: args.fileName, 
-      newStatus: args.status 
-    });
+    console.log(`� Updating post status for ${args.fileName} to ${args.status}`);
     
     const post = await ctx.db
-      .query("socialPosts")
+      .query("agentPosts")
       .withIndex("by_fileName", (q) => q.eq("fileName", args.fileName))
       .first();
     
@@ -182,7 +179,7 @@ export const deletePost = mutation({
   args: { fileName: v.string() },
   handler: async (ctx, args) => {
     const post = await ctx.db
-      .query("socialPosts")
+      .query("agentPosts")
       .withIndex("by_fileName", (q) => q.eq("fileName", args.fileName))
       .first();
     
@@ -205,7 +202,7 @@ export const schedulePost = mutation({
   },
   handler: async (ctx, args) => {
     const existingPost = await ctx.db
-      .query("socialPosts")
+      .query("agentPosts")
       .withIndex("by_fileName", (q) => q.eq("fileName", args.fileName))
       .first();
     
@@ -228,7 +225,7 @@ export const schedulePost = mutation({
       return await ctx.db.get(existingPost._id);
     } else {
       // Create new scheduled post
-      const id = await ctx.db.insert("socialPosts", {
+      const id = await ctx.db.insert("agentPosts", {
         ...postData,
         createdAt: now,
       });
@@ -244,7 +241,7 @@ export const getScheduledPostsToPublish = query({
   handler: async (ctx) => {
     const now = Date.now();
     const posts = await ctx.db
-      .query("socialPosts")
+      .query("agentPosts")
       .withIndex("by_status", (q) => q.eq("status", "scheduled"))
       .filter((q) => q.lte(q.field("scheduledFor"), now))
       .collect();

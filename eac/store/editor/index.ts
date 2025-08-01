@@ -292,10 +292,27 @@ export const useEditorStore = create<EditorState>()(
         openTab: (file: ProjectFile) => {
           const { openTabs } = get();
           
+          console.log('🔍 Opening tab for file:', {
+            id: file.id,
+            name: file.name,
+            contentLength: file.content?.length || 0,
+            contentPreview: file.content?.substring(0, 100) || 'NO CONTENT'
+          });
+          
           // Check if tab is already open
           const existingTab = openTabs.find(tab => tab.id === file.id);
           if (existingTab) {
-            set({ activeTab: existingTab.id });
+            console.log('📂 Tab already exists, activating:', existingTab.id);
+            // Update the existing tab content with the current file content
+            const updatedTabs = openTabs.map(tab => 
+              tab.id === file.id 
+                ? { ...tab, content: file.content || getDefaultContent(file.type, file.name) }
+                : tab
+            );
+            set({ 
+              openTabs: updatedTabs,
+              activeTab: existingTab.id 
+            });
             return;
           }
 
@@ -312,11 +329,20 @@ export const useEditorStore = create<EditorState>()(
           }
 
           // Create new tab with content
+          const tabContent = file.content || getDefaultContent(file.type, file.name);
+          console.log('🆕 Creating new tab with content:', {
+            fileId: file.id,
+            fileName: file.name,
+            hasCustomContent: !!file.content,
+            contentLength: tabContent.length,
+            contentPreview: tabContent.substring(0, 100)
+          });
+          
           const newTab: EditorTab = {
             id: file.id,
             name: file.name,
             modified: false,
-            content: file.content || getDefaultContent(file.type, file.name),
+            content: tabContent,
             filePath: file.filePath,
             type: file.type,
             pinned: shouldAutoPinn,
@@ -430,11 +456,22 @@ export const useEditorStore = create<EditorState>()(
         },
 
         setActiveTab: (tabId: string) => {
-          const { openTabs } = get();
+          const { openTabs, activeTab: currentActiveTab } = get();
           const tabExists = openTabs.some(tab => tab.id === tabId);
+          
+          console.log('🔄 setActiveTab called:', {
+            newTabId: tabId,
+            currentActiveTab,
+            tabExists,
+            openTabsCount: openTabs.length,
+            availableTabs: openTabs.map(t => ({ id: t.id, name: t.name, contentLength: t.content?.length || 0 }))
+          });
           
           if (tabExists) {
             set({ activeTab: tabId });
+            console.log('✅ Active tab set to:', tabId);
+          } else {
+            console.warn('❌ Attempted to set non-existent tab as active:', tabId);
           }
         },
 
@@ -518,13 +555,111 @@ export const useEditorStore = create<EditorState>()(
 
         updateFileContent: (tabId: string, content: string) => {
           const { openTabs } = get();
+          
+          console.log('📝 updateFileContent called:', {
+            tabId,
+            contentLength: content.length,
+            contentPreview: content.substring(0, 100),
+            currentTabsCount: openTabs.length
+          });
+          
+          const existingTab = openTabs.find(tab => tab.id === tabId);
+          if (existingTab) {
+            console.log('📋 Found existing tab to update:', {
+              id: existingTab.id,
+              name: existingTab.name,
+              currentContentLength: existingTab.content?.length || 0,
+              newContentLength: content.length,
+              contentChanged: existingTab.content !== content
+            });
+          } else {
+            console.warn('⚠️ Tab not found for update:', tabId);
+          }
+          
           const updatedTabs = openTabs.map((tab: EditorTab) => 
             tab.id === tabId 
               ? { ...tab, content, modified: true }
               : tab
           );
           
+          console.log('✅ Tab content update complete:', {
+            tabId,
+            updatedTabsCount: updatedTabs.length,
+            hasMatchingTab: !!updatedTabs.find(t => t.id === tabId)
+          });
+          
           set({ openTabs: updatedTabs });
+        },
+
+        updateFileContentInStore: (fileId: string, content: string) => {
+          const { projectFiles, financialFiles, openTabs } = get();
+          
+          console.log('🔄 updateFileContentInStore called:', {
+            fileId,
+            contentLength: content.length,
+            contentPreview: content.substring(0, 100),
+            currentProjectFilesCount: projectFiles.length,
+            currentFinancialFilesCount: financialFiles.length,
+            currentOpenTabsCount: openTabs.length
+          });
+          
+          // Find the file to see current state
+          const existingProjectFile = projectFiles.find(f => f.id === fileId);
+          const existingFinancialFile = financialFiles.find(f => f.id === fileId);
+          const existingFile = existingProjectFile || existingFinancialFile;
+          
+          if (existingFile) {
+            console.log('📄 Found existing file:', {
+              id: existingFile.id,
+              name: existingFile.name,
+              currentContentLength: existingFile.content?.length || 0,
+              newContentLength: content.length,
+              contentChanged: existingFile.content !== content
+            });
+          } else {
+            console.warn('⚠️ File not found in store:', fileId);
+          }
+          
+          // Update the file in the appropriate store
+          const updatedProjectFiles = projectFiles.map(file =>
+            file.id === fileId ? { ...file, content, modifiedAt: new Date() } : file
+          );
+          
+          const updatedFinancialFiles = financialFiles.map(file =>
+            file.id === fileId ? { ...file, content, modifiedAt: new Date() } : file
+          );
+          
+          // Also update the tab if it's open
+          const existingTab = openTabs.find(tab => tab.id === fileId);
+          if (existingTab) {
+            console.log('📋 Updating existing tab:', {
+              tabId: fileId,
+              tabName: existingTab.name,
+              currentTabContentLength: existingTab.content?.length || 0,
+              newContentLength: content.length,
+              tabContentChanged: existingTab.content !== content
+            });
+          }
+          
+          const updatedTabs = openTabs.map((tab: EditorTab) => 
+            tab.id === fileId 
+              ? { ...tab, content, modified: true }
+              : tab
+          );
+          
+          console.log('✅ Store update complete:', {
+            fileId,
+            projectFilesUpdated: updatedProjectFiles.length,
+            financialFilesUpdated: updatedFinancialFiles.length,
+            tabsUpdated: updatedTabs.length,
+            hasMatchingTab: !!updatedTabs.find(t => t.id === fileId)
+          });
+          
+          set({ 
+            projectFiles: updatedProjectFiles,
+            financialFiles: updatedFinancialFiles,
+            openTabs: updatedTabs
+          });
         },
 
         updateFileStatus: (fileId: string, status: 'draft' | 'scheduled' | 'complete') => {
@@ -546,13 +681,33 @@ export const useEditorStore = create<EditorState>()(
           });
         },
 
-        createNewFile: async (name: string, type: ProjectFile['type'], category: ProjectFile['category'] = 'project', folderId?: string) => {
+        createNewFile: (name: string, type: ProjectFile['type'], category: ProjectFile['category'] = 'project', folderId?: string, customContent?: string) => {
           const { projectFiles, financialFiles } = get();
+          
+          console.log('🔧 createNewFile called with:', {
+            name,
+            type,
+            category,
+            folderId,
+            hasCustomContent: !!customContent,
+            customContentLength: customContent?.length || 0,
+            customContentPreview: customContent?.substring(0, 100) || 'NO CUSTOM CONTENT'
+          });
           
           // Generate unique ID
           const id = `${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now()}`;
           const fileName = `${name}${getFileExtension(type)}`;
           const basePath = category === 'financial' ? '/financial-data' : '/eac-projects';
+          
+          // Use custom content if provided, otherwise use default
+          const fileContent = customContent || getDefaultContent(type, name);
+          
+          console.log('📄 Final file content:', {
+            fileName,
+            contentLength: fileContent.length,
+            contentPreview: fileContent.substring(0, 100),
+            isCustom: !!customContent
+          });
           
           // Create new file
           const newFile: ProjectFile = {
@@ -561,7 +716,7 @@ export const useEditorStore = create<EditorState>()(
             icon: getFileIcon(type),
             type,
             category,
-            content: getDefaultContent(type, name),
+            content: fileContent,
             filePath: `${basePath}/${fileName}`,
             createdAt: new Date(),
             modifiedAt: new Date(),
@@ -582,8 +737,23 @@ export const useEditorStore = create<EditorState>()(
             });
           }
 
-          // Automatically open the new file
-          get().openTab(newFile);
+          console.log('📁 File added to store, about to open tab:', {
+            fileId: id,
+            fileName: fileName,
+            contentLength: newFile.content?.length || 0,
+            hasContent: !!newFile.content
+          });
+
+          // Automatically open the new file with a small delay to ensure state is set
+          setTimeout(() => {
+            console.log('⏰ Opening tab after timeout for file:', id);
+            get().openTab(newFile);
+          }, 10);
+
+          console.log('✅ Tab will open for new file:', {
+            fileId: id,
+            fileName: fileName
+          });
 
           // Save to Convex database (async - don't block UI)
           try {
@@ -592,16 +762,21 @@ export const useEditorStore = create<EditorState>()(
             console.log('File created locally:', newFile);
             
             // Dispatch custom event that components can listen to
-            window.dispatchEvent(new CustomEvent('fileCreated', { 
-              detail: { 
-                file: newFile,
-                projectId: folderId // Using folderId as projectId for now
-              } 
-            }));
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('fileCreated', { 
+                detail: { 
+                  file: newFile,
+                  projectId: folderId // Using folderId as projectId for now
+                } 
+              }));
+            }
             
           } catch (error) {
             console.error('Failed to save file to database:', error);
           }
+
+          // Return the file ID so caller can reference it
+          return id;
         },
 
         createFolder: (name: string, category: 'project' | 'financial', convexId?: string) => {
@@ -1216,9 +1391,15 @@ export const useEditorStore = create<EditorState>()(
             };
           },
           setItem: (name, value) => {
-            localStorage.setItem(name, JSON.stringify(value));
+            if (typeof window !== 'undefined' && localStorage) {
+              localStorage.setItem(name, JSON.stringify(value));
+            }
           },
-          removeItem: (name) => localStorage.removeItem(name),
+          removeItem: (name) => {
+            if (typeof window !== 'undefined' && localStorage) {
+              localStorage.removeItem(name);
+            }
+          },
         },
         onRehydrateStorage: () => (state) => {
           if (state) {
@@ -1249,23 +1430,43 @@ export const useEditorStore = create<EditorState>()(
               });
             }
             
-            // Ensure Instructions folder exists if there are project folders
+            // Ensure system folders exist if there are project folders
             if (state.projectFolders && state.projectFolders.length > 0) {
-              // Only ensure the Instructions folder if there are already some project folders
+              // Only ensure the system folders if there are already some project folders
               // This prevents auto-creation when storage is intentionally cleared
               const hasInstructionsFolder = state.projectFolders.some(folder =>
                 folder.id === 'instructions-folder' && folder.pinned
               );
               
+              const hasContentCreationFolder = state.projectFolders.some(folder =>
+                folder.id === 'content-creation-folder' && folder.pinned
+              );
+              
+              const systemFolders: ProjectFolder[] = [];
+              
               if (!hasInstructionsFolder) {
+                systemFolders.push({
+                  id: 'instructions-folder',
+                  name: 'Instructions',
+                  category: 'project' as const,
+                  createdAt: new Date(),
+                  pinned: true,
+                });
+              }
+              
+              if (!hasContentCreationFolder) {
+                systemFolders.push({
+                  id: 'content-creation-folder',
+                  name: 'Content Creation',
+                  category: 'project' as const,
+                  createdAt: new Date(),
+                  pinned: true,
+                });
+              }
+              
+              if (systemFolders.length > 0) {
                 state.projectFolders = [
-                  {
-                    id: 'instructions-folder',
-                    name: 'Instructions',
-                    category: 'project',
-                    createdAt: new Date(),
-                    pinned: true,
-                  },
+                  ...systemFolders,
                   ...state.projectFolders
                 ];
               }

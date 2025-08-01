@@ -72,8 +72,9 @@ export interface EditorState {
   unpinTab: (tabId: string) => void;
   updateTabContent: (tabId: string, content: string) => void;
   updateFileContent: (tabId: string, content: string) => void;
+  updateFileContentInStore: (fileId: string, content: string) => void;
   updateFileStatus: (fileId: string, status: 'draft' | 'scheduled' | 'complete') => void;
-  createNewFile: (name: string, type: ProjectFile['type'], category?: ProjectFile['category'], folderId?: string) => void;
+  createNewFile: (name: string, type: ProjectFile['type'], category?: ProjectFile['category'], folderId?: string, customContent?: string) => string;
   createFolder: (name: string, category: 'project' | 'financial', convexId?: string) => void;
   deleteFile: (fileId: string) => void;
   renameFile: (fileId: string, newName: string) => void;

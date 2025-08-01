@@ -16,10 +16,31 @@ const MarkdownEditor = ({ content, onChange, editable = true }: MarkdownEditorPr
   const [mode, setMode] = useState<'edit' | 'preview'>('edit')
   const [markdownContent, setMarkdownContent] = useState(content)
 
+  // Debug: Log every render
+  console.log('🎨 MarkdownEditor render:', {
+    contentProp: content,
+    contentLength: content.length,
+    markdownContentState: markdownContent,
+    stateLength: markdownContent.length,
+    editable,
+    mode
+  });
+
   // Update local state when content prop changes
   useEffect(() => {
-    setMarkdownContent(content)
-  }, [content])
+    console.log('📝 MarkdownEditor: Content prop changed', {
+      newContent: content,
+      contentLength: content.length,
+      currentMarkdownContent: markdownContent,
+      currentLength: markdownContent.length,
+      areEqual: content === markdownContent
+    });
+    
+    // Only update if content is actually different
+    if (content !== markdownContent) {
+      setMarkdownContent(content)
+    }
+  }, [content]) // Only depend on content prop, not internal state
 
   const handleContentChange = (newContent: string) => {
     setMarkdownContent(newContent)

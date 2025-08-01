@@ -19,6 +19,11 @@ const TiptapEditor = dynamic(() => import('@/app/_components/editor/_components/
   loading: () => <div className="p-4 text-[#858585]">Loading editor...</div>
 });
 
+const SocialMediaEditor = dynamic(() => import('@/app/_components/editor/_components/SocialMediaEditor'), {
+  ssr: false,
+  loading: () => <div className="p-4 text-[#858585]">Loading social media editor...</div>
+});
+
 // Dynamic import for markdown editor with preview
 const MarkdownEditor = dynamic(() => import('@/app/_components/editor/_components/MarkdownEditor'), {
   ssr: false,
@@ -215,7 +220,18 @@ export function DashEditor() {
 
   const getFileContent = (tabId: string) => {
     const tab = openTabs.find((t) => t.id === tabId);
-    return tab ? tab.content : '// File not found';
+    const content = tab ? tab.content : '// File not found';
+    
+    console.log('🔍 getFileContent called:', {
+      tabId,
+      foundTab: !!tab,
+      tabName: tab?.name,
+      contentLength: content?.length || 0,
+      contentPreview: content?.substring(0, 100) || 'NO CONTENT',
+      isDefaultContent: content?.includes('Start writing your content here') || content?.includes('// File not found')
+    });
+    
+    return content;
   };
 
   const handleContentChange = useCallback((content: string) => {
@@ -224,6 +240,30 @@ export function DashEditor() {
       updateFileContent(activeTab, content);
     }
   }, [activeTab, updateFileContent]);
+
+  // Get current tab content - memoized to ensure editors get fresh content
+  const currentTabContent = useMemo(() => {
+    if (!activeTab) {
+      console.log('📄 No active tab, returning empty content');
+      return '';
+    }
+    
+    const content = getFileContent(activeTab);
+    console.log('📄 Current tab content updated:', {
+      activeTab,
+      contentLength: content.length,
+      contentPreview: content.substring(0, 100),
+      timestamp: new Date().toISOString()
+    });
+    return content;
+  }, [activeTab, openTabs]); // Re-calculate when activeTab changes or tabs are updated
+
+  // Save current tab content before switching tabs
+  const saveCurrentTabContent = useCallback(() => {
+    // This will be called when activeTab changes to save the previous content
+    // The MarkdownEditor and TiptapEditor handle this via their onChange callbacks
+    console.log('🔄 Tab switching - content should auto-save via onChange');
+  }, []);
 
   const handleCreateFileWithDetails = () => {
     if (newFileName.trim()) {
@@ -261,12 +301,12 @@ export function DashEditor() {
   const getLineCount = () => {
     if (!currentTab) return 1;
     
-    // For special tabs (non-code), use minimal or no line numbers
-    if (['sign-in', 'user-profile', 'calendar', 'social-connect', 'post-creator', 'x', 'facebook', 'instagram', 'reddit'].includes(currentTab.type)) {
+    // For special tabs (non-editable), use minimal line numbers
+    if (['sign-in', 'user-profile', 'calendar', 'social-connect', 'post-creator'].includes(currentTab.type)) {
       return 1; // Minimal line numbers for special tabs
     }
     
-    // For code/text files, calculate based on content
+    // For editable files (including social media), calculate based on content
     if (currentTab.content) {
       const lines = currentTab.content.split('\n').length;
       return Math.max(lines, 10); // Minimum 10 lines, but grow with content
@@ -277,8 +317,9 @@ export function DashEditor() {
   
   const lineCount = getLineCount();
 
-  const isEditable = currentTab ? ['typescript', 'javascript', 'json', 'markdown'].includes(currentTab.type) : false;
+  const isEditable = currentTab ? ['typescript', 'javascript', 'json', 'markdown', 'x', 'facebook', 'instagram', 'reddit'].includes(currentTab.type) : false;
   const isMarkdownFile = currentTab?.type === 'markdown';
+  const isSocialMediaFile = currentTab ? ['x', 'facebook', 'instagram', 'reddit'].includes(currentTab.type) : false;
   const isGeneralsModule = currentTab?.type === 'generals';
   const isPercentCompleteModule = currentTab?.type === 'percent-complete';
   const isScheduleModule = currentTab?.type === 'schedule';
@@ -289,22 +330,8 @@ export function DashEditor() {
   const isUserProfileModule = currentTab?.type === 'user-profile';
   const isSignInModule = currentTab?.type === 'sign-in';
 
-  // Memoized change handlers for different editor types to prevent infinite re-renders
-  const handleRedditChange = useCallback((content: string) => {
-    if (currentTab) updateFileContent(currentTab.id, content);
-  }, [currentTab, updateFileContent]);
-
-  const handleFacebookChange = useCallback((content: string) => {
-    if (currentTab) updateFileContent(currentTab.id, content);
-  }, [currentTab, updateFileContent]);
-
-  const handleXChange = useCallback((content: string) => {
-    if (currentTab) updateFileContent(currentTab.id, content);
-  }, [currentTab, updateFileContent]);
-
-  const handleInstagramChange = useCallback((content: string) => {
-    if (currentTab) updateFileContent(currentTab.id, content);
-  }, [currentTab, updateFileContent]);
+  // Social media files handle their own state management internally
+  // No need for change handlers as they can cause content conflicts
 
   return (
     <main className="flex-1 flex flex-col bg-[#1a1a1a]">
@@ -665,35 +692,28 @@ export function DashEditor() {
                       ) : currentTab?.type === 'facebook' ? (
                         <FacebookPostEditor
                           fileName={currentTab.name}
-                          onChange={handleFacebookChange}
-                        />
-                      ) : currentTab?.type === 'x' ? (
-                        <XPostEditor
-                          fileName={currentTab.name}
-                          onChange={handleXChange}
-                        />
-                      ) : currentTab?.type === 'instagram' ? (
-                        <InstagramPostEditor
-                          fileName={currentTab.name}
-                          onChange={handleInstagramChange}
-                        />
-                      ) : currentTab?.type === 'reddit' ? (
-                        <RedditPostEditor
-                          fileName={currentTab.name}
-                          onChange={handleRedditChange}
+                          // Don't pass onChange to prevent overwriting rich content
                         />
                       ) : (
-                        // Use MarkdownEditor for markdown files, TiptapEditor for others
-                        isMarkdownFile ? (
+                        // Use SocialMediaEditor for social media files (x, instagram, reddit, facebook), MarkdownEditor for markdown, TiptapEditor for others
+                        isSocialMediaFile && currentTab ? (
+                          <SocialMediaEditor
+                            fileName={currentTab.name}
+                            platform={currentTab.type as 'x' | 'instagram' | 'reddit' | 'facebook'}
+                            content={currentTabContent}
+                            onChange={handleContentChange}
+                            editable={isEditable}
+                          />
+                        ) : isMarkdownFile ? (
                           <MarkdownEditor
-                            content={getFileContent(activeTab)}
+                            content={currentTabContent}
                             onChange={handleContentChange}
                             editable={isEditable}
                           />
                         ) : (
                           <div className="p-4">
                             <TiptapEditor
-                              content={getFileContent(activeTab)}
+                              content={currentTabContent}
                               onChange={handleContentChange}
                               editable={isEditable}
                             />
