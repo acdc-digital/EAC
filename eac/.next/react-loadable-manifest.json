@@ -108,8 +108,26 @@
       "static/chunks/_app-pages-browser_app__components_editor__components_TiptapEditor_tsx.js"
     ]
   },
+  "store/agents/index.ts -> ../": {
+    "id": "store/agents/index.ts -> ../",
+    "files": []
+  },
+  "store/agents/index.ts -> ../../../.claude/.tools/twitter/index": {
+    "id": "store/agents/index.ts -> ../../../.claude/.tools/twitter/index",
+    "files": [
+      "static/chunks/_app-pages-browser_claude_tools_twitter_index_ts.js"
+    ]
+  },
+  "store/agents/index.ts -> @/convex/_generated/api": {
+    "id": "store/agents/index.ts -> @/convex/_generated/api",
+    "files": []
+  },
   "store/agents/index.ts -> @/store": {
     "id": "store/agents/index.ts -> @/store",
+    "files": []
+  },
+  "store/agents/index.ts -> convex/browser": {
+    "id": "store/agents/index.ts -> convex/browser",
     "files": []
   }
 }

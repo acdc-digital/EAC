@@ -299,6 +299,18 @@ export const useEditorStore = create<EditorState>()(
             return;
           }
 
+          // Define which file types should be auto-pinned
+          // You can add more file types here if needed
+          const autoPinFileTypes = ['calendar', 'social-connect', 'user-profile', 'post-creator'];
+          const shouldAutoPinn = autoPinFileTypes.includes(file.type);
+          
+          let pinnedOrder: number | undefined;
+          if (shouldAutoPinn) {
+            // Get the highest pinned order for auto-pinned tabs
+            const pinnedTabs = openTabs.filter(t => t.pinned);
+            pinnedOrder = pinnedTabs.length > 0 ? Math.max(...pinnedTabs.map(t => t.pinnedOrder || 0)) + 1 : 1;
+          }
+
           // Create new tab with content
           const newTab: EditorTab = {
             id: file.id,
@@ -307,13 +319,23 @@ export const useEditorStore = create<EditorState>()(
             content: file.content || getDefaultContent(file.type, file.name),
             filePath: file.filePath,
             type: file.type,
-            pinned: false,
+            pinned: shouldAutoPinn,
+            pinnedOrder: shouldAutoPinn ? pinnedOrder : undefined,
           };
 
-          // Insert new tab after all pinned tabs
-          const pinnedTabs = openTabs.filter(tab => tab.pinned);
-          const unpinnedTabs = openTabs.filter(tab => !tab.pinned);
-          const newTabs = [...pinnedTabs, ...unpinnedTabs, newTab];
+          let newTabs: EditorTab[];
+          if (shouldAutoPinn) {
+            // For auto-pinned tabs, insert in correct pinned position
+            const otherTabs = [...openTabs];
+            const insertIndex = otherTabs.filter(t => t.pinned && (t.pinnedOrder || 0) < (pinnedOrder || 0)).length;
+            otherTabs.splice(insertIndex, 0, newTab);
+            newTabs = otherTabs;
+          } else {
+            // For non-auto-pinned tabs, insert after all pinned tabs
+            const pinnedTabs = openTabs.filter(tab => tab.pinned);
+            const unpinnedTabs = openTabs.filter(tab => !tab.pinned);
+            newTabs = [...pinnedTabs, ...unpinnedTabs, newTab];
+          }
 
           set({
             openTabs: newTabs,
@@ -331,6 +353,17 @@ export const useEditorStore = create<EditorState>()(
             return;
           }
 
+          // Define which tab types should be auto-pinned
+          const autoPinTypes = ['user-profile', 'calendar', 'social-connect', 'post-creator'];
+          const shouldAutoPinn = autoPinTypes.includes(type);
+          
+          let pinnedOrder: number | undefined;
+          if (shouldAutoPinn) {
+            // Get the highest pinned order for auto-pinned tabs
+            const pinnedTabs = openTabs.filter(t => t.pinned);
+            pinnedOrder = pinnedTabs.length > 0 ? Math.max(...pinnedTabs.map(t => t.pinnedOrder || 0)) + 1 : 1;
+          }
+
           // Create new special tab
           const newTab: EditorTab = {
             id,
@@ -339,13 +372,23 @@ export const useEditorStore = create<EditorState>()(
             content: '',
             filePath: `/${type}`,
             type,
-            pinned: false,
+            pinned: shouldAutoPinn,
+            pinnedOrder: shouldAutoPinn ? pinnedOrder : undefined,
           };
 
-          // Insert new tab after all pinned tabs
-          const pinnedTabs = openTabs.filter(tab => tab.pinned);
-          const unpinnedTabs = openTabs.filter(tab => !tab.pinned);
-          const newTabs = [...pinnedTabs, ...unpinnedTabs, newTab];
+          let newTabs: EditorTab[];
+          if (shouldAutoPinn) {
+            // For auto-pinned tabs, insert in correct pinned position
+            const otherTabs = [...openTabs];
+            const insertIndex = otherTabs.filter(t => t.pinned && (t.pinnedOrder || 0) < (pinnedOrder || 0)).length;
+            otherTabs.splice(insertIndex, 0, newTab);
+            newTabs = otherTabs;
+          } else {
+            // For non-auto-pinned tabs, insert after all pinned tabs
+            const pinnedTabs = openTabs.filter(tab => tab.pinned);
+            const unpinnedTabs = openTabs.filter(tab => !tab.pinned);
+            newTabs = [...pinnedTabs, ...unpinnedTabs, newTab];
+          }
 
           set({
             openTabs: newTabs,

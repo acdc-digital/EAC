@@ -14,7 +14,7 @@ import {
   Contact,
   Edit3,
   FileText,
-  Settings,
+  Info,
   Trash2,
   User
 } from "lucide-react";
@@ -179,17 +179,28 @@ export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps
           );
         })}
       </div>
-
-      {/* Settings at bottom */}
+      
+      {/* Bottom Section - Help */}
       <div className="mt-auto mb-2 flex flex-col items-center">
         <Button
           variant="ghost"
           size="icon"
-          disabled={!isAuthenticated} // Disable when not authenticated
-          className={`w-11 h-11 rounded-none hover:bg-[#2d2d2d] ${!isAuthenticated ? 'opacity-50 cursor-not-allowed' : ''}`}
-          title={isAuthenticated ? "Settings" : "Sign in to access"}
+          onClick={() => handleActivityClick('help')}
+          disabled={!isAuthenticated}
+          className={`
+            w-9 h-9 rounded-none hover:bg-[#2d2d2d] relative
+            ${effectiveActivePanel === 'help'
+              ? 'bg-[#2d2d2d] border-l-2 border-[#007acc]'
+              : 'border-l-2 border-transparent'
+            }
+            ${!isAuthenticated ? 'opacity-50 cursor-not-allowed' : ''}
+          `}
+          title={isAuthenticated ? 'Help' : 'Sign in to access'}
         >
-          <Settings className="w-5 h-5 text-[#858585]" />
+          <Info
+            style={{ width: '22px', height: '22px' }}
+            className={effectiveActivePanel === 'help' ? 'text-[#cccccc]' : 'text-[#858585]'}
+          />
         </Button>
       </div>
     </aside>

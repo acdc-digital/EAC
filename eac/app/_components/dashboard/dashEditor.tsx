@@ -262,7 +262,7 @@ export function DashEditor() {
     if (!currentTab) return 1;
     
     // For special tabs (non-code), use minimal or no line numbers
-    if (['sign-in', 'user-profile', 'calendar', 'social-connect', 'post-creator'].includes(currentTab.type)) {
+    if (['sign-in', 'user-profile', 'calendar', 'social-connect', 'post-creator', 'x', 'facebook', 'instagram', 'reddit'].includes(currentTab.type)) {
       return 1; // Minimal line numbers for special tabs
     }
     
@@ -493,15 +493,20 @@ export function DashEditor() {
               {/* Add New Tab Button - Now functional */}
               <div className="relative" ref={createMenuRef}>
                 <button
-                  className="flex items-center justify-center w-8 h-[35px] text-xs border-l border-[#2d2d2d] text-[#858585] hover:bg-[#2d2d2d] transition-colors"
-                  onClick={() => setShowCreateMenu(!showCreateMenu)}
+                  disabled={!isAuthenticated}
+                  className={`flex items-center justify-center w-8 h-[35px] text-xs border-l border-[#2d2d2d] transition-colors ${
+                    isAuthenticated
+                      ? 'text-[#858585] hover:bg-[#2d2d2d]'
+                      : 'text-[#3d3d3d] opacity-50'
+                  }`}
+                  onClick={() => isAuthenticated && setShowCreateMenu(!showCreateMenu)}
                 >
                   <span className="sr-only">Create new file</span>
                   <Plus className="w-3 h-3" />
                 </button>
 
                 {/* Create file modal-style dropdown */}
-                {showCreateMenu && (
+                {showCreateMenu && isAuthenticated && (
                   <div className="absolute right-0 top-full mt-1 w-80 bg-[#2d2d2d] border border-[#454545] rounded shadow-xl z-50 p-4">
                     <div className="space-y-4">
                       {/* Header */}
@@ -625,7 +630,7 @@ export function DashEditor() {
               `}</style>
               <div className="flex min-h-full">
                 {/* Line numbers - synchronized with content - only show for code/text files */}
-                {!['sign-in', 'user-profile', 'calendar', 'social-connect', 'post-creator'].includes(currentTab?.type || '') && (
+                {currentTab && !['sign-in', 'user-profile', 'calendar', 'social-connect', 'post-creator', 'x', 'facebook', 'instagram', 'reddit'].includes(currentTab.type) && (
                   <div className="bg-[#1a1a1a] text-[#858585] text-center px-2 select-none w-[40px] border-r border-[#2d2d2d] flex-shrink-0">
                     {Array.from({ length: lineCount }, (_, i) => (
                       <div key={i} className="leading-5 text-xs font-mono h-5">

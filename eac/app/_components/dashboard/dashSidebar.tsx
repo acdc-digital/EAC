@@ -4,47 +4,46 @@
 "use client";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useFiles } from "@/lib/hooks/useFiles";
 import { useInstructions } from "@/lib/hooks/useInstructions";
 import { useProjects } from "@/lib/hooks/useProjects";
 import { useProjectSync } from "@/lib/hooks/useProjectSync";
 import { useEditorStore, useSidebarStore } from "@/store";
-import { useConvexAuth } from "convex/react";
-// TODO: Re-enable once files have Convex IDs
-// import { useMutation } from "convex/react";
-// import { api } from "@/convex/_generated/api";
+import { useConvexAuth, useMutation } from "convex/react";
 import {
-    AtSign,
-    Braces,
-    Camera,
-    ChevronDown,
-    ChevronRight,
-    ChevronsDown,
-    FileCode,
-    FileSpreadsheet,
-    FileText,
-    FileType,
-    Folder,
-    GripVertical,
-    MessageSquare,
-    Pin,
-    Plus,
-    X
+  AtSign,
+  Braces,
+  Camera,
+  ChevronDown,
+  ChevronRight,
+  ChevronsDown,
+  FileCode,
+  FileSpreadsheet,
+  FileText,
+  FileType,
+  Folder,
+  GripVertical,
+  MessageSquare,
+  Pin,
+  Plus,
+  X
 } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
 import { DashAgents } from "./dashAgents";
 import { DashDebug } from "./dashDebug";
+import { DashHelp } from "./dashHelp";
 import { DashTrash } from "./dashTrash";
 
 import { Button } from "@/components/ui/button";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { FileCreationDropdown } from "./_components/fileCreationDropdown";
 
@@ -58,6 +57,9 @@ export function DashSidebar({ activePanel }: SidebarProps) {
   const { createProject, deleteProject } = useProjects();
   const { deleteFile } = useFiles(null); // We'll get file-specific functions as needed
   const { isAuthenticated } = useConvexAuth();
+
+  // Convex mutations
+  const deleteFileFromDB = useMutation(api.trash.deleteFile);
 
   // Initialize Instructions project for authenticated users
   const { instructionsProject, instructionFiles } = useInstructions();
@@ -94,26 +96,44 @@ export function DashSidebar({ activePanel }: SidebarProps) {
 
   const handleConfirmDelete = async () => {
     if (deleteConfirmation.fileId) {
-      // Find the file to move to trash
-      const file = [...projectFiles, ...financialFiles].find(f => f.id === deleteConfirmation.fileId);
-      if (file) {
-        // First move to local trash
-        moveToTrash(file, 'file');
-        console.log(`📁 File "${file.name}" moved to local trash`);
+      // First check if it's an instruction file
+      const instructionFile = instructionFiles?.find(f => f._id === deleteConfirmation.fileId);
+      
+      if (instructionFile) {
+        // Handle instruction file deletion
+        try {
+          await deleteFileFromDB({
+            id: instructionFile._id as Id<"files">,
+            deletedBy: 'user', // Mark as deleted by user
+          });
+          console.log(`✅ Instruction file "${instructionFile.name}" moved to trash`);
+        } catch (error) {
+          console.error(`❌ Error deleting instruction file "${instructionFile.name}":`, error);
+        }
+      } else {
+        // Handle regular project/financial file deletion
+        const file = [...projectFiles, ...financialFiles].find(f => f.id === deleteConfirmation.fileId);
+        if (file) {
+          // First move to local trash
+          moveToTrash(file, 'file');
+          console.log(`📁 File "${file.name}" moved to local trash`);
 
-        // If file has a convex ID, also move to database trash
-        if (file.convexId) {
-          try {
-            await deleteFile({
-              id: file.convexId as Id<"files">,
-              deletedBy: 'user',
-            });
-            console.log(`✅ File "${file.name}" moved to database trash`);
-          } catch (error) {
-            console.error(`❌ Error moving file "${file.name}" to database trash:`, error);
+          // If file has a convex ID, also move to database trash
+          if (file.convexId) {
+            try {
+              await deleteFile({
+                id: file.convexId as Id<"files">,
+                deletedBy: 'user',
+              });
+              console.log(`✅ File "${file.name}" moved to database trash`);
+            } catch (error) {
+              console.error(`❌ Error moving file "${file.name}" to database trash:`, error);
+            }
+          } else {
+            console.log(`📁 File "${file.name}" moved to local trash only (no Convex ID)`);
           }
         } else {
-          console.log(`📁 File "${file.name}" moved to local trash only (no Convex ID)`);
+          console.error(`❌ File with ID "${deleteConfirmation.fileId}" not found`);
         }
       }
       setDeleteConfirmation({ isOpen: false, fileId: '', fileName: '' });
@@ -574,6 +594,8 @@ export function DashSidebar({ activePanel }: SidebarProps) {
         return <DashTrash />;
       case 'debug':
         return <DashDebug />;
+      case 'help':
+        return <DashHelp />;
       case 'agents':
         return <DashAgents />;
       default:

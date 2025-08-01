@@ -16,16 +16,16 @@ import { useSocialPost } from "@/lib/hooks/useSocialPost";
 import { useXApi } from "@/lib/hooks/useXApi";
 import { cn } from "@/lib/utils";
 import {
-  AlertCircle,
-  AtSign,
-  Calendar,
-  CheckCircle,
-  Clock,
-  Globe,
-  Loader2,
-  MessageCircle,
-  Send,
-  Users
+    AlertCircle,
+    AtSign,
+    Calendar,
+    CheckCircle,
+    Clock,
+    Globe,
+    Loader2,
+    MessageCircle,
+    Send,
+    Users
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -110,10 +110,39 @@ export function XPostEditor({ fileName, onChange }: XPostEditorProps) {
         setHasInitialized(true);
       }
     } else if (!post && !postLoading && !hasInitialized) {
-      // No existing post, mark as initialized
+      // No existing post, check for localStorage data from agent
+      try {
+        const formDataKey = `twitter-form-${fileName}`;
+        const storedData = localStorage.getItem(formDataKey);
+        
+        if (storedData) {
+          const parsed = JSON.parse(storedData);
+          console.log(`📥 Loading Twitter form data from localStorage for ${fileName}:`, parsed);
+          
+          // Load the stored form data
+          setFormData({
+            content: parsed.content || "",
+            replySettings: parsed.platformData.replySettings || "following",
+            scheduledDate: parsed.platformData.scheduledDate || "",
+            scheduledTime: parsed.platformData.scheduledTime || "",
+            isThread: parsed.platformData.isThread || false,
+            threadTweets: parsed.platformData.threadTweets || [""],
+            hasPoll: parsed.platformData.hasPoll || false,
+            pollOptions: parsed.platformData.pollOptions || ["", ""],
+            pollDuration: parsed.platformData.pollDuration || 1440,
+          });
+          
+          // Clear the localStorage data since we've loaded it
+          localStorage.removeItem(formDataKey);
+          console.log(`🗑️ Cleared localStorage data for ${fileName}`);
+        }
+      } catch (error) {
+        console.error('Failed to load localStorage form data:', error);
+      }
+      // Mark as initialized regardless
       setHasInitialized(true);
     }
-  }, [post, postLoading, hasInitialized, platformData]);
+  }, [post, postLoading, hasInitialized, platformData, fileName]);
 
   // Auto-save on content change (debounced) - only after initialization
   useEffect(() => {

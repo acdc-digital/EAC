@@ -10,10 +10,10 @@ import { useSidebarStore } from "@/store";
 import { useEditorStore } from "@/store/editor";
 import { AuthLoading, useConvexAuth } from "convex/react";
 import {
-    AlertCircle,
-    Copyright,
-    Cpu,
-    Wifi
+  AlertCircle,
+  Copyright,
+  Cpu,
+  Wifi
 } from "lucide-react";
 import { useEffect } from "react";
 import { DashActivityBar } from "./_components/dashboard/dashActivityBar";
@@ -24,7 +24,7 @@ import { FileSync } from "./_components/dashboard/fileSync";
 export default function HomePage() {
   const { activePanel, setActivePanel } = useSidebarStore();
   const { isAuthenticated, isLoading } = useConvexAuth();
-  const { openSpecialTab, openTabs } = useEditorStore();
+  const { openSpecialTab, openTabs, activeTab } = useEditorStore();
   
   // Sync user data with Convex when authenticated
   useUserSync();
@@ -36,6 +36,10 @@ export default function HomePage() {
   useEffect(() => {
     initializeHistory();
   }, []);
+
+  // Check if sign-in tab is currently active
+  const currentTab = openTabs.find(tab => tab.id === activeTab);
+  const isSignInTabActive = currentTab?.type === 'sign-in';
 
   // Set active panel and open appropriate tab based on authentication state
   useEffect(() => {
@@ -49,15 +53,19 @@ export default function HomePage() {
           openSpecialTab('sign-in', 'Sign In', 'sign-in');
         }
       } else {
-        // When authenticated, auto-open user profile tab if no user profile tab exists
+        // When authenticated, only auto-open user profile tab on initial load if no tabs exist at all
+        // Don't auto-reopen if user manually closed it
+        const hasAnyTabs = openTabs.length > 0;
         const hasUserProfileTab = openTabs.some(tab => tab.type === 'user-profile');
-        if (!hasUserProfileTab) {
+        
+        // Only auto-open user profile if there are no tabs at all (initial load)
+        if (!hasAnyTabs && !hasUserProfileTab) {
           openSpecialTab('user-profile', 'User Profile', 'user-profile');
         }
         // Keep current panel as is - don't force any changes when user is authenticated
       }
     }
-  }, [isAuthenticated, isLoading, setActivePanel, openSpecialTab, openTabs, activePanel]);
+  }, [isAuthenticated, isLoading, setActivePanel, openSpecialTab]);
 
   return (
     <>
@@ -76,7 +84,7 @@ export default function HomePage() {
         <FileSync />
         
         {/* Title Bar - 32px */}
-        <header className={`h-8 bg-[#181818] border-b border-[#2d2d2d] flex items-center px-0 select-none ${!isAuthenticated ? 'opacity-50' : ''}`}>
+        <header className={`h-8 bg-[#181818] border-b border-[#2d2d2d] flex items-center px-0 select-none ${!isAuthenticated && !isSignInTabActive ? 'opacity-50' : ''}`}>
           {/* Title */}
           <div className="flex-1 flex justify-start ml-2">
             <span className="text-xs text-[#858585]">
@@ -86,7 +94,7 @@ export default function HomePage() {
         </header>
 
         {/* Main Content Area */}
-        <div className={`flex-1 flex overflow-hidden ${!isAuthenticated ? 'opacity-50' : ''}`}>
+        <div className={`flex-1 flex overflow-hidden ${!isAuthenticated && !isSignInTabActive ? 'opacity-50' : ''}`}>
           {/* Activity Bar - Only user icon is active when not authenticated */}
           <DashActivityBar
             activePanel={activePanel}
@@ -103,7 +111,7 @@ export default function HomePage() {
         </div>
 
         {/* Status Bar - 22px */}
-        <footer className={`h-[22px] bg-[#2d2d2d] text-[#cccccc] text-xs flex items-center px-2 justify-between ${!isAuthenticated ? 'opacity-50' : ''}`}>
+        <footer className={`h-[22px] bg-[#2d2d2d] text-[#cccccc] text-xs flex items-center px-2 justify-between ${!isAuthenticated && !isSignInTabActive ? 'opacity-50' : ''}`}>
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-1">
               <Copyright className="w-3 h-3" />

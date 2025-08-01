@@ -40,8 +40,8 @@ export function DashTrash() {
       {/* Content */}
       <div className="flex-1 overflow-auto">
         {trashItems.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-[#858585] px-6">
-            <Trash2 className="w-12 h-12 mb-4 opacity-50 mt-8" />
+          <div className="flex flex-col items-center text-[#858585] px-6 pt-8">
+            <Trash2 className="w-12 h-12 mb-4 opacity-50" />
             <p className="text-sm">Trash is empty</p>
             <p className="text-xs mt-1 text-center leading-relaxed">
               Deleted files and folders will appear here
