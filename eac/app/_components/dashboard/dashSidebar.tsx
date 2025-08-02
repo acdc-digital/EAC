@@ -38,7 +38,9 @@ import { DashAgents } from "./dashAgents";
 import { DashDebug } from "./dashDebug";
 import { DashExtensions } from "./dashExtensions";
 import { DashHelp } from "./dashHelp";
+import { DashSocialConnections } from "./dashSocialConnections";
 import { DashTrash } from "./dashTrash";
+import { DashUserConsole } from "./dashUserConsole";
 
 import { FileCreationDropdown } from "./_components/fileCreationDropdown";
 
@@ -642,6 +644,10 @@ export function DashSidebar({ activePanel }: SidebarProps) {
         return <DashAgents />;
       case 'extensions':
         return <DashExtensions />;
+      case 'profile':
+        return <DashUserConsole />;
+      case 'social-connectors':
+        return <DashSocialConnections />;
       default:
         return (
           <div className="p-2">

@@ -8,7 +8,7 @@ import { useEffect, useRef } from 'react';
  * AuthWatcher - Monitors authentication state changes and manages user data/tabs accordingly
  * This component ensures that:
  * - When a user signs out, their projects and files are cleared from the UI
- * - When a user signs in, the sign-in tab is replaced with the user profile tab
+ * - When a user signs in, any sign-in tabs are closed (user info shown in panel)
  */
 export function AuthWatcher() {
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -53,7 +53,7 @@ export function AuthWatcher() {
     if (prevAuthenticatedRef.current === false && isAuthenticated === true) {
       console.log('🔐 User signed in - closing sign-in tab');
       
-      // Find and close the sign-in tab (user profile tab will be auto-opened by main page)
+      // Find and close the sign-in tab (user info will be shown in user console panel)
       const signInTab = openTabs.find(tab => tab.type === 'sign-in');
       if (signInTab) {
         closeTab(signInTab.id);

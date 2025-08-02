@@ -70,12 +70,13 @@ export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps
       return;
     }
     
-    // For social connectors and file editor, open tabs and set panel indicator
+    // For social connectors, now open panel instead of tab
     if (id === 'social-connectors') {
-      openSpecialTab('social-connectors', 'Social Media Connectors', 'social-connect');
-      onPanelChange('social-connectors'); // Set indicator to social-connectors button
+      onPanelChange('social-connectors');
       return;
     }
+    
+    // For file editor and calendar, open tabs and set panel indicator
     if (id === 'file-editor') {
       openSpecialTab('file-editor', 'File Editor', 'post-creator');
       onPanelChange('file-editor'); // Set indicator to file-editor button
@@ -112,10 +113,9 @@ export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps
                         ? 'bg-[#2d2d2d] border-l-2 border-[#007acc]'
                         : 'border-l-2 border-transparent'
                     }`}
-                    title="Sign In"
+                    title="User Console"
                     onClick={() => {
-                      openSpecialTab('sign-in', 'Sign In', 'sign-in');
-                      onPanelChange('profile'); // Set to profile panel to show indicator
+                      onPanelChange('profile'); // Just set to profile panel - no tab opening
                     }}
                   >
                     <div className={`w-6 h-6 rounded-full border flex items-center justify-center text-xs font-medium transition-colors ${
@@ -135,10 +135,9 @@ export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps
                         : 'border-l-2 border-transparent'
                     }`}
                     onClick={() => {
-                      openSpecialTab('user-profile', 'User Profile', 'user-profile');
-                      onPanelChange('profile'); // Set to profile panel to show indicator
+                      onPanelChange('profile'); // Just set to profile panel - no tab opening
                     }}
-                    title="User Profile"
+                    title="User Console"
                   >
                     <div
                       className={`w-6 h-6 rounded-full border flex items-center justify-center text-xs font-medium ${

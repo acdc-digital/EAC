@@ -40,31 +40,19 @@ export default function HomePage() {
   const currentTab = openTabs.find(tab => tab.id === activeTab);
   const isSignInTabActive = currentTab?.type === 'sign-in';
 
-  // Set active panel and open appropriate tab based on authentication state
+  // Set active panel based on authentication state - no more auto-opening tabs
   useEffect(() => {
     if (!isLoading) {
       if (!isAuthenticated) {
-        // When not authenticated, show profile panel (user icon) as active
+        // When not authenticated, show profile panel (user console) as active
         setActivePanel('profile');
-        // Auto-open sign-in tab if no tabs are open or no sign-in tab exists
-        const hasSignInTab = openTabs.some(tab => tab.type === 'sign-in');
-        if (!hasSignInTab) {
-          openSpecialTab('sign-in', 'Sign In', 'sign-in');
-        }
       } else {
-        // When authenticated, only auto-open user profile tab on initial load if no tabs exist at all
-        // Don't auto-reopen if user manually closed it
-        const hasAnyTabs = openTabs.length > 0;
-        const hasUserProfileTab = openTabs.some(tab => tab.type === 'user-profile');
-        
-        // Only auto-open user profile if there are no tabs at all (initial load)
-        if (!hasAnyTabs && !hasUserProfileTab) {
-          openSpecialTab('user-profile', 'User Profile', 'user-profile');
-        }
-        // Keep current panel as is - don't force any changes when user is authenticated
+        // When authenticated, show profile panel by default
+        // User can navigate to other panels as needed
+        setActivePanel('profile');
       }
     }
-  }, [isAuthenticated, isLoading, setActivePanel, openSpecialTab]);
+  }, [isAuthenticated, isLoading, setActivePanel]);
 
   return (
     <>

@@ -9,7 +9,7 @@ export interface EditorTab {
   modified: boolean;
   content: string;
   filePath: string;
-  type: 'typescript' | 'json' | 'excel' | 'pdf' | 'markdown' | 'javascript' | 'generals' | 'percent-complete' | 'schedule' | 'materials' | 'social-connect' | 'post-creator' | 'calendar' | 'facebook' | 'reddit' | 'instagram' | 'x' | 'user-profile' | 'sign-in';
+  type: 'typescript' | 'json' | 'excel' | 'pdf' | 'markdown' | 'javascript' | 'generals' | 'percent-complete' | 'schedule' | 'materials' | 'social-connect' | 'post-creator' | 'calendar' | 'facebook' | 'reddit' | 'instagram' | 'x' | 'user-profile' | 'sign-in' | 'platform-instructions';
   pinned?: boolean;
   pinnedOrder?: number; // Order among pinned tabs (lower numbers appear first)
 }
@@ -36,7 +36,7 @@ export interface ProjectFile {
   id: string;
   name: string;
   icon: LucideIcon | string; // Updated to allow string for custom Reddit "r/" display
-  type: 'typescript' | 'json' | 'excel' | 'pdf' | 'markdown' | 'javascript' | 'generals' | 'percent-complete' | 'schedule' | 'materials' | 'social-connect' | 'post-creator' | 'calendar' | 'facebook' | 'reddit' | 'instagram' | 'x' | 'user-profile' | 'sign-in';
+  type: 'typescript' | 'json' | 'excel' | 'pdf' | 'markdown' | 'javascript' | 'generals' | 'percent-complete' | 'schedule' | 'materials' | 'social-connect' | 'post-creator' | 'calendar' | 'facebook' | 'reddit' | 'instagram' | 'x' | 'user-profile' | 'sign-in' | 'platform-instructions';
   category: 'project' | 'financial';
   content: string;
   filePath: string;
@@ -63,7 +63,7 @@ export interface EditorState {
   
   // Actions
   openTab: (file: ProjectFile) => void;
-  openSpecialTab: (id: string, name: string, type: 'social-connect' | 'post-creator' | 'calendar' | 'user-profile' | 'sign-in') => void;
+  openSpecialTab: (id: string, name: string, type: 'social-connect' | 'post-creator' | 'calendar' | 'user-profile' | 'sign-in' | 'platform-instructions') => void;
   closeTab: (tabId: string) => void;
   closeAllTabs: () => void;
   setActiveTab: (tabId: string) => void;

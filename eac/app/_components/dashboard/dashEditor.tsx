@@ -11,7 +11,7 @@ import { useEditorStore } from "@/store";
 import { ProjectFile } from "@/store/editor/types";
 import { useTerminalStore } from "@/store/terminal";
 import { useConvexAuth } from "convex/react";
-import { AtSign, Braces, Camera, ChevronLeft, ChevronRight, Edit3, FileCode, FileSpreadsheet, FileText, FileType, MessageSquare, Pin, Plus, User, Users, X } from "lucide-react";
+import { AtSign, Braces, Camera, ChevronLeft, ChevronRight, Edit3, FileCode, FileSpreadsheet, FileText, FileType, HelpCircle, MessageSquare, Pin, Plus, User, Users, X } from "lucide-react";
 
 // Dynamic import to avoid SSR issues
 const TiptapEditor = dynamic(() => import('@/app/_components/editor/_components/TiptapEditor'), {
@@ -20,7 +20,7 @@ const TiptapEditor = dynamic(() => import('@/app/_components/editor/_components/
 });
 
 // Dynamic import for social media form editor
-const SocialMediaFormEditor = dynamic(() => import('@/app/_components/editor/_components/SocialMediaFormEditor'), {
+const SocialMediaFormEditor = dynamic(() => import('@/app/_components/editor/_components/SocialMediaFormEditor').then(mod => ({ default: mod.default })), {
   ssr: false,
   loading: () => <div className="p-4 text-[#858585]">Loading social media editor...</div>
 });
@@ -85,6 +85,11 @@ const SocialConnectors = dynamic(() => import('./socialConnectors').then(mod => 
 const FileEditor = dynamic(() => import('./fileEditor').then(mod => ({ default: mod.FileEditor })), {
   ssr: false,
   loading: () => <div className="p-4 text-[#858585]">Loading file editor...</div>
+});
+
+const PlatformInstructions = dynamic(() => import('./platformInstructions').then(mod => ({ default: mod.PlatformInstructions })), {
+  ssr: false,
+  loading: () => <div className="p-4 text-[#858585]">Loading instructions...</div>
 });
 
 // Dynamic import for Social Platform Editors
@@ -303,7 +308,7 @@ export function DashEditor() {
     if (!currentTab) return 1;
     
     // For special tabs (non-editable), use minimal line numbers
-    if (['sign-in', 'user-profile', 'calendar', 'social-connect', 'post-creator'].includes(currentTab.type)) {
+    if (['sign-in', 'user-profile', 'calendar', 'social-connect', 'post-creator', 'platform-instructions'].includes(currentTab.type)) {
       return 1; // Minimal line numbers for special tabs
     }
     
@@ -330,6 +335,7 @@ export function DashEditor() {
   const isCalendarModule = currentTab?.type === 'calendar';
   const isUserProfileModule = currentTab?.type === 'user-profile';
   const isSignInModule = currentTab?.type === 'sign-in';
+  const isPlatformInstructionsModule = currentTab?.type === 'platform-instructions';
 
   // Social media files handle their own state management internally
   // No need for change handlers as they can cause content conflicts
@@ -440,6 +446,8 @@ export function DashEditor() {
                             return User;
                           case 'sign-in':
                             return User;
+                          case 'platform-instructions':
+                            return HelpCircle;
                           default:
                             return FileCode;
                         }
@@ -658,7 +666,7 @@ export function DashEditor() {
               `}</style>
               <div className="flex min-h-full">
                 {/* Line numbers - synchronized with content - only show for code/text files */}
-                {currentTab && !['sign-in', 'user-profile', 'calendar', 'social-connect', 'post-creator', 'x', 'facebook', 'instagram', 'reddit'].includes(currentTab.type) && (
+                {currentTab && !['sign-in', 'user-profile', 'calendar', 'social-connect', 'post-creator', 'platform-instructions', 'x', 'facebook', 'instagram', 'reddit'].includes(currentTab.type) && (
                   <div className="bg-[#1a1a1a] text-[#858585] text-center px-2 select-none w-[40px] border-r border-[#2d2d2d] flex-shrink-0">
                     {Array.from({ length: lineCount }, (_, i) => (
                       <div key={i} className="leading-5 text-xs font-mono h-5">
@@ -690,6 +698,8 @@ export function DashEditor() {
                         <UserProfile />
                       ) : isSignInModule ? (
                         <SignInTab />
+                      ) : isPlatformInstructionsModule ? (
+                        <PlatformInstructions platform={currentTab?.id?.split('-')[0]} />
                       ) : currentTab?.type === 'facebook' ? (
                         <SocialMediaFormEditor
                           content={currentTabContent}
@@ -740,8 +750,17 @@ export function DashEditor() {
                     </>
                   ) : (
                     <div className="text-[#858585] text-center mt-8 p-4">
-                      <p>No file selected</p>
-                      <p className="text-xs mt-2">Open a file from the sidebar or create a new one</p>
+                      {isAuthenticated ? (
+                        <>
+                          <p>Dashboard ready</p>
+                          <p className="text-xs mt-2">Open a file from the sidebar, create a new project, or check your user console panel</p>
+                        </>
+                      ) : (
+                        <>
+                          <p>Sign in to get started</p>
+                          <p className="text-xs mt-2">Click the user icon to access your personalized dashboard</p>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>

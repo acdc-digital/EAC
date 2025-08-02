@@ -1,7 +1,7 @@
 // Editor Store
 // /Users/matthewsimon/Projects/EAC/eac/store/editor/index.ts
 
-import { AtSign, Braces, Calendar, Camera, FileCode, FileSpreadsheet, FileText, FileType, MessageSquare } from 'lucide-react';
+import { AtSign, Braces, Calendar, Camera, FileCode, FileSpreadsheet, FileText, FileType, HelpCircle, MessageSquare } from 'lucide-react';
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { EditorState, EditorTab, ProjectFile, ProjectFolder, TrashItem } from './types';
@@ -39,6 +39,8 @@ const getFileIcon = (type: ProjectFile['type']) => {
       return AtSign;
     case 'calendar':
       return Calendar;
+    case 'platform-instructions':
+      return HelpCircle;
     default:
       return FileCode;
   }
@@ -369,7 +371,7 @@ export const useEditorStore = create<EditorState>()(
           });
         },
 
-        openSpecialTab: (id: string, name: string, type: 'social-connect' | 'post-creator' | 'calendar' | 'user-profile' | 'sign-in') => {
+        openSpecialTab: (id: string, name: string, type: 'social-connect' | 'post-creator' | 'calendar' | 'user-profile' | 'sign-in' | 'platform-instructions') => {
           const { openTabs } = get();
           
           // Check if tab is already open
@@ -380,7 +382,7 @@ export const useEditorStore = create<EditorState>()(
           }
 
           // Define which tab types should be auto-pinned
-          const autoPinTypes = ['user-profile', 'calendar', 'social-connect', 'post-creator'];
+          const autoPinTypes = ['user-profile', 'calendar', 'social-connect', 'post-creator', 'platform-instructions'];
           const shouldAutoPinn = autoPinTypes.includes(type);
           
           let pinnedOrder: number | undefined;
