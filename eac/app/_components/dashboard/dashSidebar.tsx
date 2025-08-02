@@ -33,6 +33,7 @@ import {
 import React, { useCallback, useMemo, useState } from "react";
 import { DashAgents } from "./dashAgents";
 import { DashDebug } from "./dashDebug";
+import { DashExtensions } from "./dashExtensions";
 import { DashHelp } from "./dashHelp";
 import { DashTrash } from "./dashTrash";
 
@@ -598,6 +599,8 @@ export function DashSidebar({ activePanel }: SidebarProps) {
         return <DashHelp />;
       case 'agents':
         return <DashAgents />;
+      case 'extensions':
+        return <DashExtensions />;
       default:
         return (
           <div className="p-2">

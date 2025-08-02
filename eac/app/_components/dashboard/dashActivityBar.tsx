@@ -15,6 +15,7 @@ import {
   Edit3,
   FileText,
   Info,
+  Puzzle,
   Trash2,
   User
 } from "lucide-react";
@@ -56,6 +57,7 @@ export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps
     { id: "file-editor", icon: Edit3, label: "File Editor" },
     { id: "calendar", icon: Calendar, label: "Content Calendar" },
     { id: "agents", icon: Bot, label: "Agents" },
+    { id: "extensions", icon: Puzzle, label: "Extensions" },
     { id: "trash", icon: Trash2, label: "Trash" },
     { id: "debug", icon: Bug, label: "Debug Tools" },
     { id: "profile", icon: User, label: "User Profile" },

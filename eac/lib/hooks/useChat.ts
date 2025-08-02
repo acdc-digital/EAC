@@ -3,16 +3,21 @@
 
 import { api } from "@/convex/_generated/api";
 import { useChatStore } from "@/store/terminal/chat";
+import { useSessionStore } from "@/store/terminal/session";
 import { useAction, useMutation, useQuery } from "convex/react";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { handleCommand, isCommand, parseCommand } from "../chatCommands";
 
 export function useChat() {
-  const { sessionId, isLoading, setLoading, addTerminalFeedback } = useChatStore();
+  const { sessionId, isLoading, setLoading, addTerminalFeedback, loadMessagesForSession } = useChatStore();
+  const { activeSessionId, updateSession } = useSessionStore();
   
-  // Get messages from Convex
+  // Use the active session ID from session store, fallback to chat store
+  const currentSessionId = activeSessionId || sessionId;
+  
+  // Get messages from Convex for the current session
   const messages = useQuery(api.chat.getChatMessages, {
-    sessionId,
+    sessionId: currentSessionId,
     limit: 500,
   });
   
@@ -24,6 +29,18 @@ export function useChat() {
   
   // Mutation to clear chat history
   const clearChatHistory = useMutation(api.chat.clearChatHistory);
+
+  // Update session metadata when messages change
+  useEffect(() => {
+    if (messages && messages.length > 0 && currentSessionId) {
+      const lastMessage = messages[messages.length - 1];
+      updateSession(currentSessionId, {
+        lastActivity: lastMessage._creationTime,
+        messageCount: messages.length,
+        preview: lastMessage.content.substring(0, 50) + (lastMessage.content.length > 50 ? '...' : ''),
+      });
+    }
+  }, [messages, currentSessionId, updateSession]);
   
   const sendMessage = useCallback(async (content: string, originalContent?: string) => {
     if (!content.trim() || isLoading) return;
@@ -42,10 +59,10 @@ export function useChat() {
         await storeChatMessage({
           role: "user",
           content: originalTrimmedContent || trimmedContent,
-          sessionId,
+          sessionId: currentSessionId,
         });
         
-        await clearChatHistory({ sessionId });
+        await clearChatHistory({ sessionId: currentSessionId });
         return;
       }
       
@@ -55,7 +72,7 @@ export function useChat() {
         await storeChatMessage({
           role: "user",
           content: originalTrimmedContent || trimmedContent,
-          sessionId,
+          sessionId: currentSessionId,
         });
         
         const commandResponse = handleCommand(command);
@@ -65,7 +82,7 @@ export function useChat() {
           await storeChatMessage({
             role: "system",
             content: commandResponse,
-            sessionId,
+            sessionId: currentSessionId,
           });
           return;
         }
@@ -81,7 +98,7 @@ export function useChat() {
       await sendChatMessage({
         content: trimmedContent,
         originalContent: originalTrimmedContent,
-        sessionId,
+        sessionId: currentSessionId,
       });
     } catch (error) {
       console.error("Error sending message:", error);
@@ -89,7 +106,7 @@ export function useChat() {
     } finally {
       setLoading(false);
     }
-  }, [sendChatMessage, storeChatMessage, clearChatHistory, sessionId, isLoading, setLoading]);
+  }, [sendChatMessage, storeChatMessage, clearChatHistory, currentSessionId, isLoading, setLoading]);
 
   // Check if session is approaching or at limit
   const messageCount = messages?.length ?? 0;
@@ -126,23 +143,19 @@ export function useChat() {
     };
   };
 
-  // Placeholder function for starting a new session (to be implemented later)
+  // Function to start a new session (integrated with session store)
   const startNewSession = useCallback(() => {
-    console.log("🔄 Starting new session... (placeholder function)");
-    // TODO: Implement session creation logic
-    // This will include:
-    // 1. Generate new session ID
-    // 2. Clear current messages (optional)
-    // 3. Update session ID in store
-    // 4. Optionally archive current session
-    alert("New session functionality will be implemented soon!");
+    const { createNewSession } = useSessionStore.getState();
+    const newSessionId = createNewSession();
+    console.log("🔄 Started new session:", newSessionId);
+    return newSessionId;
   }, []);
 
   return {
     messages: messages ?? [],
     isLoading,
     sendMessage,
-    sessionId,
+    sessionId: currentSessionId,
     storeChatMessage,
     addTerminalFeedback,
     // Session limit functionality

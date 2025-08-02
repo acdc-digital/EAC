@@ -164,7 +164,8 @@ export const useChatStore = create<ChatState>()(
       },
       
       setSessionId: (sessionId) => {
-        set({ sessionId });
+        // Clear messages when switching sessions
+        set({ sessionId, messages: [] });
       }
     }),
     {

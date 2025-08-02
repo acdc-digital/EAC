@@ -99,3 +99,50 @@ export const clearChatHistory = mutation({
     return { deleted: messages.length };
   },
 });
+
+// Query to get all unique sessions for a user
+export const getUserSessions = query({
+  args: {},
+  handler: async (ctx) => {
+    // Get authenticated user
+    const user = await getCurrentUserOrThrow(ctx);
+    
+    // Get all messages for this user
+    const messages = await ctx.db
+      .query("chatMessages")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+    
+    // Extract unique sessions with metadata
+    const sessionMap = new Map<string, {
+      sessionId: string;
+      lastActivity: number;
+      messageCount: number;
+      preview: string;
+    }>();
+    
+    messages.forEach(message => {
+      if (message.sessionId) {
+        const existing = sessionMap.get(message.sessionId);
+        if (!existing) {
+          sessionMap.set(message.sessionId, {
+            sessionId: message.sessionId,
+            lastActivity: message.createdAt,
+            messageCount: 1,
+            preview: message.content.substring(0, 50) + (message.content.length > 50 ? '...' : ''),
+          });
+        } else {
+          existing.messageCount++;
+          if (message.createdAt > existing.lastActivity) {
+            existing.lastActivity = message.createdAt;
+            existing.preview = message.content.substring(0, 50) + (message.content.length > 50 ? '...' : '');
+          }
+        }
+      }
+    });
+    
+    // Convert to array and sort by last activity
+    return Array.from(sessionMap.values())
+      .sort((a, b) => b.lastActivity - a.lastActivity);
+  },
+});
