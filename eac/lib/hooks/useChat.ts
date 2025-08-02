@@ -10,7 +10,7 @@ import { useCallback, useEffect } from "react";
 import { handleCommand, isCommand, parseCommand } from "../chatCommands";
 
 export function useChat() {
-  const { sessionId, isLoading, setLoading, addTerminalFeedback } = useChatStore();
+  const { sessionId, isLoading, setLoading, addTerminalFeedback, streamingThinking, isStreamingThinking, setStreamingThinking, clearStreamingThinking } = useChatStore();
   const { activeSessionId, updateSession } = useSessionStore();
   const { activeAgentId } = useAgentStore();
   
@@ -25,6 +25,9 @@ export function useChat() {
   
   // Action to send messages to Claude
   const sendChatMessage = useAction(api.chatActions.sendChatMessage);
+  
+  // Action to send messages to Claude with streaming thinking
+  const sendChatMessageWithStreaming = useAction(api.chatActions.sendChatMessageWithStreaming);
   
   // Mutation to store local messages
   const storeChatMessage = useMutation(api.chat.storeChatMessage);
@@ -109,7 +112,103 @@ export function useChat() {
     } finally {
       setLoading(false);
     }
-  }, [sendChatMessage, storeChatMessage, clearChatHistory, currentSessionId, isLoading, setLoading]);
+  }, [sendChatMessage, storeChatMessage, clearChatHistory, currentSessionId, isLoading, setLoading, activeAgentId]);
+
+  // Send message with streaming thinking
+  const sendMessageWithStreaming = useCallback(async (content: string, originalContent?: string) => {
+    if (!content.trim() || isLoading) return;
+    
+    const trimmedContent = content.trim();
+    const originalTrimmedContent = originalContent?.trim();
+    
+    // Clear any previous streaming thinking
+    clearStreamingThinking();
+    
+    // Handle specific local commands only
+    const contentToCheck = originalTrimmedContent || trimmedContent;
+    if (isCommand(contentToCheck)) {
+      const { command } = parseCommand(contentToCheck);
+      
+      // Only handle /clear locally, let all other commands go to Convex
+      if (command === '/clear') {
+        // Store user command
+        await storeChatMessage({
+          role: "user",
+          content: originalTrimmedContent || trimmedContent,
+          sessionId: currentSessionId,
+        });
+        
+        await clearChatHistory({ sessionId: currentSessionId });
+        return;
+      }
+      
+      // Check if it's a local help command (not agent command)
+      if (['/help', '/project', '/tech', '/files', '/components', '/stores', '/convex'].includes(command)) {
+        // Store user command
+        await storeChatMessage({
+          role: "user",
+          content: originalTrimmedContent || trimmedContent,
+          sessionId: currentSessionId,
+        });
+        
+        const commandResponse = handleCommand(command);
+        
+        if (commandResponse) {
+          // Store system response for command
+          await storeChatMessage({
+            role: "system",
+            content: commandResponse,
+            sessionId: currentSessionId,
+          });
+          return;
+        }
+      }
+      
+      // All other commands (like /twitter, /instructions, /) go to Convex
+    }
+    
+    // Handle regular AI chat messages with streaming
+    setLoading(true);
+    
+    try {
+      // Start streaming thinking with progressive updates
+      const thinkingSteps = [
+        "🤔 Analyzing your request...",
+        "🤔 Analyzing your request... Understanding context...",
+        "🤔 Analyzing your request... Understanding context... Researching best approach...",
+        "🤔 Analyzing your request... Understanding context... Researching best approach... Formulating response...",
+        "🤔 Analyzing your request... Understanding context... Researching best approach... Formulating response... Finalizing..."
+      ];
+      
+      let currentStep = 0;
+      setStreamingThinking(thinkingSteps[0], true);
+      
+      // Update thinking content progressively
+      const streamingInterval = setInterval(() => {
+        currentStep++;
+        if (currentStep < thinkingSteps.length) {
+          setStreamingThinking(thinkingSteps[currentStep], true);
+        }
+      }, 600); // Update every 600ms for smoother streaming effect
+      
+      // Send the actual message to Convex
+      await sendChatMessageWithStreaming({
+        content: trimmedContent,
+        originalContent: originalTrimmedContent,
+        sessionId: currentSessionId,
+        activeAgentId: activeAgentId || undefined,
+      });
+      
+      // Clear streaming interval and thinking
+      clearInterval(streamingInterval);
+      clearStreamingThinking();
+    } catch (error) {
+      clearStreamingThinking();
+      console.error("Error sending streaming message:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [sendChatMessageWithStreaming, storeChatMessage, clearChatHistory, currentSessionId, isLoading, setLoading, activeAgentId, setStreamingThinking, clearStreamingThinking]);
 
   // Check if session is approaching or at limit
   const messageCount = messages?.length ?? 0;
@@ -158,9 +257,13 @@ export function useChat() {
     messages: messages ?? [],
     isLoading,
     sendMessage,
+    sendMessageWithStreaming,
     sessionId: currentSessionId,
     storeChatMessage,
     addTerminalFeedback,
+    // Streaming thinking state
+    streamingThinking,
+    isStreamingThinking,
     // Session limit functionality
     messageCount,
     isNearSessionLimit,

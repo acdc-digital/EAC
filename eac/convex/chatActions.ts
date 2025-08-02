@@ -705,20 +705,41 @@ When users ask about project analysis, the system automatically triggers MCP ser
 
 For general questions not requiring MCP analysis, provide helpful guidance about EAC development patterns, React/Next.js best practices, and Convex integration techniques.`;
 
-      // Get response from Claude
+      // Get response from Claude with extended thinking enabled
       const completion = await anthropic.messages.create({
         model: "claude-3-5-sonnet-20241022",
-        max_tokens: 1000,
+        max_tokens: 4000,
+        thinking: {
+          type: "enabled",
+          budget_tokens: 2000
+        },
         system: systemPrompt,
         messages: claudeMessages,
       });
 
-      const assistantResponse = completion.content[0]?.type === "text"
-        ? completion.content[0].text
-        : "I couldn't generate a response.";
+      let thinkingContent = "";
+      let assistantResponse = "";
+
+      // Process all content blocks to extract thinking and text
+      for (const block of completion.content) {
+        if (block.type === "thinking") {
+          thinkingContent = block.thinking;
+        } else if (block.type === "text") {
+          assistantResponse = block.text;
+        }
+      }
 
       if (!assistantResponse) {
         throw new Error("No response from Claude");
+      }
+
+      // Store the thinking content first (if any)
+      if (thinkingContent) {
+        await ctx.runMutation(api.chat.storeChatMessage, {
+          role: "thinking",
+          content: thinkingContent,
+          sessionId: args.sessionId,
+        });
       }
 
       // Store the assistant's response
@@ -728,12 +749,246 @@ For general questions not requiring MCP analysis, provide helpful guidance about
         sessionId: args.sessionId,
       });
 
-      return storedResponse;
+      return {
+        thinking: thinkingContent,
+        response: assistantResponse,
+        storedResponse
+      };
 
     } catch (error) {
       console.error("Chat error:", error);
       
       // Store error message
+      await ctx.runMutation(api.chat.storeChatMessage, {
+        role: "system",
+        content: `Error: ${error instanceof Error ? error.message : "Failed to get AI response"}`,
+        sessionId: args.sessionId,
+      });
+
+      throw error;
+    }
+  },
+});
+
+// Action to send message to Claude and get response with streaming thinking
+export const sendChatMessageWithStreaming = action({
+  args: {
+    content: v.string(),
+    originalContent: v.optional(v.string()),
+    sessionId: v.optional(v.string()),
+    activeAgentId: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<any> => {
+    try {
+      // Store the user message first
+      await ctx.runMutation(api.chat.storeChatMessage, {
+        role: "user",
+        content: args.originalContent || args.content,
+        sessionId: args.sessionId,
+      });
+
+      // Check if message is an agent command (starts with /)
+      const messageContent = args.originalContent || args.content;
+      if (messageContent.trim().startsWith('/')) {
+        return await handleAgentCommand(ctx, messageContent.trim(), args.sessionId);
+      }
+
+      // Check if there's an active agent and route message through it
+      if (args.activeAgentId) {
+        console.log(`🤖 Active agent detected: ${args.activeAgentId}`);
+        
+        switch (args.activeAgentId) {
+          case 'instructions':
+            const instructionsCommand = `/instructions ${messageContent}`;
+            return await handleAgentCommand(ctx, instructionsCommand, args.sessionId);
+          
+          case 'twitter-post':
+            const twitterCommand = `/twitter ${messageContent}`;
+            return await handleAgentCommand(ctx, twitterCommand, args.sessionId);
+          
+          default:
+            console.log(`⚠️ Unknown active agent: ${args.activeAgentId}, falling through to regular chat`);
+            break;
+        }
+      }
+
+      // Check if message requires MCP analysis
+      const messageForMCPDetection = args.originalContent || args.content;
+      const mcpIntent = detectMCPIntent(messageForMCPDetection);
+      
+      if (mcpIntent && mcpIntent.confidence > 0.85) {
+        // Handle project creation directly here
+        if (mcpIntent.tool === "eac_project_creator") {
+          try {
+            const newProject = await ctx.runMutation(api.projects.createProject, {
+              name: mcpIntent.params?.name || `Project ${Date.now()}`,
+              description: mcpIntent.params?.description || "Auto-created project",
+              status: "active",
+              budget: mcpIntent.params?.budget,
+            });
+
+            if (!newProject) {
+              throw new Error("Failed to create project");
+            }
+
+            const successMessage = `✅ **Project Created Successfully!**
+
+🎯 **Project Name:** ${newProject.name}
+📝 **Description:** ${newProject.description || "No description provided"}
+💰 **Budget:** ${newProject.budget ? `$${newProject.budget}` : "Not specified"}
+📊 **Status:** ${newProject.status}
+🔢 **Project ID:** ${newProject._id}
+
+Project "${newProject.name}" has been created in your database!`;
+
+            await ctx.runMutation(api.chat.storeChatMessage, {
+              role: "terminal",
+              content: successMessage,
+              sessionId: args.sessionId,
+              operation: {
+                type: "project_created",
+                details: {
+                  projectName: newProject.name,
+                  projectId: newProject._id,
+                }
+              }
+            });
+
+            return { 
+              mcpTriggered: true, 
+              tool: mcpIntent?.tool || "eac_project_creator",
+              result: successMessage
+            };
+          } catch (error) {
+            console.error("Direct project creation error:", error);
+            
+            const errorMsg = `❌ Failed to create project: ${error instanceof Error ? error.message : "Unknown error"}`;
+            
+            await ctx.runMutation(api.chat.storeChatMessage, {
+              role: "system",
+              content: errorMsg,
+              sessionId: args.sessionId,
+            });
+            
+            throw error;
+          }
+        }
+        
+        // For other MCP intents, just acknowledge
+        const systemMessage = `🔧 MCP Intent Detected: ${mcpIntent.tool} (confidence: ${mcpIntent.confidence})`;
+        await ctx.runMutation(api.chat.storeChatMessage, {
+          role: "system", 
+          content: systemMessage,
+          sessionId: args.sessionId,
+        });
+        
+        return { mcpTriggered: true, tool: mcpIntent.tool };
+      }
+
+      // Regular Claude processing for non-MCP messages
+      const recentMessages = await ctx.runQuery(api.chat.getChatMessages, {
+        sessionId: args.sessionId,
+        limit: 20,
+      });
+
+      // Prepare messages for Claude API
+      const claudeMessages: Anthropic.MessageParam[] = recentMessages
+        .filter((msg: any) => msg.role === "user" || msg.role === "assistant")
+        .map((msg: any) => ({
+          role: msg.role as "user" | "assistant",
+          content: msg.content
+        }));
+
+      const systemPrompt = `You are an AI assistant for the EAC Financial Dashboard project with MCP (Model Context Protocol) integration.
+
+**EAC Project Specifics:**
+- Financial analytics and project tracking
+- Social media management workflows  
+- Project budgeting and cost analysis
+- Dashboard metrics and reporting
+
+**Technical Stack:**
+- Next.js 15 with App Router and TypeScript
+- Convex real-time backend/database
+- Zustand state management with persistence
+- Tailwind CSS v4 with shadcn/ui components
+- Tiptap rich text editing
+- VS Code-inspired interface design
+
+**Response Style:**
+- Be concise and terminal-friendly
+- Use markdown formatting for code blocks
+- Focus on EAC-specific patterns and best practices
+- Provide actionable technical guidance
+- Format responses clearly for terminal display
+
+For general questions not requiring MCP analysis, provide helpful guidance about EAC development patterns, React/Next.js best practices, and Convex integration techniques.`;
+
+      // Create a streaming response with extended thinking
+      const stream = await anthropic.messages.stream({
+        model: "claude-3-5-sonnet-20241022",
+        max_tokens: 4000,
+        thinking: {
+          type: "enabled",
+          budget_tokens: 2000
+        },
+        system: systemPrompt,
+        messages: claudeMessages,
+      });
+
+      let thinkingContent = "";
+      let assistantResponse = "";
+      let currentThinkingId: string | null = null;
+
+      // Process the stream
+      for await (const event of stream) {
+        if (event.type === 'content_block_start') {
+          if (event.content_block.type === 'thinking') {
+            // Store initial thinking message
+            const thinkingMessageId = await ctx.runMutation(api.chat.storeChatMessage, {
+              role: "thinking",
+              content: "🧠 AI is thinking...",
+              sessionId: args.sessionId,
+            });
+            currentThinkingId = thinkingMessageId;
+          }
+        } else if (event.type === 'content_block_delta') {
+          if (event.delta.type === 'thinking_delta') {
+            thinkingContent += event.delta.thinking;
+            
+            // Update the thinking message in real-time
+            if (currentThinkingId) {
+              await ctx.runMutation(api.chat.updateChatMessage, {
+                messageId: currentThinkingId,
+                content: thinkingContent
+              });
+            }
+          } else if (event.delta.type === 'text_delta') {
+            assistantResponse += event.delta.text;
+          }
+        }
+      }
+
+      if (!assistantResponse) {
+        throw new Error("No response from Claude");
+      }
+
+      // Store the final assistant's response
+      const storedResponse = await ctx.runMutation(api.chat.storeChatMessage, {
+        role: "assistant",
+        content: assistantResponse,
+        sessionId: args.sessionId,
+      });
+
+      return {
+        thinking: thinkingContent,
+        response: assistantResponse,
+        storedResponse
+      };
+
+    } catch (error) {
+      console.error("Chat error:", error);
+      
       await ctx.runMutation(api.chat.storeChatMessage, {
         role: "system",
         content: `Error: ${error instanceof Error ? error.message : "Failed to get AI response"}`,

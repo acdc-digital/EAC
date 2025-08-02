@@ -11,7 +11,7 @@ export default defineSchema({
   
   // Chat messages for AI assistant
   chatMessages: defineTable({
-    role: v.union(v.literal("user"), v.literal("assistant"), v.literal("system"), v.literal("terminal")),
+    role: v.union(v.literal("user"), v.literal("assistant"), v.literal("system"), v.literal("terminal"), v.literal("thinking")),
     content: v.string(),
     sessionId: v.optional(v.string()),
     userId: v.optional(v.union(v.string(), v.id("users"))), // Associate messages with users

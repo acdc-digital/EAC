@@ -36,7 +36,7 @@ export const getChatMessages = query({
 // Mutation to store a chat message (user-specific)
 export const storeChatMessage = mutation({
   args: {
-    role: v.union(v.literal("user"), v.literal("assistant"), v.literal("system"), v.literal("terminal")),
+    role: v.union(v.literal("user"), v.literal("assistant"), v.literal("system"), v.literal("terminal"), v.literal("thinking")),
     content: v.string(),
     sessionId: v.optional(v.string()),
     operation: v.optional(v.object({
@@ -97,6 +97,22 @@ export const clearChatHistory = mutation({
     );
 
     return { deleted: messages.length };
+  },
+});
+
+// Mutation to update a chat message (for streaming updates)
+export const updateChatMessage = mutation({
+  args: {
+    messageId: v.string(),
+    content: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Update the message content
+    await ctx.db.patch(args.messageId as any, {
+      content: args.content,
+    });
+    
+    return { success: true };
   },
 });
 

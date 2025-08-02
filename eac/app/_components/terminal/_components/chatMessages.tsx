@@ -19,6 +19,7 @@ export function ChatMessages() {
   const inputRef = useRef<HTMLInputElement>(null);
   const processedOperations = useRef<Set<string>>(new Set());
   const [message, setMessage] = useState("");
+  const [enableThinkingStream, setEnableThinkingStream] = useState(true); // Toggle for streaming thinking
   
   const { user, isLoaded } = useUser();
   const { initializeUserSession, addTerminalFeedback, setSessionId } = useChatStore();
@@ -27,9 +28,12 @@ export function ChatMessages() {
     messages, 
     isLoading: chatLoading, 
     sendMessage, 
+    sendMessageWithStreaming,
     sessionId, 
     storeChatMessage, 
     addTerminalFeedback: useTerminalFeedback,
+    streamingThinking,
+    isStreamingThinking,
     messageCount,
     isNearSessionLimit,
     isAtSessionLimit,
@@ -306,8 +310,12 @@ Please start a new session to continue chatting.`,
           contextualMessage = `${instructionContext}\n\n---\n\n${messageContent}`;
         }
         
-        // Use the useChat hook which will call the sendChatMessage action
-        await sendMessage(contextualMessage, messageContent);
+        // Use streaming or regular chat based on user preference
+        if (enableThinkingStream) {
+          await sendMessageWithStreaming(contextualMessage, messageContent);
+        } else {
+          await sendMessage(contextualMessage, messageContent);
+        }
       }
     }
   };
@@ -360,6 +368,23 @@ Please start a new session to continue chatting.`,
                 <span className="text-[#f48771] ml-2">🚨 Session full</span>
               )}
             </div>
+            
+            {/* Thinking Stream Toggle */}
+            <div className="text-xs mt-1 flex items-center gap-2">
+              <button
+                onClick={() => setEnableThinkingStream(!enableThinkingStream)}
+                className={`px-2 py-1 rounded text-xs transition-colors ${
+                  enableThinkingStream 
+                    ? 'bg-[#007acc] text-white hover:bg-[#005a9e]' 
+                    : 'bg-[#2d2d2d] text-[#858585] hover:bg-[#3a3a3a]'
+                }`}
+              >
+                🧠 {enableThinkingStream ? 'Thinking ON' : 'Thinking OFF'}
+              </button>
+              <span className="text-[#858585]">
+                {enableThinkingStream ? 'See AI reasoning in real-time' : 'Standard responses only'}
+              </span>
+            </div>
           </div>
 
           {/* Messages */}
@@ -377,6 +402,14 @@ Please start a new session to continue chatting.`,
                   <div className="ml-1 text-[#cccccc] whitespace-pre-wrap">{msg.content}</div>
                 </div>
               )}
+              {msg.role === 'thinking' && (
+                <div className="text-[#d4d4aa]">
+                  <span className="text-[#d4d4aa]">🧠 thinking:</span>
+                  <div className="ml-1 text-[#cccccc] whitespace-pre-wrap bg-[#1a1a1a] p-2 rounded text-xs border-l-2 border-[#d4d4aa] font-mono">
+                    {msg.content}
+                  </div>
+                </div>
+              )}
               {msg.role === 'terminal' && (
                 <div className="text-[#858585]">
                   <div className="text-[#585858] whitespace-pre-wrap bg-[#1a1a1a] p-1 rounded text-[10px] border-l-2 border-[#333]">
@@ -386,6 +419,21 @@ Please start a new session to continue chatting.`,
               )}
             </div>
           ))}
+
+          {/* Streaming Thinking Display */}
+          {isStreamingThinking && streamingThinking && (
+            <div className="space-y-1">
+              <div className="text-[#d4d4aa]">
+                <span className="text-[#d4d4aa]">🧠 thinking:</span>
+                <div className="ml-1 text-[#cccccc] whitespace-pre-wrap bg-[#1a1a1a] p-2 rounded text-xs border-l-2 border-[#d4d4aa] font-mono">
+                  <div className="flex items-center gap-2">
+                    <div className="animate-pulse">⏳</div>
+                    <span>{streamingThinking}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Loading indicator */}
           {isLoading && (

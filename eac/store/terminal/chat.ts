@@ -7,7 +7,7 @@ import { persist } from 'zustand/middleware';
 
 export interface ChatMessage {
   _id: string;
-  role: 'user' | 'assistant' | 'system' | 'terminal';
+  role: 'user' | 'assistant' | 'system' | 'terminal' | 'thinking';
   content: string;
   sessionId?: string;
   userId?: string;
@@ -23,6 +23,8 @@ interface ChatState {
   messages: ChatMessage[];
   isLoading: boolean;
   sessionId: string;
+  streamingThinking: string;
+  isStreamingThinking: boolean;
   
   addMessage: (message: Omit<ChatMessage, '_id' | 'createdAt' | '_creationTime'>) => void;
   addTerminalFeedback: (operation: ChatMessage['operation'], details: string) => void;
@@ -32,6 +34,8 @@ interface ChatState {
   setLoading: (loading: boolean) => void;
   setSessionId: (sessionId: string) => void;
   initializeUserSession: (userId: string) => void;
+  setStreamingThinking: (content: string, isStreaming: boolean) => void;
+  clearStreamingThinking: () => void;
 }
 
 // Generate a user-specific session ID
@@ -50,6 +54,8 @@ export const useChatStore = create<ChatState>()(
       messages: [],
       isLoading: false,
       sessionId: generateSessionId(),
+      streamingThinking: "",
+      isStreamingThinking: false,
       
       initializeUserSession: (userId: string) => {
         const userSessionId = `user_${userId}_persistent`;
@@ -165,7 +171,15 @@ export const useChatStore = create<ChatState>()(
       
       setSessionId: (sessionId) => {
         // Clear messages when switching sessions
-        set({ sessionId, messages: [] });
+        set({ sessionId, messages: [], streamingThinking: "", isStreamingThinking: false });
+      },
+
+      setStreamingThinking: (content: string, isStreaming: boolean) => {
+        set({ streamingThinking: content, isStreamingThinking: isStreaming });
+      },
+
+      clearStreamingThinking: () => {
+        set({ streamingThinking: "", isStreamingThinking: false });
       }
     }),
     {
