@@ -269,10 +269,10 @@ Return ONLY the tweet content, no quotes or explanations.`;
 
     const completion = await anthropic.messages.create({
       model: "claude-3-7-sonnet-20250219",
-      max_tokens: 150,
+      max_tokens: 2048,
       thinking: {
         type: "enabled",
-        budget_tokens: 1000
+        budget_tokens: 1024
       },
       messages: [{
         role: "user",
@@ -329,10 +329,10 @@ Return ONLY the title, no quotes or explanations.`;
 
     const titleCompletion = await anthropic.messages.create({
       model: "claude-3-7-sonnet-20250219",
-      max_tokens: 50,
+      max_tokens: 1536,
       thinking: {
         type: "enabled",
-        budget_tokens: 500
+        budget_tokens: 1024
       },
       messages: [{
         role: "user",
@@ -761,7 +761,7 @@ For general questions not requiring MCP analysis, provide helpful guidance about
         max_tokens: 4000,
         thinking: {
           type: "enabled",
-          budget_tokens: 2000
+          budget_tokens: 2048
         },
         system: systemPrompt,
         messages: claudeMessages,
@@ -980,7 +980,7 @@ For general questions not requiring MCP analysis, provide helpful guidance about
         max_tokens: 4000,
         thinking: {
           type: "enabled",
-          budget_tokens: 2000
+          budget_tokens: 2048
         },
         system: systemPrompt,
         messages: claudeMessages,
