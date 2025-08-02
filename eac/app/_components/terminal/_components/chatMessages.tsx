@@ -310,12 +310,8 @@ Please start a new session to continue chatting.`,
           contextualMessage = `${instructionContext}\n\n---\n\n${messageContent}`;
         }
         
-        // Use streaming or regular chat based on user preference
-        if (enableThinkingStream) {
-          await sendMessageWithStreaming(contextualMessage, messageContent);
-        } else {
-          await sendMessage(contextualMessage, messageContent);
-        }
+        // Always use streaming thinking for all messages (thinking enabled by default)
+        await sendMessageWithStreaming(contextualMessage, messageContent);
       }
     }
   };
@@ -382,7 +378,7 @@ Please start a new session to continue chatting.`,
                 🧠 {enableThinkingStream ? 'Thinking ON' : 'Thinking OFF'}
               </button>
               <span className="text-[#858585]">
-                {enableThinkingStream ? 'See AI reasoning in real-time' : 'Standard responses only'}
+                {enableThinkingStream ? 'See AI reasoning stream in real-time' : 'Show thinking only in final messages'}
               </span>
             </div>
           </div>
@@ -405,7 +401,7 @@ Please start a new session to continue chatting.`,
               {msg.role === 'thinking' && (
                 <div className="text-[#d4d4aa]">
                   <span className="text-[#d4d4aa]">🧠 thinking:</span>
-                  <div className="ml-1 text-[#cccccc] whitespace-pre-wrap bg-[#1a1a1a] p-2 rounded text-xs border-l-2 border-[#d4d4aa] font-mono">
+                  <div className="ml-1 text-[#cccccc] whitespace-pre-wrap text-xs font-mono italic">
                     {msg.content}
                   </div>
                 </div>
@@ -421,15 +417,12 @@ Please start a new session to continue chatting.`,
           ))}
 
           {/* Streaming Thinking Display */}
-          {isStreamingThinking && streamingThinking && (
+          {enableThinkingStream && isStreamingThinking && streamingThinking && (
             <div className="space-y-1">
               <div className="text-[#d4d4aa]">
                 <span className="text-[#d4d4aa]">🧠 thinking:</span>
-                <div className="ml-1 text-[#cccccc] whitespace-pre-wrap bg-[#1a1a1a] p-2 rounded text-xs border-l-2 border-[#d4d4aa] font-mono">
-                  <div className="flex items-center gap-2">
-                    <div className="animate-pulse">⏳</div>
-                    <span>{streamingThinking}</span>
-                  </div>
+                <div className="ml-1 text-[#cccccc] whitespace-pre-wrap text-xs font-mono italic">
+                  {streamingThinking}
                 </div>
               </div>
             </div>

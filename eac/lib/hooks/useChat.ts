@@ -171,27 +171,7 @@ export function useChat() {
     setLoading(true);
     
     try {
-      // Start streaming thinking with progressive updates
-      const thinkingSteps = [
-        "🤔 Analyzing your request...",
-        "🤔 Analyzing your request... Understanding context...",
-        "🤔 Analyzing your request... Understanding context... Researching best approach...",
-        "🤔 Analyzing your request... Understanding context... Researching best approach... Formulating response...",
-        "🤔 Analyzing your request... Understanding context... Researching best approach... Formulating response... Finalizing..."
-      ];
-      
-      let currentStep = 0;
-      setStreamingThinking(thinkingSteps[0], true);
-      
-      // Update thinking content progressively
-      const streamingInterval = setInterval(() => {
-        currentStep++;
-        if (currentStep < thinkingSteps.length) {
-          setStreamingThinking(thinkingSteps[currentStep], true);
-        }
-      }, 600); // Update every 600ms for smoother streaming effect
-      
-      // Send the actual message to Convex
+      // Send the actual message to Convex (real AI thinking will stream from backend)
       await sendChatMessageWithStreaming({
         content: trimmedContent,
         originalContent: originalTrimmedContent,
@@ -199,9 +179,6 @@ export function useChat() {
         activeAgentId: activeAgentId || undefined,
       });
       
-      // Clear streaming interval and thinking
-      clearInterval(streamingInterval);
-      clearStreamingThinking();
     } catch (error) {
       clearStreamingThinking();
       console.error("Error sending streaming message:", error);

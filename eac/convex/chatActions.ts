@@ -268,17 +268,42 @@ Requirements:
 Return ONLY the tweet content, no quotes or explanations.`;
 
     const completion = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-3-7-sonnet-20250219",
       max_tokens: 150,
+      thinking: {
+        type: "enabled",
+        budget_tokens: 1000
+      },
       messages: [{
         role: "user",
         content: twitterPrompt
       }]
     });
 
-    const generatedContent = completion.content[0]?.type === "text" 
-      ? completion.content[0].text.trim() 
-      : userPrompt;
+    // Process thinking content and response
+    let thinkingContent = "";
+    let generatedContent = "";
+
+    for (const block of completion.content) {
+      if (block.type === "thinking") {
+        thinkingContent = block.thinking;
+      } else if (block.type === "text") {
+        generatedContent = block.text.trim();
+      }
+    }
+
+    if (!generatedContent) {
+      generatedContent = userPrompt;
+    }
+
+    // Store thinking content if available
+    if (thinkingContent) {
+      await ctx.runMutation(api.chat.storeChatMessage, {
+        role: "thinking",
+        content: `🐦 Twitter Agent Thinking:\n\n${thinkingContent}`,
+        sessionId: sessionId,
+      });
+    }
 
     console.log("✅ Generated Twitter content:", generatedContent);
 
@@ -303,17 +328,42 @@ Requirements:
 Return ONLY the title, no quotes or explanations.`;
 
     const titleCompletion = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-3-7-sonnet-20250219",
       max_tokens: 50,
+      thinking: {
+        type: "enabled",
+        budget_tokens: 500
+      },
       messages: [{
         role: "user",
         content: titlePrompt
       }]
     });
 
-    const generatedTitle = titleCompletion.content[0]?.type === "text" 
-      ? titleCompletion.content[0].text.trim() 
-      : cleanContent.substring(0, 50) + (cleanContent.length > 50 ? '...' : '');
+    // Process thinking content and response for title
+    let titleThinkingContent = "";
+    let generatedTitle = "";
+
+    for (const block of titleCompletion.content) {
+      if (block.type === "thinking") {
+        titleThinkingContent = block.thinking;
+      } else if (block.type === "text") {
+        generatedTitle = block.text.trim();
+      }
+    }
+
+    if (!generatedTitle) {
+      generatedTitle = cleanContent.substring(0, 50) + (cleanContent.length > 50 ? '...' : '');
+    }
+
+    // Store title thinking content if available
+    if (titleThinkingContent) {
+      await ctx.runMutation(api.chat.storeChatMessage, {
+        role: "thinking",
+        content: `🏷️ Title Generation Thinking:\n\n${titleThinkingContent}`,
+        sessionId: sessionId,
+      });
+    }
 
     console.log("✅ Generated title:", generatedTitle);
 
@@ -705,9 +755,9 @@ When users ask about project analysis, the system automatically triggers MCP ser
 
 For general questions not requiring MCP analysis, provide helpful guidance about EAC development patterns, React/Next.js best practices, and Convex integration techniques.`;
 
-      // Get response from Claude with extended thinking enabled
+      // Get response from Claude with extended thinking enabled (always on)
       const completion = await anthropic.messages.create({
-        model: "claude-3-5-sonnet-20241022",
+        model: "claude-3-7-sonnet-20250219",
         max_tokens: 4000,
         thinking: {
           type: "enabled",
@@ -924,9 +974,9 @@ Project "${newProject.name}" has been created in your database!`;
 
 For general questions not requiring MCP analysis, provide helpful guidance about EAC development patterns, React/Next.js best practices, and Convex integration techniques.`;
 
-      // Create a streaming response with extended thinking
+      // Create a streaming response with extended thinking (always enabled)
       const stream = await anthropic.messages.stream({
-        model: "claude-3-5-sonnet-20241022",
+        model: "claude-3-7-sonnet-20250219",
         max_tokens: 4000,
         thinking: {
           type: "enabled",
@@ -939,6 +989,7 @@ For general questions not requiring MCP analysis, provide helpful guidance about
       let thinkingContent = "";
       let assistantResponse = "";
       let currentThinkingId: string | null = null;
+      let currentAssistantId: string | null = null;
 
       // Process the stream
       for await (const event of stream) {
@@ -951,6 +1002,14 @@ For general questions not requiring MCP analysis, provide helpful guidance about
               sessionId: args.sessionId,
             });
             currentThinkingId = thinkingMessageId;
+          } else if (event.content_block.type === 'text') {
+            // Store initial assistant message for streaming response
+            const assistantMessageId = await ctx.runMutation(api.chat.storeChatMessage, {
+              role: "assistant",
+              content: "",
+              sessionId: args.sessionId,
+            });
+            currentAssistantId = assistantMessageId;
           }
         } else if (event.type === 'content_block_delta') {
           if (event.delta.type === 'thinking_delta') {
@@ -965,6 +1024,14 @@ For general questions not requiring MCP analysis, provide helpful guidance about
             }
           } else if (event.delta.type === 'text_delta') {
             assistantResponse += event.delta.text;
+            
+            // Update the assistant message in real-time
+            if (currentAssistantId) {
+              await ctx.runMutation(api.chat.updateChatMessage, {
+                messageId: currentAssistantId,
+                content: assistantResponse
+              });
+            }
           }
         }
       }
@@ -973,17 +1040,11 @@ For general questions not requiring MCP analysis, provide helpful guidance about
         throw new Error("No response from Claude");
       }
 
-      // Store the final assistant's response
-      const storedResponse = await ctx.runMutation(api.chat.storeChatMessage, {
-        role: "assistant",
-        content: assistantResponse,
-        sessionId: args.sessionId,
-      });
-
+      // Return the streamed response (already stored during streaming)
       return {
         thinking: thinkingContent,
         response: assistantResponse,
-        storedResponse
+        storedResponse: currentAssistantId || "no-id"
       };
 
     } catch (error) {
