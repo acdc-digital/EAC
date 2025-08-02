@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { getCurrentUserIdOptional } from "./auth";
 import { getCurrentUserOrThrow } from "./utils";
 
 // Query to get chat messages for a session (user-specific)
@@ -9,14 +10,17 @@ export const getChatMessages = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    // Get authenticated user
-    const user = await getCurrentUserOrThrow(ctx);
+    // Get authenticated user - return empty if not authenticated
+    const userId = await getCurrentUserIdOptional(ctx);
+    if (!userId) {
+      return [];
+    }
     
     if (args.sessionId) {
       const messages = await ctx.db
         .query("chatMessages")
         .withIndex("by_user_session", (q) =>
-          q.eq("userId", user._id).eq("sessionId", args.sessionId)
+          q.eq("userId", userId).eq("sessionId", args.sessionId)
         )
         .order("desc")
         .take(args.limit ?? 500);
@@ -25,7 +29,7 @@ export const getChatMessages = query({
       // Get all messages for this user if no session specified
       const messages = await ctx.db
         .query("chatMessages")
-        .withIndex("by_user", (q) => q.eq("userId", user._id))
+        .withIndex("by_user", (q) => q.eq("userId", userId))
         .order("desc")
         .take(args.limit ?? 500);
       return messages.reverse(); // Reverse to get chronological order
@@ -50,14 +54,18 @@ export const storeChatMessage = mutation({
     })),
   },
   handler: async (ctx, args) => {
-    // Get authenticated user
-    const user = await getCurrentUserOrThrow(ctx);
+    // Get authenticated user - only store messages if authenticated
+    const userId = await getCurrentUserIdOptional(ctx);
+    if (!userId) {
+      console.log("⚠️ Attempted to store chat message while unauthenticated - skipping");
+      return null; // Return null instead of throwing
+    }
     
     const messageId = await ctx.db.insert("chatMessages", {
       role: args.role,
       content: args.content,
       sessionId: args.sessionId,
-      userId: user._id,
+      userId: userId,
       createdAt: Date.now(),
       ...(args.operation && { operation: args.operation }),
     });
@@ -120,13 +128,16 @@ export const updateChatMessage = mutation({
 export const getUserSessions = query({
   args: {},
   handler: async (ctx) => {
-    // Get authenticated user
-    const user = await getCurrentUserOrThrow(ctx);
+    // Get authenticated user - return empty if not authenticated
+    const userId = await getCurrentUserIdOptional(ctx);
+    if (!userId) {
+      return [];
+    }
     
     // Get all messages for this user
     const messages = await ctx.db
       .query("chatMessages")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
     
     // Extract unique sessions with metadata

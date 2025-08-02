@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { getAuthContext, getCurrentUserId } from "./auth";
+import { getAuthContext, getCurrentUserId, getCurrentUserIdOptional } from "./auth";
 
 // Simple test query - FRESH DEPLOY
 export const test = query({
@@ -139,11 +139,70 @@ export const getInstructionsProject = query({
   },
 });
 
+// Ensure Content Creation project exists for user
+export const ensureContentCreationProject = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getCurrentUserId(ctx);
+    
+    // Check if Content Creation project already exists for this user
+    const existingContentCreation = await ctx.db
+      .query("projects")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .filter((q) => q.eq(q.field("name"), "Content Creation"))
+      .first();
+      
+    if (existingContentCreation) {
+      return existingContentCreation;
+    }
+    
+    // Create Content Creation project
+    const now = Date.now();
+    const contentCreationProjectId = await ctx.db.insert("projects", {
+      name: "Content Creation",
+      status: "active" as const,
+      description: "System project for content creation files and social media posts",
+      userId: userId,
+      createdAt: now,
+      updatedAt: now,
+    });
+    
+    return await ctx.db.get(contentCreationProjectId);
+  },
+});
+
+// Get Content Creation project for user
+export const getContentCreationProject = query({
+  args: {},
+  handler: async (ctx) => {
+    const auth = await getAuthContext(ctx);
+    
+    // Return null if not authenticated instead of throwing
+    if (!auth.isAuthenticated || !auth.userId) {
+      return null;
+    }
+    
+    const contentCreationProject = await ctx.db
+      .query("projects")
+      .withIndex("by_user", (q) => q.eq("userId", auth.userId!))
+      .filter((q) => q.eq(q.field("name"), "Content Creation"))
+      .first();
+    
+    return contentCreationProject;
+  },
+});
+
 // User-scoped generateProjectNumber query
 export const generateProjectNumber = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getCurrentUserId(ctx);
+    const userId = await getCurrentUserIdOptional(ctx);
+    
+    // Return 1 if not authenticated (default project number)
+    if (!userId) {
+      return 1;
+    }
+    
     const projects = await ctx.db
       .query("projects")
       .withIndex("by_user", (q) => q.eq("userId", userId))

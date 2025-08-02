@@ -6,10 +6,13 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { useContentCreation } from "@/lib/hooks/useContentCreation";
 import { useFiles } from "@/lib/hooks/useFiles";
+import { useFileSync } from "@/lib/hooks/useFileSync";
 import { useInstructions } from "@/lib/hooks/useInstructions";
 import { useProjects } from "@/lib/hooks/useProjects";
 import { useProjectSync } from "@/lib/hooks/useProjectSync";
+import { useTrash } from "@/lib/hooks/useTrash";
 import { useEditorStore, useSidebarStore } from "@/store";
 import { useConvexAuth, useMutation } from "convex/react";
 import {
@@ -37,15 +40,6 @@ import { DashExtensions } from "./dashExtensions";
 import { DashHelp } from "./dashHelp";
 import { DashTrash } from "./dashTrash";
 
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { FileCreationDropdown } from "./_components/fileCreationDropdown";
 
 interface SidebarProps {
@@ -58,24 +52,26 @@ export function DashSidebar({ activePanel }: SidebarProps) {
   const { createProject, deleteProject } = useProjects();
   const { deleteFile } = useFiles(null); // We'll get file-specific functions as needed
   const { isAuthenticated } = useConvexAuth();
+  const { moveToTrash: moveFileToConvexTrash } = useTrash(); // Add Convex trash functionality
 
   // Convex mutations
-  const deleteFileFromDB = useMutation(api.trash.deleteFile);
+  const softDeleteFileFromDB = useMutation(api.files.softDeleteFile);
 
   // Initialize Instructions project for authenticated users
   const { instructionsProject, instructionFiles } = useInstructions();
 
+  // Initialize Content Creation project for authenticated users  
+  const { contentCreationProject, contentCreationFiles } = useContentCreation();
+
   // Initialize project synchronization between Convex and Zustand
   useProjectSync();
+
+  // Initialize file sync system for database integration
+  useFileSync();
 
   // TODO: Re-enable once files have Convex IDs
   // const deleteFile = useMutation(api.files.deleteFile);
 
-  const [deleteConfirmation, setDeleteConfirmation] = useState<{ isOpen: boolean; fileId: string; fileName: string }>({
-    isOpen: false,
-    fileId: '',
-    fileName: ''
-  });
   const [renamingFile, setRenamingFile] = useState<{ fileId: string; currentName: string } | null>(null);
   const [renamingFolder, setRenamingFolder] = useState<{ folderId: string; currentName: string } | null>(null);
   const [newFileName, setNewFileName] = useState('');
@@ -91,53 +87,59 @@ export function DashSidebar({ activePanel }: SidebarProps) {
   const [preselectedFolder, setPreselectedFolder] = useState<{id: string, name: string, category: 'project' | 'financial'} | null>(null);
   const createButtonRef = React.useRef<HTMLButtonElement | null>(null);
 
-  const handleDeleteClick = (fileId: string, fileName: string) => {
-    setDeleteConfirmation({ isOpen: true, fileId, fileName });
-  };
+  const handleDeleteClick = async (fileId: string, fileName: string) => {
+    // No confirmation modal - directly move to trash per UX design
+    // First check if it's an instruction file
+    const instructionFile = instructionFiles?.find(f => f._id === fileId);
+    const contentCreationFile = contentCreationFiles?.find(f => f._id === fileId);
+    
+    if (instructionFile) {
+      // Handle instruction file deletion - use soft delete
+      try {
+        await softDeleteFileFromDB({
+          id: instructionFile._id as Id<"files">,
+          deletedBy: 'user', // Mark as deleted by user
+        });
+        console.log(`✅ Instruction file "${instructionFile.name}" moved to trash`);
+      } catch (error) {
+        console.error(`❌ Error deleting instruction file "${instructionFile.name}":`, error);
+      }
+    } else if (contentCreationFile) {
+      // Handle content creation file deletion - use soft delete
+      try {
+        await softDeleteFileFromDB({
+          id: contentCreationFile._id as Id<"files">,
+          deletedBy: 'user', // Mark as deleted by user
+        });
+        console.log(`✅ Content creation file "${contentCreationFile.name}" moved to trash`);
+      } catch (error) {
+        console.error(`❌ Error deleting content creation file "${contentCreationFile.name}":`, error);
+      }
+    } else {
+      // Handle regular project/financial file deletion
+      const file = [...projectFiles, ...financialFiles].find(f => f.id === fileId);
+      if (file) {
+        // First move to local trash
+        moveToTrash(file, 'file');
+        console.log(`📁 File "${file.name}" moved to local trash`);
 
-  const handleConfirmDelete = async () => {
-    if (deleteConfirmation.fileId) {
-      // First check if it's an instruction file
-      const instructionFile = instructionFiles?.find(f => f._id === deleteConfirmation.fileId);
-      
-      if (instructionFile) {
-        // Handle instruction file deletion
-        try {
-          await deleteFileFromDB({
-            id: instructionFile._id as Id<"files">,
-            deletedBy: 'user', // Mark as deleted by user
-          });
-          console.log(`✅ Instruction file "${instructionFile.name}" moved to trash`);
-        } catch (error) {
-          console.error(`❌ Error deleting instruction file "${instructionFile.name}":`, error);
-        }
-      } else {
-        // Handle regular project/financial file deletion
-        const file = [...projectFiles, ...financialFiles].find(f => f.id === deleteConfirmation.fileId);
-        if (file) {
-          // First move to local trash
-          moveToTrash(file, 'file');
-          console.log(`📁 File "${file.name}" moved to local trash`);
-
-          // If file has a convex ID, also move to database trash
-          if (file.convexId) {
-            try {
-              await deleteFile({
-                id: file.convexId as Id<"files">,
-                deletedBy: 'user',
-              });
-              console.log(`✅ File "${file.name}" moved to database trash`);
-            } catch (error) {
-              console.error(`❌ Error moving file "${file.name}" to database trash:`, error);
-            }
-          } else {
-            console.log(`📁 File "${file.name}" moved to local trash only (no Convex ID)`);
+        // If file has a convex ID, also move to database trash using soft delete
+        if (file.convexId) {
+          try {
+            await softDeleteFileFromDB({
+              id: file.convexId as Id<"files">,
+              deletedBy: 'user',
+            });
+            console.log(`✅ File "${file.name}" moved to database trash`);
+          } catch (error) {
+            console.error(`❌ Error moving file "${file.name}" to database trash:`, error);
           }
         } else {
-          console.error(`❌ File with ID "${deleteConfirmation.fileId}" not found`);
+          console.log(`📁 File "${file.name}" moved to local trash only (no Convex ID)`);
         }
+      } else {
+        console.error(`❌ File with ID "${fileId}" not found`);
       }
-      setDeleteConfirmation({ isOpen: false, fileId: '', fileName: '' });
     }
   };
 
@@ -336,13 +338,17 @@ export function DashSidebar({ activePanel }: SidebarProps) {
     const pinnedFolders = projectFolders.filter(folder => 
       folder.pinned && 
       folder.name.toLowerCase() !== 'instructions' &&
-      !folder.id.toLowerCase().includes('instructions')
+      !folder.id.toLowerCase().includes('instructions') &&
+      folder.name.toLowerCase() !== 'content creation' &&
+      !folder.id.toLowerCase().includes('content-creation')
     );
-    // Filter out Instructions project from regular folders - it only appears in System section
+    // Filter out Instructions and Content Creation projects from regular folders - they only appear in System section
     const regularFolders = projectFolders.filter(folder => 
       !folder.pinned && 
       folder.name.toLowerCase() !== 'instructions' &&
-      !folder.id.toLowerCase().includes('instructions')
+      !folder.id.toLowerCase().includes('instructions') &&
+      folder.name.toLowerCase() !== 'content creation' &&
+      !folder.id.toLowerCase().includes('content-creation')
     );    const sections = [];
 
     // Always add System section header when projects category is visible
@@ -382,6 +388,41 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                 createdAt: new Date(file._creationTime),
                 modifiedAt: new Date(file._creationTime),
                 folderId: `instructions-${instructionsProject._id}`,
+                convexId: file._id,
+              },
+            }))
+          ]
+        });
+      }
+
+      // Add Content Creation project under System section
+      if (contentCreationProject) {
+        sections.push({
+          id: `content-creation-${contentCreationProject._id}`,
+          name: 'Content Creation',
+          icon: Folder,
+          type: 'folder' as const,
+          isFolder: true,
+          isPinned: false,
+          isSystemFolder: true, // Mark as system folder (non-deletable)
+          children: [
+            // Show content creation files that belong to this project
+            ...(contentCreationFiles || []).map(file => ({
+              id: file._id,
+              name: file.name,
+              icon: FileText, // Use FileText icon for content creation files
+              type: 'markdown' as const, // Content creation files are markdown files
+              file: {
+                id: file._id,
+                name: file.name,
+                icon: FileText,
+                type: 'markdown' as const,
+                category: 'project' as const,
+                content: file.content || '',
+                filePath: file.path || `/content-creation/${file.name}`,
+                createdAt: new Date(file._creationTime),
+                modifiedAt: new Date(file._creationTime),
+                folderId: `content-creation-${contentCreationProject._id}`,
                 convexId: file._id,
               },
             }))
@@ -783,7 +824,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                       </div>
                     )}
                   </div>
-                  {((section.id === 'projects' || section.id === 'financial' || (section.id === 'system-header' && !instructionsProject) || 'isFolder' in section) && !isCurrentlyRenamingFolder && !(section as any).isSystemFolder) && (
+                  {((section.id === 'projects' || section.id === 'financial' || (section.id === 'system-header' && !instructionsProject && !contentCreationProject) || 'isFolder' in section) && !isCurrentlyRenamingFolder && !(section as any).isSystemFolder) && (
                     <div className="opacity-0 group-hover:opacity-100 ml-auto flex items-center">
                       {isUserFolder && (
                         <div
@@ -803,9 +844,9 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                             return;
                           }
                           
-                          // Prevent creation in System section when Instructions already exists
-                          if (section.id === 'system-header' && instructionsProject) {
-                            console.log('System section already has Instructions project - no additional projects allowed');
+                          // Prevent creation in System section when Instructions or Content Creation already exists
+                          if (section.id === 'system-header' && (instructionsProject || contentCreationProject)) {
+                            console.log('System section already has system projects - no additional projects allowed');
                             return;
                           }
 
@@ -818,8 +859,8 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                         title={
                           section.id && section.id.startsWith('instructions-') 
                             ? 'Use chat terminal to create instruction files' 
-                            : section.id === 'system-header' && instructionsProject
-                            ? 'System section is limited to Instructions project only'
+                            : section.id === 'system-header' && (instructionsProject || contentCreationProject)
+                            ? 'System section is limited to Instructions and Content Creation projects only'
                             : `Create file in ${section.name}`
                         }
                       >
@@ -1044,35 +1085,6 @@ export function DashSidebar({ activePanel }: SidebarProps) {
           {renderContent()}
         </ScrollArea>
       </aside>
-
-      <Dialog open={deleteConfirmation.isOpen} onOpenChange={(open) => {
-        if (!open) {
-          setDeleteConfirmation({ isOpen: false, fileId: '', fileName: '' });
-        }
-      }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete File</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete &ldquo;{deleteConfirmation.fileName}&rdquo;? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteConfirmation({ isOpen: false, fileId: '', fileName: '' })}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleConfirmDelete}
-            >
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* File Creation Dropdown */}
       <FileCreationDropdown

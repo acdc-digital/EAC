@@ -1,9 +1,10 @@
 import { v } from "convex/values";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
+import { getCurrentUserId, getCurrentUserIdOptional } from "./auth";
 
 // Helper function to get current user
-async function getCurrentUserId(ctx: QueryCtx | MutationCtx) {
+async function getCurrentUserIdLegacy(ctx: QueryCtx | MutationCtx) {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) {
     throw new Error("Not authenticated");
@@ -63,6 +64,21 @@ async function getInstructionsProject(ctx: QueryCtx | MutationCtx, userId: any) 
   }
   
   return instructionsProject;
+}
+
+// Helper function to get Content Creation project for user
+async function getContentCreationProject(ctx: QueryCtx | MutationCtx, userId: any) {
+  const contentCreationProject = await ctx.db
+    .query("projects")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .filter((q) => q.eq(q.field("name"), "Content Creation"))
+    .first();
+  
+  if (!contentCreationProject) {
+    throw new Error("Content Creation project not found. Please create it first.");
+  }
+  
+  return contentCreationProject;
 }
 
 // User-scoped: Get all files for a specific project
@@ -435,7 +451,12 @@ export const createInstructionFile = mutation({
 export const getInstructionFiles = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getCurrentUserId(ctx);
+    const userId = await getCurrentUserIdOptional(ctx);
+    
+    // Return empty array if not authenticated
+    if (!userId) {
+      return [];
+    }
     
     // Get the Instructions project for this user
     const instructionsProject = await getInstructionsProject(ctx, userId);
@@ -485,7 +506,12 @@ export const getDeletedFiles = query({
     projectId: v.optional(v.id("projects")),
   },
   handler: async (ctx, args) => {
-    const userId = await getCurrentUserId(ctx);
+    const userId = await getCurrentUserIdOptional(ctx);
+    
+    // Return empty array if not authenticated
+    if (!userId) {
+      return [];
+    }
     
     if (args.projectId) {
       // Verify user owns the project
@@ -604,5 +630,81 @@ export const getPermanentlyDeletedFiles = query({
         
       return deletedFiles;
     }
+  },
+});
+
+// Get all content creation files for user
+export const getContentCreationFiles = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getCurrentUserIdOptional(ctx);
+    
+    // Return empty array if not authenticated
+    if (!userId) {
+      return [];
+    }
+    
+    // Get the Content Creation project for this user
+    const contentCreationProject = await getContentCreationProject(ctx, userId);
+    
+    const files = await ctx.db
+      .query("files")
+      .withIndex("by_project", (q) => q.eq("projectId", contentCreationProject._id))
+      .filter((q) => q.neq(q.field("isDeleted"), true))
+      .order("desc")
+      .collect();
+    
+    return files;
+  },
+});
+
+// Create content creation file in Content Creation project
+export const createContentCreationFile = mutation({
+  args: {
+    name: v.string(),
+    content: v.string(),
+    type: v.optional(v.union(
+      v.literal("post"), 
+      v.literal("campaign"), 
+      v.literal("note"), 
+      v.literal("document"),
+      v.literal("other")
+    )),
+    platform: v.optional(v.union(
+      v.literal("facebook"),
+      v.literal("instagram"), 
+      v.literal("twitter"),
+      v.literal("linkedin"),
+      v.literal("reddit"),
+      v.literal("youtube")
+    )),
+    extension: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getCurrentUserId(ctx);
+    
+    // Get the Content Creation project for this user
+    const contentCreationProject = await getContentCreationProject(ctx, userId);
+    
+    const now = Date.now();
+    
+    // Create the content creation file
+    const fileId = await ctx.db.insert("files", {
+      name: args.name,
+      type: args.type || "post",
+      extension: args.extension || "md",
+      content: args.content,
+      projectId: contentCreationProject._id,
+      userId: userId,
+      path: "/content-creation/",
+      platform: args.platform,
+      mimeType: "text/markdown",
+      isDeleted: false,
+      lastModified: now,
+      createdAt: now,
+      updatedAt: now,
+    });
+    
+    return await ctx.db.get(fileId);
   },
 });

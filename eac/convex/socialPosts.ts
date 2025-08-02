@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 import { internalAction, mutation, query } from "./_generated/server";
+import { getCurrentUserId } from "./auth";
 
 // Get post by fileName
 export const getPostByFileName = query({
@@ -75,9 +76,11 @@ export const upsertPost = mutation({
       v.literal('failed')
     )),
     scheduledFor: v.optional(v.number()),
-    userId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // Get authenticated user ID instead of using temp-user-id
+    const userId = await getCurrentUserId(ctx);
+    
     const existingPost = await ctx.db
       .query("agentPosts")
       .withIndex("by_fileName", (q) => q.eq("fileName", args.fileName))
@@ -93,7 +96,7 @@ export const upsertPost = mutation({
       // Only update status if explicitly provided
       ...(args.status !== undefined && { status: args.status }),
       scheduledFor: args.scheduledFor,
-      userId: args.userId,
+      userId: userId, // Use authenticated user ID
       updatedAt: now,
     };
     
@@ -290,7 +293,7 @@ export const processScheduledPosts = internalAction({
             
             // Create Reddit post first (if it doesn't exist)
             const redditPost = await ctx.runMutation(api.reddit.createRedditPost, {
-              userId: post.userId || 'temp-user-id',
+              userId: post.userId, // Use the actual user ID from the post
               connectionId: platformData.connectionId,
               subreddit: platformData.subreddit || 'test',
               title: post.title || '',

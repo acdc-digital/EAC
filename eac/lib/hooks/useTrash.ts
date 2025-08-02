@@ -6,7 +6,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
 
 export function useTrash(projectId?: Id<"projects">) {
-  // Get deleted files from Convex
+  // Get deleted files from Convex (queries now handle auth internally)
   const deletedFiles = useQuery(api.files.getDeletedFiles, projectId ? { projectId } : {});
 
   // Mutations
