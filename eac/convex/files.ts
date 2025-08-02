@@ -298,16 +298,27 @@ export const deleteFile = mutation({
 
 // Restore a soft-deleted file
 export const restoreFile = mutation({
-  args: { fileId: v.id("files") },
+  args: { id: v.id("files") },
   handler: async (ctx, args) => {
+    const userId = await getCurrentUserId(ctx);
+    
+    // Get the file to restore
+    const file = await ctx.db.get(args.id);
+    if (!file) {
+      throw new Error("File not found");
+    }
+
+    // Verify the user owns this file's project
+    await verifyProjectOwnership(ctx, file.projectId, userId);
+
     const now = Date.now();
-    await ctx.db.patch(args.fileId, {
+    await ctx.db.patch(args.id, {
       isDeleted: false,
       updatedAt: now,
       lastModified: now,
     });
     
-    const restoredFile = await ctx.db.get(args.fileId);
+    const restoredFile = await ctx.db.get(args.id);
     return restoredFile;
   },
 });
@@ -437,5 +448,161 @@ export const getInstructionFiles = query({
       .collect();
     
     return files;
+  },
+});
+
+// Soft delete a file (mark as deleted but keep in database)
+export const softDeleteFile = mutation({
+  args: {
+    id: v.id("files"),
+    deletedBy: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getCurrentUserId(ctx);
+    
+    // Get the file to delete
+    const file = await ctx.db.get(args.id);
+    if (!file) {
+      throw new Error("File not found");
+    }
+
+    // Verify the user owns this file's project
+    await verifyProjectOwnership(ctx, file.projectId, userId);
+
+    // Mark as deleted instead of actually deleting
+    await ctx.db.patch(args.id, {
+      isDeleted: true,
+      updatedAt: Date.now(),
+    });
+
+    return { success: true, fileId: args.id };
+  },
+});
+
+// Get all deleted files for trash view
+export const getDeletedFiles = query({
+  args: {
+    projectId: v.optional(v.id("projects")),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getCurrentUserId(ctx);
+    
+    if (args.projectId) {
+      // Verify user owns the project
+      await verifyProjectOwnership(ctx, args.projectId, userId);
+      
+      const deletedFiles = await ctx.db
+        .query("files")
+        .withIndex("by_project", (q) => q.eq("projectId", args.projectId!))
+        .filter((q) => q.eq(q.field("isDeleted"), true))
+        .order("desc")
+        .collect();
+        
+      return deletedFiles;
+    } else {
+      // Get all deleted files for this user
+      const deletedFiles = await ctx.db
+        .query("files")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .filter((q) => q.eq(q.field("isDeleted"), true))
+        .order("desc")
+        .collect();
+        
+      return deletedFiles;
+    }
+  },
+});
+
+// Permanently delete a file (move from files table to deletedFiles table)
+export const permanentlyDeleteFile = mutation({
+  args: {
+    id: v.id("files"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getCurrentUserId(ctx);
+    
+    // Get the file to delete
+    const file = await ctx.db.get(args.id);
+    if (!file) {
+      throw new Error("File not found");
+    }
+
+    // Verify the user owns this file's project
+    await verifyProjectOwnership(ctx, file.projectId, userId);
+
+    // Only allow permanent deletion of files that are already marked as deleted
+    if (!file.isDeleted) {
+      throw new Error("File must be in trash before permanent deletion");
+    }
+
+    // Get the parent project for reference
+    const project = await ctx.db.get(file.projectId);
+    const projectName = project?.name || "Unknown Project";
+
+    // Move file to deletedFiles table with all original data
+    const deletedFileId = await ctx.db.insert("deletedFiles", {
+      originalId: file._id,
+      name: file.name,
+      type: file.type,
+      extension: file.extension,
+      content: file.content,
+      size: file.size,
+      projectId: file.projectId,
+      userId: file.userId,
+      path: file.path,
+      mimeType: file.mimeType,
+      originalCreatedAt: file.createdAt,
+      originalUpdatedAt: file.updatedAt,
+      originalLastModified: file.lastModified,
+      platform: file.platform,
+      postStatus: file.postStatus,
+      scheduledAt: file.scheduledAt,
+      deletedAt: Date.now(),
+      deletedBy: userId,
+      parentProjectName: projectName,
+    });
+
+    // Remove the file from the main files table
+    await ctx.db.delete(args.id);
+
+    return { 
+      success: true, 
+      fileId: args.id, 
+      deletedFileId,
+      movedToDeletedFiles: true 
+    };
+  },
+});
+
+// Get permanently deleted files from deletedFiles table
+export const getPermanentlyDeletedFiles = query({
+  args: {
+    projectId: v.optional(v.id("projects")),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getCurrentUserId(ctx);
+    
+    if (args.projectId) {
+      // Verify user owns the project
+      await verifyProjectOwnership(ctx, args.projectId, userId);
+      
+      // Get deleted files for specific project
+      const deletedFiles = await ctx.db
+        .query("deletedFiles")
+        .withIndex("by_project", (q) => q.eq("projectId", args.projectId!))
+        .order("desc")
+        .collect();
+        
+      return deletedFiles;
+    } else {
+      // Get all deleted files for the user
+      const deletedFiles = await ctx.db
+        .query("deletedFiles")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .order("desc")
+        .collect();
+        
+      return deletedFiles;
+    }
   },
 });

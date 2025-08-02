@@ -681,6 +681,25 @@ export const useEditorStore = create<EditorState>()(
           });
         },
 
+        updateFileConvexId: (fileId: string, convexId: string) => {
+          const { projectFiles, financialFiles } = get();
+
+          // Update in project files
+          const updatedProjectFiles = projectFiles.map(file =>
+            file.id === fileId ? { ...file, convexId, modifiedAt: new Date() } : file
+          );
+
+          // Update in financial files
+          const updatedFinancialFiles = financialFiles.map(file =>
+            file.id === fileId ? { ...file, convexId, modifiedAt: new Date() } : file
+          );
+
+          set({
+            projectFiles: updatedProjectFiles,
+            financialFiles: updatedFinancialFiles
+          });
+        },
+
         createNewFile: (name: string, type: ProjectFile['type'], category: ProjectFile['category'] = 'project', folderId?: string, customContent?: string) => {
           const { projectFiles, financialFiles } = get();
           
@@ -761,12 +780,21 @@ export const useEditorStore = create<EditorState>()(
             // Better to handle this in the component level
             console.log('File created locally:', newFile);
             
+            // Get the folder's convex ID if available
+            let projectId = null;
+            if (folderId) {
+              const { projectFolders, financialFolders } = get();
+              const allFolders = [...projectFolders, ...financialFolders];
+              const folder = allFolders.find(f => f.id === folderId);
+              projectId = folder?.convexId || null;
+            }
+            
             // Dispatch custom event that components can listen to
             if (typeof window !== 'undefined') {
               window.dispatchEvent(new CustomEvent('fileCreated', { 
                 detail: { 
                   file: newFile,
-                  projectId: folderId // Using folderId as projectId for now
+                  projectId: projectId // Use folder's convexId if available
                 } 
               }));
             }

@@ -74,6 +74,7 @@ export interface EditorState {
   updateFileContent: (tabId: string, content: string) => void;
   updateFileContentInStore: (fileId: string, content: string) => void;
   updateFileStatus: (fileId: string, status: 'draft' | 'scheduled' | 'complete') => void;
+  updateFileConvexId: (fileId: string, convexId: string) => void;
   createNewFile: (name: string, type: ProjectFile['type'], category?: ProjectFile['category'], folderId?: string, customContent?: string) => string;
   createFolder: (name: string, category: 'project' | 'financial', convexId?: string) => void;
   deleteFile: (fileId: string) => void;
