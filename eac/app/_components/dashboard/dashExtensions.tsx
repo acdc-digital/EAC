@@ -3,8 +3,10 @@
 
 "use client";
 
+import { useMCP } from "@/lib/hooks/useMCP";
 import { cn } from "@/lib/utils";
-import { Download, Puzzle, Search, Star } from "lucide-react";
+import { useAgentStore } from "@/store";
+import { AtSign, Bot, ChevronDown, ChevronRight, Download, FileText, Puzzle, Search, Star, Terminal } from "lucide-react";
 import { useState } from "react";
 
 interface Extension {
@@ -17,6 +19,8 @@ interface Extension {
   rating: number;
   isInstalled: boolean;
   category: 'productivity' | 'ai' | 'social' | 'development' | 'other';
+  type?: 'extension' | 'agent' | 'mcp';
+  icon?: string;
 }
 
 // Mock extension data - this will be replaced with real data later
@@ -58,37 +62,114 @@ const mockExtensions: Extension[] = [
 
 export function DashExtensions() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<'all' | Extension['category']>('all');
+  const [expandedExtensions, setExpandedExtensions] = useState<Set<string>>(new Set());
+  const { agents } = useAgentStore();
+  const { availableTools: mcpTools } = useMCP();
 
-  const filteredExtensions = mockExtensions.filter(ext => {
+  // Convert agents to extension format
+  const agentExtensions: Extension[] = agents.map(agent => ({
+    id: `agent-${agent.id}`,
+    name: agent.name,
+    description: agent.description,
+    author: 'EAC Team',
+    version: '1.0.0',
+    downloads: agent.tools.length * 100, // Mock download count based on tools
+    rating: 4.8,
+    isInstalled: true, // Agents are considered "installed" since they're available
+    category: 'ai' as const,
+    type: 'agent' as const,
+    icon: agent.icon
+  }));
+
+  // Convert MCP tools to extension format
+  const mcpExtension: Extension = {
+    id: 'mcp-server',
+    name: 'MCP Server Tools',
+    description: 'Model Context Protocol tools for code analysis and project management',
+    author: 'EAC Team',
+    version: '1.0.0',
+    downloads: (mcpTools?.length || 0) * 50,
+    rating: 4.7,
+    isInstalled: true,
+    category: 'development',
+    type: 'mcp',
+    icon: 'Terminal'
+  };
+
+  // Combine all extensions
+  const allExtensions = [
+    ...agentExtensions,
+    ...(mcpTools && mcpTools.length > 0 ? [mcpExtension] : []),
+    ...mockExtensions
+  ];
+
+  const filteredExtensions = allExtensions.filter(ext => {
     const matchesSearch = ext.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          ext.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || ext.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    return matchesSearch;
   });
 
-  const categories = [
-    { id: 'all', label: 'All', count: mockExtensions.length },
-    { id: 'ai', label: 'AI', count: mockExtensions.filter(e => e.category === 'ai').length },
-    { id: 'social', label: 'Social', count: mockExtensions.filter(e => e.category === 'social').length },
-    { id: 'productivity', label: 'Productivity', count: mockExtensions.filter(e => e.category === 'productivity').length },
-    { id: 'development', label: 'Development', count: mockExtensions.filter(e => e.category === 'development').length },
-  ];
+  const toggleExtensionExpansion = (extensionId: string) => {
+    setExpandedExtensions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(extensionId)) {
+        newSet.delete(extensionId);
+      } else {
+        newSet.add(extensionId);
+      }
+      return newSet;
+    });
+  };
 
   const handleInstall = (extensionId: string) => {
     console.log(`Installing extension: ${extensionId}`);
     // TODO: Implement extension installation
   };
 
+  const getExtensionIcon = (extension: Extension) => {
+    if (extension.type === 'agent' && extension.icon) {
+      // Map agent icons
+      const iconMap = { FileText, Bot, Terminal, AtSign };
+      if (extension.icon in iconMap) {
+        const IconComponent = iconMap[extension.icon as keyof typeof iconMap];
+        return <IconComponent className="w-3.5 h-3.5 text-[#858585]" />;
+      }
+    } else if (extension.type === 'mcp') {
+      return <Terminal className="w-3.5 h-3.5 text-[#858585]" />;
+    }
+    return <Puzzle className="w-3.5 h-3.5 text-[#858585]" />;
+  };
+
+  const getStatusBadge = (extension: Extension) => {
+    if (extension.type === 'agent') {
+      return (
+        <span className="px-2 py-0.5 bg-[#4fc3f7]/20 text-[#4fc3f7] text-[9px] rounded uppercase">
+          Agent
+        </span>
+      );
+    } else if (extension.type === 'mcp') {
+      return (
+        <span className="px-2 py-0.5 bg-[#858585]/20 text-[#858585] text-[9px] rounded uppercase">
+          MCP
+        </span>
+      );
+    }
+    return (
+      <span className="px-2 py-0.5 bg-[#2d2d2d] text-[#858585] text-[9px] rounded uppercase">
+        {extension.category}
+      </span>
+    );
+  };
+
   return (
-    <div className="h-full bg-[#181818] text-[#cccccc] flex flex-col">
-      <div className="p-2">
+    <div className="h-full bg-[#181818] text-[#cccccc] flex flex-col relative">
+      <div className="p-2 pb-16 overflow-y-auto flex-1">
         {/* Header */}
         <div className="flex items-center justify-between text-xs uppercase text-[#858585] px-2 py-1">
           <span>Extensions</span>
           <div className="flex items-center gap-1">
             <Puzzle className="w-3 h-3" />
-            <span className="text-[#666]">{mockExtensions.length}</span>
+            <span className="text-[#666]">{allExtensions.length}</span>
           </div>
         </div>
 
@@ -104,101 +185,117 @@ export function DashExtensions() {
           />
         </div>
 
-        {/* Categories */}
-        <div className="space-y-1 mb-3">
-          {categories.map((category) => (
-            <button
-              key={category.id}
-              onClick={() => setSelectedCategory(category.id as any)}
-              className={cn(
-                "w-full flex items-center justify-between px-2 py-1 text-xs rounded transition-colors",
-                selectedCategory === category.id
-                  ? "bg-[#094771] text-[#cccccc]"
-                  : "hover:bg-[#2d2d2d] text-[#b3b3b3]"
-              )}
-            >
-              <span>{category.label}</span>
-              <span className="text-[#858585]">{category.count}</span>
-            </button>
-          ))}
-        </div>
-
         {/* Extensions List */}
-        <div className="space-y-2">
-          <div className="text-xs font-medium text-[#b3b3b3] px-2 py-1 border-b border-[#2d2d2d]">
-            Available Extensions
-          </div>
-          
+        <div className="space-y-1">
           {filteredExtensions.length === 0 ? (
-            <div className="text-center py-4">
+            <div className="text-center py-6">
               <Puzzle className="w-8 h-8 text-[#858585] mx-auto mb-2" />
               <div className="text-xs text-[#858585]">No extensions found</div>
+              <div className="text-[10px] text-[#656565]">
+                {searchQuery ? 'Try a different search term' : 'Extensions will appear here when available'}
+              </div>
             </div>
           ) : (
-            filteredExtensions.map((extension) => (
-              <div
-                key={extension.id}
-                className="bg-[#1e1e1e] border border-[#2d2d2d] rounded p-2 space-y-2"
-              >
-                {/* Extension Header */}
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-medium text-[#cccccc] truncate">
+            filteredExtensions.map((extension) => {
+              const isExpanded = expandedExtensions.has(extension.id);
+              const isInstalled = extension.isInstalled || extension.type === 'agent' || extension.type === 'mcp';
+              
+              return (
+                <div
+                  key={extension.id}
+                  className={`rounded border bg-[#1e1e1e] border-[#2d2d2d] ${isInstalled ? 'border-l-2 border-l-[#007acc]' : ''}`}
+                >
+                  {/* Extension Header - Always Visible */}
+                  <div 
+                    className="flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-[#252526] transition-colors"
+                    onClick={() => toggleExtensionExpansion(extension.id)}
+                  >
+                    {/* Expand/Collapse Arrow */}
+                    <div className="flex-shrink-0">
+                      {isExpanded ? (
+                        <ChevronDown className="w-3 h-3 text-[#858585]" />
+                      ) : (
+                        <ChevronRight className="w-3 h-3 text-[#858585]" />
+                      )}
+                    </div>
+
+                    {/* Extension Icon */}
+                    <div className="flex-shrink-0">
+                      {getExtensionIcon(extension)}
+                    </div>
+
+                    {/* Extension Name and Downloads */}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs text-[#cccccc]">
                         {extension.name}
-                      </span>
+                      </div>
                       <div className="flex items-center gap-1">
-                        <Star className="w-2.5 h-2.5 text-[#ffcc02]" />
-                        <span className="text-[10px] text-[#858585]">{extension.rating}</span>
+                        <Download className="w-2 h-2 text-[#858585] flex-shrink-0" />
+                        <span className="text-[10px] text-[#858585] truncate">
+                          {extension.downloads.toLocaleString()} downloads
+                        </span>
                       </div>
                     </div>
-                    <div className="text-[10px] text-[#b3b3b3] mb-1">
-                      by {extension.author} • v{extension.version}
-                    </div>
-                    <div className="text-[10px] text-[#858585] leading-relaxed">
-                      {extension.description}
-                    </div>
-                  </div>
-                </div>
 
-                {/* Extension Footer */}
-                <div className="flex items-center justify-between pt-1 border-t border-[#2d2d2d]">
-                  <div className="flex items-center gap-3 text-[10px] text-[#858585]">
-                    <div className="flex items-center gap-1">
-                      <Download className="w-2.5 h-2.5" />
-                      <span>{extension.downloads.toLocaleString()}</span>
+                    {/* Install Button */}
+                    <div className="flex-shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleInstall(extension.id);
+                        }}
+                        disabled={extension.isInstalled || extension.type === 'agent' || extension.type === 'mcp'}
+                        className={cn(
+                          "px-2 py-1 text-[10px] rounded transition-colors",
+                          extension.isInstalled || extension.type === 'agent' || extension.type === 'mcp'
+                            ? "bg-[#2d2d2d] text-[#858585] cursor-default"
+                            : "bg-[#007acc] hover:bg-[#106ebe] text-white"
+                        )}
+                      >
+                        {extension.type === 'agent' || extension.type === 'mcp' ? 'Active' : extension.isInstalled ? 'Installed' : 'Install'}
+                      </button>
                     </div>
-                    <span className="px-1.5 py-0.5 bg-[#2d2d2d] rounded text-[9px] uppercase">
-                      {extension.category}
-                    </span>
                   </div>
-                  
-                  <button
-                    onClick={() => handleInstall(extension.id)}
-                    disabled={extension.isInstalled}
-                    className={cn(
-                      "px-2 py-1 text-[10px] rounded transition-colors",
-                      extension.isInstalled
-                        ? "bg-[#2d2d2d] text-[#858585] cursor-default"
-                        : "bg-[#007acc] hover:bg-[#106ebe] text-white"
-                    )}
-                  >
-                    {extension.isInstalled ? 'Installed' : 'Install'}
-                  </button>
+
+                  {/* Expanded Content */}
+                  {isExpanded && (
+                    <div className="px-2 pb-2 border-t border-[#2d2d2d] bg-[#1a1a1a]">
+                      {/* Extension Details */}
+                      <div className="mt-2 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="text-[10px] text-[#b3b3b3]">
+                            by {extension.author} • v{extension.version}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Star className="w-2.5 h-2.5 text-[#ffcc02]" />
+                            <span className="text-[10px] text-[#858585]">{extension.rating}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="text-[10px] text-[#b3b3b3] leading-relaxed">
+                          {extension.description}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {getStatusBadge(extension)}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
+      </div>
 
-        {/* Footer */}
-        <div className="mt-4 pt-3 border-t border-[#2d2d2d]">
-          <div className="text-[10px] text-[#858585] text-center">
-            Extensions marketplace coming soon
-          </div>
-          <div className="text-[10px] text-[#858585] text-center mt-1">
-            Create your own extensions with the EAC SDK
-          </div>
+      {/* Footer - Absolutely positioned at bottom */}
+      <div className="absolute bottom-0 left-0 right-0 p-2 bg-[#181818] border-t border-[#2d2d2d]">
+        <div className="text-[10px] text-[#858585] text-center">
+          Extensions marketplace coming soon
+        </div>
+        <div className="text-[10px] text-[#858585] text-center">
+          Create your own extensions with the EAC SDK
         </div>
       </div>
     </div>

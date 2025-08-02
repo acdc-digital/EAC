@@ -2,6 +2,7 @@
 // /Users/matthewsimon/Projects/eac/eac/lib/hooks/useChat.ts
 
 import { api } from "@/convex/_generated/api";
+import { useAgentStore } from "@/store";
 import { useChatStore } from "@/store/terminal/chat";
 import { useSessionStore } from "@/store/terminal/session";
 import { useAction, useMutation, useQuery } from "convex/react";
@@ -9,8 +10,9 @@ import { useCallback, useEffect } from "react";
 import { handleCommand, isCommand, parseCommand } from "../chatCommands";
 
 export function useChat() {
-  const { sessionId, isLoading, setLoading, addTerminalFeedback, loadMessagesForSession } = useChatStore();
+  const { sessionId, isLoading, setLoading, addTerminalFeedback } = useChatStore();
   const { activeSessionId, updateSession } = useSessionStore();
+  const { activeAgentId } = useAgentStore();
   
   // Use the active session ID from session store, fallback to chat store
   const currentSessionId = activeSessionId || sessionId;
@@ -99,6 +101,7 @@ export function useChat() {
         content: trimmedContent,
         originalContent: originalTrimmedContent,
         sessionId: currentSessionId,
+        activeAgentId: activeAgentId || undefined, // Pass the active agent ID, convert null to undefined
       });
     } catch (error) {
       console.error("Error sending message:", error);

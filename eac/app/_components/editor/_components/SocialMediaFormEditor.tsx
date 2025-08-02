@@ -59,6 +59,12 @@ interface SocialPostData {
 
 // Parse markdown content into structured data
 const parseMarkdownToFormData = (markdownContent: string): SocialPostData => {
+  console.log('🔍 parseMarkdownToFormData called with:', {
+    contentLength: markdownContent.length,
+    contentPreview: markdownContent.substring(0, 300),
+    rawContent: markdownContent
+  });
+
   const defaultData: SocialPostData = {
     content: '',
     settings: {
@@ -85,13 +91,23 @@ const parseMarkdownToFormData = (markdownContent: string): SocialPostData => {
   };
 
   if (!markdownContent || markdownContent.trim() === '') {
+    console.log('❌ No markdown content provided');
     return defaultData;
   }
 
   // Extract content from Post Content section
   const postContentMatch = markdownContent.match(/## Post Content\s*([\s\S]*?)(?=##|$)/);
+  console.log('🔍 Post content match:', {
+    found: !!postContentMatch,
+    matchedContent: postContentMatch?.[1]?.trim(),
+    regexUsed: '## Post Content\\s*([\\s\\S]*?)(?=##|$)'
+  });
+  
   if (postContentMatch) {
     defaultData.content = postContentMatch[1].trim();
+    console.log('✅ Extracted content:', defaultData.content);
+  } else {
+    console.log('❌ No post content section found');
   }
 
   // Extract settings
@@ -163,7 +179,9 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
     contentLength: content.length,
     formDataContent: formData.content,
     mode,
-    editable
+    editable,
+    contentPreview: content.substring(0, 200) + '...',
+    rawContent: content
   });
 
   // Update form data when content prop changes

@@ -7,7 +7,7 @@ import { api } from "@/convex/_generated/api";
 import { useChat } from "@/lib/hooks/useChat";
 import { useInstructionContext, useInstructions } from "@/lib/hooks/useInstructions";
 import { useMCP } from "@/lib/hooks/useMCP";
-import { useAgentStore } from "@/store";
+import { useAgentStore, useEditorStore } from "@/store";
 import { useChatStore } from "@/store/terminal/chat";
 import { useSessionStore } from "@/store/terminal/session";
 import { useUser } from "@clerk/nextjs";
@@ -17,6 +17,7 @@ import React, { useEffect, useRef, useState } from "react";
 export function ChatMessages() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const processedOperations = useRef<Set<string>>(new Set());
   const [message, setMessage] = useState("");
   
   const { user, isLoaded } = useUser();
@@ -51,6 +52,7 @@ export function ChatMessages() {
   const upsertPost = useMutation(api.twitter.upsertPost);
   const instructionContext = useInstructionContext();
   const { isLoading: instructionsLoading } = useInstructions();
+  const { createNewFile } = useEditorStore();
 
   const isLoading = chatLoading || mcpLoading || instructionsLoading;
 
@@ -76,6 +78,133 @@ export function ChatMessages() {
       setSessionId(activeSessionId);
     }
   }, [activeSessionId, sessionId, setSessionId]);
+
+  // Process messages with operations to create UI files
+  useEffect(() => {
+    if (!messages) return;
+    
+    console.log('🔍 Processing messages for operations:', {
+      totalMessages: messages.length,
+      recentMessagesCount: messages.slice(-10).length
+    });
+    
+    // Look for messages with operations that need UI processing
+    const recentMessages = messages.slice(-10); // Check last 10 messages
+    
+    recentMessages.forEach((message: any, index) => {
+      console.log(`🔍 Message ${index}:`, {
+        id: message._id,
+        role: message.role,
+        hasOperation: !!message.operation,
+        operationType: message.operation?.type,
+        operationDetails: message.operation?.details,
+        contentPreview: message.content?.substring(0, 100)
+      });
+      
+      if (message.operation?.type === 'file_created' && message._id) {
+        // Skip if already processed
+        if (processedOperations.current.has(message._id)) {
+          console.log(`⏭️ Skipping already processed message: ${message._id}`);
+          return;
+        }
+        
+        const { fileName, fileType, content, platformData, agentType } = message.operation.details;
+        
+        console.log('🔍 File creation operation found:', {
+          fileName,
+          fileType,
+          agentType,
+          hasContent: !!content,
+          contentLength: content?.length || 0,
+          willProcess: agentType === 'twitter' && content
+        });
+        
+        // Only process Twitter agent files for UI creation that have content
+        if (agentType === 'twitter' && content) {
+          console.log('🔄 Processing social file operation:', {
+            fileName,
+            fileType,
+            content: content,
+            contentLength: content?.length || 0,
+            contentType: typeof content,
+            messageId: message._id,
+            platformData: platformData,
+            allDetails: message.operation.details
+          });
+          
+          // Mark as processed
+          processedOperations.current.add(message._id);
+          
+          // Parse the platform data with error handling
+          let platformDataObj;
+          try {
+            platformDataObj = platformData ? JSON.parse(platformData) : {};
+          } catch (error) {
+            console.warn('⚠️ Failed to parse platform data, using defaults:', error);
+            platformDataObj = {
+              replySettings: 'following',
+              scheduledDate: '',
+              scheduledTime: '',
+              isThread: false
+            };
+          }
+          
+          // Create the content for the Twitter post file in the expected format
+          const postContent = `# ${fileName.replace(/\.[^/.]+$/, "")} - X (Twitter) Post
+Platform: X (Twitter)
+Created: ${new Date().toLocaleDateString()}
+
+## Post Content
+${content}
+
+## Settings
+- Reply Settings: ${platformDataObj.replySettings || 'following'}
+- Schedule: ${platformDataObj.scheduledDate && platformDataObj.scheduledTime ? `${platformDataObj.scheduledDate} ${platformDataObj.scheduledTime}` : 'Now'}
+- Thread: ${platformDataObj.isThread ? 'Multi-tweet Thread' : 'Single Tweet'}
+
+## Media
+- Images: []
+- Videos: []
+
+## Analytics
+- Impressions: 0
+- Engagements: 0
+- Likes: 0
+- Shares: 0`;
+
+          // Find the Content Creation folder ID
+          const { projectFolders } = useEditorStore.getState();
+          const contentCreationFolder = projectFolders.find(folder => 
+            folder.name === 'Content Creation'
+          );
+          
+          if (contentCreationFolder) {
+            // Create the file in the Content Creation folder
+            createNewFile(
+              fileName,
+              'x', // Use 'x' type for Twitter files
+              'project',
+              contentCreationFolder.id,
+              postContent
+            );
+            
+            console.log('✅ Created social file in UI:', fileName);
+          } else {
+            console.warn('⚠️ Content Creation folder not found');
+            
+            // Create without folder ID if folder not found
+            createNewFile(
+              fileName,
+              'x',
+              'project',
+              undefined,
+              postContent
+            );
+          }
+        }
+      }
+    });
+  }, [messages, createNewFile]);
 
   // Helper function to strip markdown formatting
   const stripMarkdown = (text: string): string => {

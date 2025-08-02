@@ -101,7 +101,7 @@ async function handleAgentCommand(ctx: any, command: string, sessionId?: string)
         if (!input.trim()) {
           result = `❌ Please provide content for your Twitter post. Example: /twitter Check out our new dashboard!`;
         } else {
-          result = await handleTwitterCommand(ctx, command, input);
+          result = await handleTwitterCommand(ctx, command, input, sessionId);
         }
         break;
 
@@ -184,43 +184,6 @@ Status: Ready for editor integration`;
           }
         }
       });
-    } 
-    
-    if (agentCommand === '/twitter' && result.includes('Created Successfully!')) {
-      console.log('🔧 Twitter terminal feedback triggered!', { agentCommand, resultIncludes: result.includes('Created Successfully!') });
-      
-      // Extract filename from result
-      const fileMatch = result.match(/\*\*File:\*\*\s*`([^`]+)`/);
-      const fileName = fileMatch?.[1] || 'twitter-post.x';
-      
-      console.log('📁 Extracted filename:', fileName);
-      
-      const terminalFeedback = `[${new Date().toLocaleTimeString('en-US', { 
-        hour12: false, 
-        hour: '2-digit', 
-        minute: '2-digit', 
-        second: '2-digit' 
-      })}] ✅ Twitter post created: ${fileName}
-Operation: Twitter agent created post file
-Status: Draft ready for publishing`;
-
-      console.log('📝 Terminal feedback content:', terminalFeedback);
-
-      await ctx.runMutation(api.chat.storeChatMessage, {
-        role: "terminal",
-        content: terminalFeedback,
-        sessionId: sessionId,
-        operation: {
-          type: "file_created",
-          details: {
-            fileName: fileName,
-            agentType: "twitter",
-            fileType: "post",
-          }
-        }
-      });
-      
-      console.log('✅ Terminal feedback stored successfully');
     }
 
     return { 
@@ -250,78 +213,195 @@ Please try again or type \`/\` for help.`;
 }
 
 // Twitter Command Handler
-async function handleTwitterCommand(ctx: any, fullCommand: string, input: string): Promise<string> {
+async function handleTwitterCommand(ctx: any, fullCommand: string, input: string, sessionId?: string): Promise<string> {
   try {
     // Basic Twitter post creation logic
-    const content = input.trim();
+    const rawInput = input.trim();
     
+    if (!rawInput) {
+      return "❌ Please provide content for your Twitter post. Example: Check out our new dashboard!";
+    }
+
     // Simple parameter parsing
     let projectName = "Twitter Posts";
     let schedule = "";
     let settings = "followers";
     
     // Extract project parameter
-    const projectMatch = content.match(/--project[=\s]+([^\s]+)/i);
+    const projectMatch = rawInput.match(/--project[=\s]+([^\s]+)/i);
     if (projectMatch) {
       projectName = projectMatch[1];
     }
     
     // Extract schedule parameter  
-    const scheduleMatch = content.match(/--schedule[=\s]+"([^"]+)"|--schedule[=\s]+([^\s]+)/i);
+    const scheduleMatch = rawInput.match(/--schedule[=\s]+"([^"]+)"|--schedule[=\s]+([^\s]+)/i);
     if (scheduleMatch) {
       schedule = scheduleMatch[1] || scheduleMatch[2];
     }
     
     // Clean content by removing parameters
-    const cleanContent = content
+    const userPrompt = rawInput
       .replace(/--project[=\s]+[^\s]+/gi, '')
       .replace(/--schedule[=\s]+"[^"]+"|--schedule[=\s]+[^\s]+/gi, '')
       .replace(/--settings[=\s]+[^\s]+/gi, '')
       .trim();
 
-    if (!cleanContent) {
+    if (!userPrompt) {
       return "❌ Please provide content for your Twitter post after removing parameters.";
     }
 
-    // Create a basic Twitter post record (you can expand this later)
-    const tweetData = {
-      content: cleanContent,
-      project: projectName,
-      platform: "twitter" as const,
-      status: "draft" as const,
-      schedule: schedule || undefined,
-      settings: settings,
-      createdAt: Date.now()
-    };
+    // Generate Twitter post content using Claude
+    console.log("🤖 Generating Twitter content for prompt:", userPrompt);
+    
+    const twitterPrompt = `You are a social media expert creating engaging Twitter/X posts. 
 
-    // Generate unique filename
+Create a compelling Twitter post based on this request: "${userPrompt}"
+
+Requirements:
+- Keep it under 280 characters
+- Make it engaging and authentic 
+- Use appropriate emojis (2-3 max)
+- Include relevant hashtags (2-3 max)
+- Match the tone requested ("bro post" = casual/friendly, etc.)
+- Make it shareable and conversation-starting
+
+Return ONLY the tweet content, no quotes or explanations.`;
+
+    const completion = await anthropic.messages.create({
+      model: "claude-3-5-sonnet-20241022",
+      max_tokens: 150,
+      messages: [{
+        role: "user",
+        content: twitterPrompt
+      }]
+    });
+
+    const generatedContent = completion.content[0]?.type === "text" 
+      ? completion.content[0].text.trim() 
+      : userPrompt;
+
+    console.log("✅ Generated Twitter content:", generatedContent);
+
+    // Use the generated content as the clean content
+    const cleanContent = generatedContent;
+
+    // Generate a descriptive title using Claude
+    console.log("🏷️ Generating descriptive title for content:", cleanContent);
+    
+    const titlePrompt = `You are a content organizer creating concise, descriptive titles for social media posts.
+
+Create a short, descriptive title for this Twitter post: "${cleanContent}"
+
+Requirements:
+- Keep it under 50 characters
+- Make it descriptive and clear
+- Capture the main topic/theme
+- Use title case
+- No quotes or special formatting
+- Focus on the key subject matter
+
+Return ONLY the title, no quotes or explanations.`;
+
+    const titleCompletion = await anthropic.messages.create({
+      model: "claude-3-5-sonnet-20241022",
+      max_tokens: 50,
+      messages: [{
+        role: "user",
+        content: titlePrompt
+      }]
+    });
+
+    const generatedTitle = titleCompletion.content[0]?.type === "text" 
+      ? titleCompletion.content[0].text.trim() 
+      : cleanContent.substring(0, 50) + (cleanContent.length > 50 ? '...' : '');
+
+    console.log("✅ Generated title:", generatedTitle);
+
+    // Generate meaningful filename based on the generated title (not user prompt)
+    const titleWords = generatedTitle
+      .split(' ')
+      .slice(0, 4) // Use more words from title for better filenames
+      .map(word => word.toLowerCase().replace(/[^a-z0-9]/g, ''))
+      .filter(word => word.length > 0)
+      .join('-');
+    
     const timestamp = new Date().toISOString().split('T')[0];
-    const hash = Math.random().toString(36).substring(2, 8);
-    const fileName = `twitter-post-${timestamp}-${hash}.x`;
+    const hash = Math.random().toString(36).substring(2, 4); // Shorter hash since title is more descriptive
+    const fileName = `${titleWords || 'twitter-post'}-${hash}.x`;
+
+    // Create platform data for Twitter in the expected format
+    const platformData = JSON.stringify({
+      replySettings: settings === "followers" ? "following" : "everyone",
+      scheduledDate: schedule ? new Date(schedule).toISOString().split('T')[0] : "",
+      scheduledTime: schedule ? new Date(schedule).toTimeString().slice(0, 5) : "",
+      isThread: false,
+      threadTweets: [""],
+      hasPoll: false,
+      pollOptions: ["", ""],
+      pollDuration: 1440,
+      project: projectName,
+      visibility: "public"
+    });
+
+    // Create the Twitter post in the database
+    const post = await ctx.runMutation(api.socialPosts.upsertPost, {
+      fileName: fileName,
+      fileType: "twitter",
+      content: cleanContent,
+      title: generatedTitle,
+      platformData: platformData,
+      status: "draft",
+      scheduledFor: schedule ? new Date(schedule).getTime() : undefined,
+    });
+
+    // Store the file creation operation for the UI to pick up
+    await ctx.runMutation(api.chat.storeChatMessage, {
+      role: "terminal",
+      content: `[${new Date().toLocaleTimeString('en-US', { 
+        hour12: false, 
+        hour: '2-digit', 
+        minute: '2-digit', 
+        second: '2-digit' 
+      })}] 📁 Creating UI tab for Twitter post: ${fileName}`,
+      sessionId: sessionId,
+      operation: {
+        type: "file_created",
+        details: {
+          fileName: fileName,
+          fileType: "x",
+          content: cleanContent,
+          platformData: platformData,
+          postId: post?._id,
+          agentType: "twitter"
+        }
+      }
+    });
 
     return `🐦 **Twitter Post Created Successfully!**
 
-**Content:** "${cleanContent.substring(0, 100)}${cleanContent.length > 100 ? '...' : ''}"
-**Project:** ${projectName}
 **File:** \`${fileName}\`
+**Title:** "${generatedTitle}"
+**Original Prompt:** "${userPrompt}"
+**Generated Content:** "${cleanContent.substring(0, 100)}${cleanContent.length > 100 ? '...' : ''}"
+**Project:** ${projectName}
 **Status:** Draft${schedule ? `\n**Schedule:** ${schedule}` : ''}
 
-*This is a basic implementation. The full Twitter agent with form population will be available when you're signed in and using the editor interface.*
+The Twitter post has been created using AI-generated content and title, and saved to your database. You can now view and edit it in the editor.
 
 **Next Steps:**
-1. Sign in to access the full editor
-2. Open the Twitter post file to edit and publish
-3. Use the form interface for advanced scheduling and settings`;
+1. Open the Twitter post file in the editor to review and edit
+2. Connect your Twitter account for publishing
+3. Use the social media management interface for scheduling and analytics`;
 
   } catch (error) {
     console.error("❌ Twitter command failed:", error);
     return `❌ **Error Creating Twitter Post**
 
-Failed to process: "${fullCommand}"
+Failed to process Twitter post request: "${input}"
 
 Error: ${error instanceof Error ? error.message : 'Unknown error'}
 
-Please try again or check if:
+Please try again or check:
 - The content is appropriate for Twitter
 - The project name is valid
 - The scheduling format is correct (e.g., 'tomorrow 2pm', 'Dec 25 9am')`;
@@ -331,36 +411,53 @@ Please try again or check if:
 // Instructions Command Handler
 async function handleInstructionsCommand(ctx: any, fullCommand: string, input: string): Promise<string> {
   try {
-    // Basic instruction creation logic
+    // Basic instruction creation logic - for now, let's create the file directly
     const content = input.trim();
     
-    // Extract audience if specified
-    const audienceMatch = content.match(/--audience[=\s]+([^\s]+)/i);
-    const audience = audienceMatch?.[1] || "all users";
-    
-    // Clean content by removing parameters
-    const cleanContent = content
-      .replace(/--audience[=\s]+[^\s]+/gi, '')
-      .trim();
-
-    if (!cleanContent) {
-      return "❌ Please provide instruction content after removing parameters.";
+    if (!content) {
+      return "❌ Please provide instruction content. Example: every time you reply, i want you to tell me a joke first";
     }
 
     // Generate a brief filename based on content
-    const words = cleanContent.split(' ').slice(0, 3);
+    const words = content.split(' ').slice(0, 3);
     const briefTitle = words.join('-').toLowerCase().replace(/[^a-z0-9-]/g, '');
-    const fileName = `${briefTitle || 'instruction'}.md`;
+    const fileName = `${briefTitle || 'instruction'}-${new Date().toISOString().split('T')[0]}.md`;
+
+    // Check if the content includes a request for jokes
+    const shouldIncludeJoke = content.toLowerCase().includes('joke') || 
+                             content.toLowerCase().includes('tell me a joke') ||
+                             content.toLowerCase().includes('every time you reply');
+    
+    let jokeSection = '';
+    if (shouldIncludeJoke) {
+      const jokes = [
+        "Why don't programmers like nature? It has too many bugs! 🐛",
+        "Why do programmers prefer dark mode? Because light attracts bugs! 💡",
+        "How many programmers does it take to change a light bulb? None, that's a hardware problem! 💡",
+        "Why do Java developers wear glasses? Because they can't C# 👓",
+        "A SQL query goes into a bar, walks up to two tables and asks: 'Can I join you?' 🍺"
+      ];
+      const randomJoke = jokes[Math.floor(Math.random() * jokes.length)];
+      jokeSection = `## 😄 Developer Joke
+
+${randomJoke}
+
+---
+
+`;
+    }
 
     // Basic instruction document content
-    const documentContent = `# ${briefTitle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+    const documentContent = `# Instructions: ${briefTitle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
 
-**Target Audience:** ${audience}
-**Created:** ${new Date().toLocaleDateString()}
+*Generated on ${new Date().toISOString().split('T')[0]}*
 
-## Instruction
+${jokeSection}## Overview
+This document provides comprehensive instructions for: **${content}**
 
-${cleanContent}
+## Instruction Details
+
+${content}
 
 ## Implementation Notes
 
@@ -368,32 +465,48 @@ ${cleanContent}
 - Review and update as needed based on project evolution
 - Ensure all team members are aware of this guideline
 
+## Best Practices
+- Always test in a development environment first
+- Keep detailed logs of all changes
+- Follow security guidelines
+- Document any customizations
+
 ---
 *Generated by EAC Instructions Agent*`;
 
-    return `📝 **Instruction Document Created Successfully!**
+    // Ensure Instructions project exists
+    await ctx.runMutation(api.projects.ensureInstructionsProject, {});
 
-**Title:** ${briefTitle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+    // Create the instruction file
+    const file = await ctx.runMutation(api.files.createInstructionFile, {
+      name: fileName,
+      content: documentContent,
+      topic: content,
+      audience: "developers",
+    });
+
+    return `📝 **Instructions Created Successfully!**
+
 **File:** \`${fileName}\`
-**Audience:** ${audience}
-**Content:** "${cleanContent.substring(0, 100)}${cleanContent.length > 100 ? '...' : ''}"
+**Topic:** ${content}
+**Location:** /instructions/${fileName}
 
-✅ Instruction file ready for use in EAC editor interface.
+The instruction document has been created and saved to your Instructions project. You can now view and edit it in the editor.
 
-**Next Steps:**
-1. Sign in to access the full editor
-2. Open the instruction file to edit and organize  
-3. Use the project management interface for better organization`;
+**Preview:**
+${documentContent.split('\n').slice(0, 5).join('\n')}...
+
+*Open the file in the editor to see the complete instructions.*`;
 
   } catch (error) {
     console.error("❌ Instructions command failed:", error);
-    return `❌ **Error Creating Instruction Document**
+    return `❌ **Error Creating Instructions**
 
-Failed to process: "${fullCommand}"
+Failed to process instruction request: "${input}"
 
 Error: ${error instanceof Error ? error.message : 'Unknown error'}
 
-Please try again with valid instruction content.`;
+Please try again or check the system logs for more details.`;
   }
 }
 
@@ -403,6 +516,7 @@ export const sendChatMessage = action({
     content: v.string(),
     originalContent: v.optional(v.string()), // Add this to check only the user's original message for MCP intent
     sessionId: v.optional(v.string()),
+    activeAgentId: v.optional(v.string()), // Add support for active agent
   },
   handler: async (ctx, args): Promise<any> => {
     try {
@@ -417,6 +531,28 @@ export const sendChatMessage = action({
       const messageContent = args.originalContent || args.content;
       if (messageContent.trim().startsWith('/')) {
         return await handleAgentCommand(ctx, messageContent.trim(), args.sessionId);
+      }
+
+      // Check if there's an active agent and route message through it
+      if (args.activeAgentId) {
+        console.log(`🤖 Active agent detected: ${args.activeAgentId}`);
+        
+        // Route to the appropriate agent based on activeAgentId
+        switch (args.activeAgentId) {
+          case 'instructions':
+            // Transform the message into an instructions command
+            const instructionsCommand = `/instructions ${messageContent}`;
+            return await handleAgentCommand(ctx, instructionsCommand, args.sessionId);
+          
+          case 'twitter-post':
+            // Transform the message into a twitter command
+            const twitterCommand = `/twitter ${messageContent}`;
+            return await handleAgentCommand(ctx, twitterCommand, args.sessionId);
+          
+          default:
+            console.log(`⚠️ Unknown active agent: ${args.activeAgentId}, falling through to regular chat`);
+            break;
+        }
       }
 
       // Check if message requires MCP analysis - use ONLY the original user message

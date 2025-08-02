@@ -86,12 +86,12 @@ export function AgentsPanel({ className }: AgentsPanelProps) {
         ) : (
           <div className="overflow-hidden">
             {/* Table Header */}
-            <div className="flex items-center px-3 py-1.5 bg-[#2d2d30] border-b border-[#454545] text-xs text-[#858585] font-medium">
+            <div className="flex items-center px-3 py-1.5 bg-[#2d2d30] border-b border-[#454545] text-xs text-[#858585]">
               <div className="flex-shrink-0 w-16">Select</div>
               <div className="flex-shrink-0 w-24">Agent</div>
               <div className="flex-shrink-0 w-32">Tool</div>
               <div className="flex-1 px-2">Description</div>
-              <div className="flex-shrink-0 w-20 text-center">Type</div>
+              <div className="flex-shrink-0 w-16 text-center">Type</div>
             </div>
             
             {/* Tool Rows */}
@@ -99,7 +99,7 @@ export function AgentsPanel({ className }: AgentsPanelProps) {
               <div
                 key={`${tool.agentId}-${tool.id}`}
                 className={cn(
-                  "w-full flex items-center px-3 py-2 transition-all duration-200 hover:bg-[#2a2a2a] border-b border-[#333] bg-[#1a1a1a]",
+                  "w-full flex items-center px-3 py-1.5 transition-all duration-200 hover:bg-[#2a2a2a] border-b border-[#333]",
                   tool.isActive && tool.type === 'agent'
                     ? "border-l-2 border-l-[#0078d4]"
                     : ""
@@ -124,7 +124,7 @@ export function AgentsPanel({ className }: AgentsPanelProps) {
                     </div>
                   )}
                 </div>
-                <div className="flex-shrink-0 w-24 text-xs text-[#cccccc] font-medium">
+                <div className="flex-shrink-0 w-24 text-xs text-[#cccccc]">
                   {tool.agentName}
                 </div>
                 <div className="flex-shrink-0 w-32 text-xs text-[#4fc3f7]">
@@ -135,9 +135,9 @@ export function AgentsPanel({ className }: AgentsPanelProps) {
                     {tool.description}
                   </div>
                 </div>
-                <div className="flex-shrink-0 w-20 text-center text-xs">
+                <div className="flex-shrink-0 w-16 text-center text-xs">
                   <span className={cn(
-                    "px-2 py-1 rounded text-[10px] font-medium",
+                    "px-2 py-0.5 rounded text-[10px]",
                     tool.type === 'agent' 
                       ? "bg-[#4fc3f7]/20 text-[#4fc3f7]" 
                       : "bg-[#858585]/20 text-[#858585]"

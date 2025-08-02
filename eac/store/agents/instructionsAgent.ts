@@ -38,10 +38,10 @@ export class InstructionsAgent extends BaseAgent {
     input: string,
     convexMutations: ConvexMutations
   ): Promise<string> {
-    const { createFile } = convexMutations;
+    const { createFile, ensureInstructionsProject } = convexMutations;
 
     if (tool.id === "generate-instructions") {
-      return await this.generateInstructions(input, createFile);
+      return await this.generateInstructions(input, createFile, ensureInstructionsProject);
     }
 
     throw new Error(`Unknown tool: ${tool.id}`);
@@ -49,7 +49,8 @@ export class InstructionsAgent extends BaseAgent {
 
   private async generateInstructions(
     input: string,
-    createFile: any
+    createFile: any,
+    ensureInstructionsProject: any
   ): Promise<string> {
     try {
       console.log(`📝 Instructions Agent: Processing request: "${input}"`);
@@ -73,12 +74,14 @@ export class InstructionsAgent extends BaseAgent {
 
       // Create the instruction file in Convex
       try {
+        // First ensure the Instructions project exists
+        await ensureInstructionsProject();
+        
         const file = await createFile({
           name: fileName,
           content: instructionContent,
-          path: `/instructions/${fileName}`,
-          type: "markdown",
-          projectName: "Instructions", // Special project for instructions
+          topic: cleanInput,
+          audience: "developers", // Default audience
         });
 
         console.log(`✅ Created instruction file: ${fileName}`);
@@ -129,12 +132,36 @@ Please try again or check the system logs for more details.`;
   private async generateInstructionContent(topic: string): Promise<string> {
     const timestamp = new Date().toISOString().split('T')[0];
     
+    // Check if the topic includes a request for jokes
+    const shouldIncludeJoke = topic.toLowerCase().includes('joke') || 
+                             topic.toLowerCase().includes('tell me a joke') ||
+                             topic.toLowerCase().includes('every time you reply');
+    
+    let jokeSection = '';
+    if (shouldIncludeJoke) {
+      const jokes = [
+        "Why don't programmers like nature? It has too many bugs! 🐛",
+        "Why do programmers prefer dark mode? Because light attracts bugs! 💡",
+        "How many programmers does it take to change a light bulb? None, that's a hardware problem! 💡",
+        "Why do Java developers wear glasses? Because they can't C# 👓",
+        "A SQL query goes into a bar, walks up to two tables and asks: 'Can I join you?' 🍺"
+      ];
+      const randomJoke = jokes[Math.floor(Math.random() * jokes.length)];
+      jokeSection = `## 😄 Developer Joke
+
+${randomJoke}
+
+---
+
+`;
+    }
+    
     // Generate comprehensive instruction content
     const content = `# Instructions: ${topic}
 
 *Generated on ${timestamp}*
 
-## Overview
+${jokeSection}## Overview
 This document provides comprehensive instructions for: **${topic}**
 
 ## Prerequisites
