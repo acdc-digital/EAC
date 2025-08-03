@@ -8,11 +8,12 @@ import { api } from "@/convex/_generated/api";
 import { useProjects } from "@/lib/hooks/useProjects";
 import { useProjectSync } from "@/lib/hooks/useProjectSync";
 import { clearAllPersistedState, performFullSync } from "@/lib/utils/stateSync";
-import { useEditorStore } from "@/store";
+import { useEditorStore, useScheduledPostsFromConvex } from "@/store";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import {
   Activity,
   AtSign,
+  Calendar,
   CheckCircle,
   ChevronDown,
   ChevronRight,
@@ -72,6 +73,14 @@ export function DashDebug() {
   // Convex mutations for testing
   const createTestProject = useMutation(api.projects.createProject);
   const createTestPost = useMutation(api.socialPosts.upsertPost);
+
+  // Calendar debug queries and mutations
+  const { posts: calendarPosts, isLoading: calendarLoading } = useScheduledPostsFromConvex('current-user');
+  const allCalendarPosts = useQuery(api.socialPosts.getAllAgentPosts, {});
+  const createCalendarTestPost = useMutation(api.socialPosts.createTestScheduledPost);
+  const createCalendarTestPostAuth = useMutation(api.socialPosts.createTestScheduledPostForCurrentUser);
+  const createCalendarRealPost = useMutation(api.socialPosts.createRealPostExample);
+  const resetAndCreateCalendarExamples = useMutation(api.socialPosts.debugResetAndCreateExamples);
 
   // Convex queries for connection testing - temporarily disabled
   // const socialConnections = useQuery(api.socialConnections.getSocialConnections, { userId: 'temp-user-id' });
@@ -365,7 +374,6 @@ export function DashDebug() {
         fileName: `debug-post-${Date.now()}.reddit`,
         fileType: 'reddit',
         status: 'scheduled',
-        userId: convexDebugUser,
         scheduledFor: Date.now() + (24 * 60 * 60 * 1000), // Tomorrow
         platformData: JSON.stringify({ subreddit: 'test' })
       });
@@ -390,6 +398,59 @@ export function DashDebug() {
     });
   };
 
+  // Calendar debug functions
+  const runCalendarTestPost = async () => {
+    try {
+      console.log('🧪 Creating calendar test post...');
+      const result = await createCalendarTestPost({ userId: 'debug-user' });
+      console.log('✅ Calendar test post created:', result);
+    } catch (error) {
+      console.error('❌ Failed to create calendar test post:', error);
+    }
+  };
+
+  const runCalendarAuthTestPost = async () => {
+    try {
+      console.log('🔐 Creating calendar authenticated test post...');
+      const result = await createCalendarTestPostAuth();
+      console.log('✅ Calendar authenticated test post created:', result);
+    } catch (error) {
+      console.error('❌ Failed to create calendar authenticated test post:', error);
+    }
+  };
+
+  const runCalendarRealPost = async () => {
+    try {
+      console.log('✨ Creating calendar real post example...');
+      const result = await createCalendarRealPost({ userId: 'debug-user' });
+      console.log('✅ Calendar real post created:', result);
+    } catch (error) {
+      console.error('❌ Failed to create calendar real post:', error);
+    }
+  };
+
+  const runCalendarResetAndCreateExamples = async () => {
+    try {
+      console.log('🔄 Resetting and creating calendar examples...');
+      const result = await resetAndCreateCalendarExamples({ userId: 'debug-user' });
+      console.log('✅ Calendar examples reset and created:', result);
+    } catch (error) {
+      console.error('❌ Failed to reset and create calendar examples:', error);
+    }
+  };
+
+  const logCalendarDebugData = () => {
+    console.log('📅 Calendar Debug Data:', {
+      calendarPosts: calendarPosts?.length || 0,
+      calendarPostsData: calendarPosts,
+      allCalendarPosts: allCalendarPosts?.length || 0,
+      allCalendarPostsData: allCalendarPosts,
+      calendarLoading,
+      firstPost: calendarPosts?.[0],
+      userIds: calendarPosts ? [...new Set(calendarPosts.map(p => p.userId))] : [],
+    });
+  };
+
   return (
     <div className="h-full bg-[#181818] text-[#cccccc] flex flex-col">
       <div className="p-2">
@@ -410,7 +471,7 @@ export function DashDebug() {
               <ChevronDown className="w-3.5 h-3.5 text-[#858585]" /> : 
               <ChevronRight className="w-3.5 h-3.5 text-[#858585]" />
             }
-            <Activity className="w-3.5 h-3.5 text-emerald-500" />
+            <Activity className="w-3.5 h-3.5 text-[#858585]" />
             <span className="text-xs font-medium flex-1 text-left">Authentication</span>
             <div className="flex items-center gap-1">
               {isAuthenticated ? 
@@ -457,6 +518,113 @@ export function DashDebug() {
                   </div>
                 </>
               )}
+            </div>
+          )}
+        </div>
+        
+        {/* Calendar Debug */}
+        <div className="rounded bg-[#1e1e1e] border border-[#2d2d2d]">
+          <button
+            onClick={() => toggleSection('calendar')}
+            className="w-full flex items-center gap-2 p-2 hover:bg-[#2d2d2d]/30 transition-colors"
+          >
+            {expandedSections.has('calendar') ? 
+              <ChevronDown className="w-3.5 h-3.5 text-[#858585]" /> : 
+              <ChevronRight className="w-3.5 h-3.5 text-[#858585]" />
+            }
+            <Calendar className="w-3.5 h-3.5 text-[#858585]" />
+            <span className="text-xs font-medium flex-1 text-left">Calendar</span>
+            <div className="flex items-center gap-1">
+              {calendarLoading && <Clock className="w-3 h-3 text-yellow-400" />}
+              {!calendarLoading && <CheckCircle className="w-3 h-3 text-green-400" />}
+            </div>
+          </button>
+          
+          {expandedSections.has('calendar') && (
+            <div className="px-2 pb-2 space-y-2">
+              <Separator className="bg-[#2d2d2d]" />
+              
+              {/* Calendar Statistics */}
+              <div className="text-[10px] text-[#858585] space-y-1">
+                <div className="flex justify-between">
+                  <span>User Posts:</span>
+                  <span className="text-[#cccccc]">{calendarPosts?.length || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Total Posts:</span>
+                  <span className="text-[#cccccc]">{allCalendarPosts?.length || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Loading:</span>
+                  <span className={`text-xs ${calendarLoading ? 'text-yellow-400' : 'text-green-400'}`}>
+                    {calendarLoading ? '⏳ Loading' : '✅ Ready'}
+                  </span>
+                </div>
+              </div>
+              
+              <Separator className="bg-[#2d2d2d]" />
+              
+              {/* Calendar Test Actions */}
+              <div className="space-y-1">
+                <div className="text-xs text-[#858585] mb-1 px-1">Test Post Creation</div>
+                
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-xs text-[#858585]">🧪 Test post</span>
+                  <button
+                    onClick={runCalendarTestPost}
+                    className="text-xs text-[#007acc] hover:text-[#1e90ff] underline-offset-2 hover:underline"
+                  >
+                    Create
+                  </button>
+                </div>
+                
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-xs text-[#858585]">🔐 Auth test</span>
+                  <button
+                    onClick={runCalendarAuthTestPost}
+                    className="text-xs text-[#007acc] hover:text-[#1e90ff] underline-offset-2 hover:underline"
+                  >
+                    Create
+                  </button>
+                </div>
+                
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-xs text-[#858585]">✨ Real post</span>
+                  <button
+                    onClick={runCalendarRealPost}
+                    className="text-xs text-[#28a745] hover:text-[#218838] underline-offset-2 hover:underline"
+                  >
+                    Create
+                  </button>
+                </div>
+                
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-xs text-[#858585]">🔄 Reset examples</span>
+                  <button
+                    onClick={runCalendarResetAndCreateExamples}
+                    className="text-xs text-[#6f42c1] hover:text-[#5a32a3] underline-offset-2 hover:underline"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+              
+              <Separator className="bg-[#2d2d2d]" />
+              
+              {/* Calendar Debug Actions */}
+              <div className="space-y-1">
+                <div className="text-xs text-[#858585] mb-1 px-1">Debug Information</div>
+                
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-xs text-[#858585]">Log calendar data</span>
+                  <button
+                    onClick={logCalendarDebugData}
+                    className="text-xs text-[#007acc] hover:text-[#1e90ff] underline-offset-2 hover:underline"
+                  >
+                    Log
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>

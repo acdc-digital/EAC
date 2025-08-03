@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
 import { DashAgents } from "./dashAgents";
+import { DashCalendarConsole } from "./dashCalendarConsole";
 import { DashDebug } from "./dashDebug";
 import { DashExtensions } from "./dashExtensions";
 import { DashHelp } from "./dashHelp";
@@ -672,6 +673,8 @@ export function DashSidebar({ activePanel }: SidebarProps) {
         return <DashUserConsole />;
       case 'social-connectors':
         return <DashSocialConnections />;
+      case 'calendar':
+        return <DashCalendarConsole />;
       default:
         return (
           <div className="p-2">

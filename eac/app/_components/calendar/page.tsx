@@ -12,7 +12,7 @@ import {
   useSetSelectedDate
 } from "@/store";
 import { useUser } from "@clerk/nextjs";
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { CalendarIcon, ChevronLeft, ChevronRight, Facebook, Instagram, MessageSquare, Plus, Twitter } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "../../../convex/_generated/api";
@@ -71,12 +71,6 @@ export default function CalendarPage({ className }: CalendarProps) {
   
   // Debug: Get all posts to see what's in the database
   const allPosts = useQuery(api.socialPosts.getAllAgentPosts, {});
-  
-  // Debug: Mutation to create test post
-  const createTestPost = useMutation(api.socialPosts.createTestScheduledPost);
-  const createTestPostAuth = useMutation(api.socialPosts.createTestScheduledPostForCurrentUser);
-  const createRealPost = useMutation(api.socialPosts.createRealPostExample);
-  const resetAndCreateExamples = useMutation(api.socialPosts.debugResetAndCreateExamples);
 
   // Load scheduled posts from Convex with actual user ID
   // Toggle between all posts and user-specific posts
@@ -275,17 +269,6 @@ export default function CalendarPage({ className }: CalendarProps) {
             </div>
             
             <div className="flex gap-3">
-              {/* Debug Info */}
-              {convexPosts && (
-                <div className="text-xs text-[#858585] bg-[#2d2d2d] px-2 py-1 rounded">
-                  {convexPosts.length} convex posts
-                </div>
-              )}
-              {allPosts && (
-                <div className="text-xs text-[#858585] bg-[#2d2d2d] px-2 py-1 rounded">
-                  {allPosts.length} total in DB
-                </div>
-              )}
               <Button
                 onClick={goToToday}
                 variant="outline"
@@ -311,34 +294,6 @@ export default function CalendarPage({ className }: CalendarProps) {
                 <Plus className="w-4 h-4 mr-2" />
                 Schedule Post
               </Button>
-              <Button
-                onClick={async () => {
-                  try {
-                    await createRealPost({ userId: user?.id });
-                    console.log('✨ Created real post example!');
-                  } catch (error) {
-                    console.error('Failed to create real post:', error);
-                  }
-                }}
-                className="bg-[#28a745] hover:bg-[#218838] text-white"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Create Real Post
-              </Button>
-              <Button
-                onClick={async () => {
-                  try {
-                    const result = await resetAndCreateExamples({ userId: user?.id });
-                    console.log('🔄 Reset and created examples:', result);
-                  } catch (error) {
-                    console.error('Failed to reset and create examples:', error);
-                  }
-                }}
-                className="bg-[#6f42c1] hover:bg-[#5a32a3] text-white"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Reset & Create Examples
-              </Button>
             </div>
           </div>
           
@@ -358,36 +313,6 @@ export default function CalendarPage({ className }: CalendarProps) {
               </CardTitle>
               
               <div className="flex gap-2">
-                <Button
-                  onClick={async () => {
-                    try {
-                      const result = await createTestPost({ userId: user?.id });
-                      console.log('🧪 Test post created:', result);
-                    } catch (error) {
-                      console.error('🚨 Failed to create test post:', error);
-                    }
-                  }}
-                  variant="outline"
-                  size="sm"
-                  className="border-[#454545] text-[#cccccc] hover:bg-[#2d2d2d]"
-                >
-                  🧪 Test Post
-                </Button>
-                <Button
-                  onClick={async () => {
-                    try {
-                      const result = await createTestPostAuth();
-                      console.log('🔐 Authenticated test post created:', result);
-                    } catch (error) {
-                      console.error('🚨 Failed to create authenticated test post:', error);
-                    }
-                  }}
-                  variant="outline"
-                  size="sm"
-                  className="border-[#454545] text-[#cccccc] hover:bg-[#2d2d2d]"
-                >
-                  🔐 Auth Test
-                </Button>
                 <Button
                   onClick={goToPreviousMonth}
                   variant="outline"

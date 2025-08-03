@@ -115,6 +115,13 @@ export function Terminal() {
                 className="rounded-none text-xs h-[25px] bg-transparent text-white opacity-60 px-3 min-w-[70px] flex items-center justify-center"
                 disabled
               >
+                <AlertCircle className="w-3 h-3 mr-1" />
+                Problems
+              </button>
+              <button
+                className="rounded-none text-xs h-[25px] bg-transparent text-white opacity-60 px-3 min-w-[70px] flex items-center justify-center"
+                disabled
+              >
                 <Settings className="w-3 h-3 mr-1" />
                 Settings
               </button>
