@@ -3,7 +3,39 @@
 
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import { Doc } from "./_generated/dataModel";
 import { action } from "./_generated/server";
+
+// Type definitions for API responses
+interface TwitterTokenResponse {
+  access_token: string;
+  refresh_token?: string;
+  token_type: string;
+  expires_in?: number;
+  error?: string;
+  error_description?: string;
+}
+
+interface TwitterUserData {
+  data: {
+    id: string;
+    username: string;
+    name?: string;
+  };
+  error?: {
+    message: string;
+  };
+}
+
+interface AuthenticationResult {
+  success: boolean;
+  user: {
+    id: string;
+    username: string;
+    name?: string;
+  };
+  tokenExpiry?: number;
+}
 
 export const authenticateX = action({
   args: {
@@ -11,14 +43,14 @@ export const authenticateX = action({
     codeVerifier: v.string(),
     connectionId: v.id("socialConnections"),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<AuthenticationResult> => {
     const { code, codeVerifier, connectionId } = args;
     
     console.log("authenticateX: Starting OAuth flow", { connectionId });
 
     try {
       // Get the connection to retrieve client credentials
-      const connection = await ctx.runQuery(internal.socialConnections.getConnectionById, {
+      const connection: Doc<"socialConnections"> | null = await ctx.runQuery(internal.socialConnections.getConnectionById, {
         connectionId,
       });
 
@@ -56,7 +88,7 @@ export const authenticateX = action({
         clientId: connection.twitterClientId 
       });
 
-      const tokenResponse = await fetch(tokenEndpoint, {
+      const tokenResponse: Response = await fetch(tokenEndpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -65,7 +97,7 @@ export const authenticateX = action({
         body: tokenParams.toString(),
       });
 
-      const tokenData = await tokenResponse.json();
+      const tokenData: TwitterTokenResponse = await tokenResponse.json();
       console.log("authenticateX: Token response", { 
         status: tokenResponse.status,
         hasAccessToken: !!tokenData.access_token,
@@ -83,13 +115,13 @@ export const authenticateX = action({
       }
 
       // Get user information
-      const userResponse = await fetch("https://api.twitter.com/2/users/me", {
+      const userResponse: Response = await fetch("https://api.twitter.com/2/users/me", {
         headers: {
           "Authorization": `Bearer ${tokenData.access_token}`,
         },
       });
 
-      const userData = await userResponse.json();
+      const userData: TwitterUserData = await userResponse.json();
       console.log("authenticateX: User data response", { 
         status: userResponse.status,
         hasUserData: !!userData.data,

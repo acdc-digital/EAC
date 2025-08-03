@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "chmod +x scripts/dev-start.sh && scripts/dev-start.sh",
+    "dev:next": "next dev",
     "dev:convex": "npx convex dev",
     "dev:new": "rm -f .env.local && npx convex dev --configure=new",
     "build": "next build",

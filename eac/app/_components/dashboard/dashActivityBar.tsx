@@ -52,8 +52,8 @@ export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps
 
   const activityItems = [
     { id: "explorer", icon: FileText, label: "Explorer" },
-    { id: "social-connectors", icon: Contact, label: "Social Media Connectors" },
     { id: "calendar", icon: Calendar, label: "Content Calendar" },
+    { id: "social-connectors", icon: Contact, label: "Social Media Connectors" },
     { id: "agents", icon: Bot, label: "Agents" },
     { id: "extensions", icon: Puzzle, label: "Extensions" },
     { id: "trash", icon: Trash2, label: "Trash" },

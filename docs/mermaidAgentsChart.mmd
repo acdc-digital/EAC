@@ -1,0 +1,124 @@
+---
+title: EAC Agent & Tool Architecture
+config:
+  theme: dark
+  flowchart:
+    nodeSpacing: 50
+    rankSpacing: 60
+---
+flowchart TB
+    %% User Interface Layer
+    subgraph UI ["🖥️ User Interface Layer"]
+        Terminal["💻 Terminal Interface<br/>AI Chat Terminal"]
+        Dashboard["📊 Dashboard<br/>Agent Panel"]
+        Editor["📝 Editor<br/>Project Management"]
+    end
+
+    %% Agent Registry System
+    subgraph Registry ["🏛️ Agent Registry System"]
+        AgentRegistry["📋 AgentRegistry<br/>Central agent management"]
+        BaseAgent["🤖 BaseAgent<br/>Abstract base class"]
+    end
+
+    %% Specialized Agents
+    subgraph Agents ["🤖 Specialized Agents"]
+        InstructionsAgent["📖 InstructionsAgent<br/>Document generation<br/>Commands: /instructions"]
+        TwitterAgent["🐦 TwitterAgent<br/>Social media posting<br/>Commands: /twitter"]
+        SchedulingAgent["📅 SchedulingAgent<br/>Calendar management<br/>Commands: /schedule"]
+        ContentAgent["✍️ ContentAgent<br/>Content creation<br/>Commands: /content"]
+    end
+
+    %% Tool Ecosystem
+    subgraph Tools ["🛠️ Tool Ecosystem"]
+        TwitterTools["🐦 Twitter Tools<br/>- Post creation<br/>- Thread management<br/>- Scheduling"]
+        CalendarTools["📅 Calendar Tools<br/>- Event creation<br/>- Time blocking<br/>- Reminders"]
+        ContentTools["✍️ Content Tools<br/>- Document generation<br/>- Template management<br/>- Rich text editing"]
+        ProjectTools["📋 Project Tools<br/>- Task management<br/>- Resource allocation<br/>- Progress tracking"]
+    end
+
+    %% Data Layer
+    subgraph Data ["💾 Data Layer"]
+        ConvexDB["🔗 Convex Database<br/>- Social posts<br/>- Agent configurations<br/>- User preferences"]
+        LocalStorage["💽 Local Storage<br/>- Editor state<br/>- UI preferences<br/>- Session data"]
+    end
+
+    %% State Management
+    subgraph State ["🔄 State Management"]
+        Zustand["⚡ Zustand Stores<br/>- Agent store<br/>- Editor store<br/>- Calendar store"]
+        AgentStore["🤖 Agent Store<br/>- Active agents<br/>- Command history<br/>- Agent state"]
+    end
+
+    %% External Integrations
+    subgraph External ["🌐 External Integrations"]
+        TwitterAPI["🐦 Twitter/X API<br/>OAuth 2.0<br/>Post management"]
+        CalendarAPI["📅 Calendar APIs<br/>Google Calendar<br/>Outlook"]
+        MCPServer["🔌 MCP Server<br/>Model Context Protocol<br/>Enhanced capabilities"]
+    end
+
+    %% Command Flow
+    subgraph Commands ["⚡ Command Processing"]
+        CommandParser["🔍 Command Parser<br/>Parse user commands"]
+        CommandRouter["🚦 Command Router<br/>Route to appropriate agent"]
+        CommandExecutor["⚙️ Command Executor<br/>Execute agent actions"]
+    end
+
+    %% Connections - User Interface
+    Terminal --> CommandParser
+    Dashboard --> AgentRegistry
+    Editor --> AgentStore
+
+    %% Connections - Registry System
+    AgentRegistry --> BaseAgent
+    BaseAgent --> InstructionsAgent
+    BaseAgent --> TwitterAgent
+    BaseAgent --> SchedulingAgent
+    BaseAgent --> ContentAgent
+
+    %% Connections - Command Flow
+    CommandParser --> CommandRouter
+    CommandRouter --> InstructionsAgent
+    CommandRouter --> TwitterAgent
+    CommandRouter --> SchedulingAgent
+    CommandRouter --> ContentAgent
+    CommandRouter --> CommandExecutor
+
+    %% Connections - Agent to Tools
+    InstructionsAgent --> ContentTools
+    InstructionsAgent --> ProjectTools
+    TwitterAgent --> TwitterTools
+    SchedulingAgent --> CalendarTools
+    ContentAgent --> ContentTools
+
+    %% Connections - Data Flow
+    AgentRegistry --> ConvexDB
+    AgentStore --> LocalStorage
+    Zustand --> AgentStore
+
+    %% Connections - External APIs
+    TwitterAgent --> TwitterAPI
+    SchedulingAgent --> CalendarAPI
+    AgentRegistry --> MCPServer
+
+    %% Connections - State Synchronization
+    ConvexDB --> Zustand
+    LocalStorage --> Zustand
+    AgentStore --> AgentRegistry
+
+    %% Tool Data Connections
+    TwitterTools --> ConvexDB
+    CalendarTools --> ConvexDB
+    ContentTools --> ConvexDB
+    ProjectTools --> ConvexDB
+
+    %% Styling
+    classDef agentClass fill:#2563eb,stroke:#1e40af,stroke-width:2px,color:#ffffff
+    classDef toolClass fill:#059669,stroke:#047857,stroke-width:2px,color:#ffffff
+    classDef dataClass fill:#dc2626,stroke:#b91c1c,stroke-width:2px,color:#ffffff
+    classDef uiClass fill:#7c3aed,stroke:#6d28d9,stroke-width:2px,color:#ffffff
+    classDef extClass fill:#ea580c,stroke:#c2410c,stroke-width:2px,color:#ffffff
+
+    class InstructionsAgent,TwitterAgent,SchedulingAgent,ContentAgent,BaseAgent,AgentRegistry agentClass
+    class TwitterTools,CalendarTools,ContentTools,ProjectTools toolClass
+    class ConvexDB,LocalStorage,Zustand,AgentStore dataClass
+    class Terminal,Dashboard,Editor uiClass
+    class TwitterAPI,CalendarAPI,MCPServer extClass

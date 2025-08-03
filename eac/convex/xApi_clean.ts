@@ -6,7 +6,7 @@
  */
 
 import { v } from "convex/values";
-import { api, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import { action } from "./_generated/server";
 
 interface XApiResponse {
@@ -51,7 +51,7 @@ export const authenticateX = action({
     try {
       // Get the connection
       console.log('🔍 authenticateX: Fetching connection from database');
-      const connection = await ctx.runQuery(api.socialConnections.getConnectionById, {
+      const connection = await ctx.runQuery(internal.socialConnections.getConnectionById, {
         connectionId: args.connectionId,
       });
 
@@ -172,7 +172,7 @@ export const createTweet = action({
   handler: async (ctx, args): Promise<TweetResponse> => {
     try {
       // Get the connection
-      const connection = await ctx.runQuery(api.socialConnections.getConnectionById, {
+      const connection = await ctx.runQuery(internal.socialConnections.getConnectionById, {
         connectionId: args.connectionId,
       });
 
@@ -256,7 +256,7 @@ export const uploadMedia = action({
   handler: async (ctx, args): Promise<MediaUploadResponse> => {
     try {
       // Get the connection
-      const connection = await ctx.runQuery(api.socialConnections.getConnectionById, {
+      const connection = await ctx.runQuery(internal.socialConnections.getConnectionById, {
         connectionId: args.connectionId,
       });
 
@@ -321,7 +321,7 @@ export const getTweetAnalytics = action({
   handler: async (ctx, args): Promise<XApiResponse> => {
     try {
       // Get the connection
-      const connection = await ctx.runQuery(api.socialConnections.getConnectionById, {
+      const connection = await ctx.runQuery(internal.socialConnections.getConnectionById, {
         connectionId: args.connectionId,
       });
 

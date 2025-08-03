@@ -2,7 +2,7 @@
 // /Users/matthewsimon/Projects/eac/eac/convex/socialConnections.ts
 
 import { v } from "convex/values";
-import { query } from "./_generated/server";
+import { internalQuery, query } from "./_generated/server";
 
 export const getSocialConnections = query({
   args: {
@@ -35,7 +35,7 @@ export const getSocialConnections = query({
   },
 });
 
-export const getConnectionById = query({
+export const getConnectionById = internalQuery({
   args: {
     connectionId: v.id("socialConnections"),
   },

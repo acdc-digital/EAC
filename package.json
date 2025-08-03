@@ -8,7 +8,7 @@
     "mcp-server"
   ],
   "scripts": {
-    "dev": "cd eac && pnpm dev",
+    "dev": "cd eac && chmod +x scripts/dev-start.sh && scripts/dev-start.sh",
     "build": "cd eac && pnpm build",
     "start": "cd eac && pnpm start",
     "lint": "cd eac && pnpm lint",

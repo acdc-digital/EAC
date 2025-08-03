@@ -2,7 +2,7 @@
 // /Users/matthewsimon/Projects/eac/eac/convex/xApiActions.ts
 
 import { v } from "convex/values";
-import { api } from "./_generated/api";
+import { internal } from "./_generated/api";
 import { action } from "./_generated/server";
 
 interface TweetResponse {
@@ -45,7 +45,7 @@ export const createTweet = action({
 
     try {
       // Get the connection
-      const connection = await ctx.runQuery(api.socialConnections.getConnectionById, {
+      const connection = await ctx.runQuery(internal.socialConnections.getConnectionById, {
         connectionId: args.connectionId,
       });
 
@@ -152,7 +152,7 @@ export const uploadMedia = action({
   handler: async (ctx, args): Promise<MediaUploadResponse> => {
     try {
       // Get the connection
-      const connection = await ctx.runQuery(api.socialConnections.getConnectionById, {
+      const connection = await ctx.runQuery(internal.socialConnections.getConnectionById, {
         connectionId: args.connectionId,
       });
 
