@@ -1,6 +1,9 @@
 // Calendar Store (Zustand)
 // /Users/matthewsimon/Projects/eac/eac/store/calendar/index.ts
 
+import { api } from '@/convex/_generated/api';
+import { useQuery } from 'convex/react';
+import { useEffect } from 'react';
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import type { CalendarStoreState, ScheduledPost } from './types';
@@ -21,10 +24,8 @@ export const useCalendarStore = create<CalendarStoreState>()(
           set({ isLoading: true, error: null });
           
           try {
-            // For the demo, we'll start with an empty array and let posts be added through the UI
-            // In a real implementation, this would fetch from Convex
-            
-            // For now, keep existing posts and just mark as loaded
+            // This will be handled by the useScheduledPostsFromConvex hook
+            // For now, just mark as loaded
             set({ isLoading: false });
           } catch (error) {
             set({ 
@@ -32,6 +33,11 @@ export const useCalendarStore = create<CalendarStoreState>()(
               error: error instanceof Error ? error.message : 'Failed to load scheduled posts'
             });
           }
+        },
+
+        // Set scheduled posts from Convex
+        setScheduledPosts: (posts: ScheduledPost[]) => {
+          set({ scheduledPosts: posts });
         },
 
         addScheduledPost: async (post: Omit<ScheduledPost, '_id' | 'createdAt' | 'updatedAt'>) => {
@@ -146,6 +152,7 @@ export const useCurrentMonth = () => useCalendarStore(state => state.currentMont
 
 // Individual action hooks for stable references
 export const useLoadScheduledPosts = () => useCalendarStore(state => state.loadScheduledPosts);
+export const useSetScheduledPosts = () => useCalendarStore(state => state.setScheduledPosts);
 export const useAddScheduledPost = () => useCalendarStore(state => state.addScheduledPost);
 export const useUpdateScheduledPost = () => useCalendarStore(state => state.updateScheduledPost);
 export const useDeleteScheduledPost = () => useCalendarStore(state => state.deleteScheduledPost);
@@ -156,6 +163,48 @@ export const useGetPostsByDateRange = () => useCalendarStore(state => state.getP
 export const useGetPostsByStatus = () => useCalendarStore(state => state.getPostsByStatus);
 export const useGetPostsByPlatform = () => useCalendarStore(state => state.getPostsByPlatform);
 export const useClearCalendarError = () => useCalendarStore(state => state.clearError);
+
+// Custom hook to integrate with Convex scheduled posts
+export const useScheduledPostsFromConvex = (userId?: string, startDate?: Date, endDate?: Date) => {
+  const setScheduledPosts = useSetScheduledPosts();
+  
+  // Convert dates to timestamps for Convex query
+  const startTimestamp = startDate ? startDate.getTime() : undefined;
+  const endTimestamp = endDate ? endDate.getTime() : undefined;
+  
+  const convexPosts = useQuery(api.socialPosts.getScheduledPostsForCalendar, {
+    userId,
+    startDate: startTimestamp,
+    endDate: endTimestamp,
+  });
+  
+  // Update calendar store when Convex data changes
+  useEffect(() => {
+    if (convexPosts) {
+      // Transform Convex data to match ScheduledPost interface
+      const transformedPosts: ScheduledPost[] = convexPosts.map(post => ({
+        _id: post._id,
+        userId: post.userId || 'unknown',
+        platform: post.platform as "facebook" | "instagram" | "twitter" | "reddit",
+        title: post.title,
+        content: post.content,
+        scheduledAt: post.scheduledAt,
+        status: post.status as "scheduled" | "published" | "failed" | "cancelled",
+        fileName: post.fileName,
+        fileType: post.fileType,
+        createdAt: post.createdAt,
+        updatedAt: post.updatedAt,
+      }));
+      
+      setScheduledPosts(transformedPosts);
+    }
+  }, [convexPosts, setScheduledPosts]);
+  
+  return {
+    posts: convexPosts || [],
+    isLoading: convexPosts === undefined,
+  };
+};
 
 // Legacy combined hook - deprecated, use individual hooks instead
 export const useCalendarActions = () => useCalendarStore(state => ({

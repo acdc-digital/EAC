@@ -13,9 +13,14 @@ export class AgentRegistry {
   private agents: Map<string, BaseAgent> = new Map();
 
   constructor() {
+    console.log('🤖 Agent Registry: Initializing...');
     this.registerAgent(instructionsAgent);
+    console.log('🤖 Registered:', instructionsAgent.id, instructionsAgent.name);
     this.registerAgent(twitterAgent);
+    console.log('🤖 Registered:', twitterAgent.id, twitterAgent.name);
     this.registerAgent(schedulingAgent);
+    console.log('🤖 Registered:', schedulingAgent.id, schedulingAgent.name);
+    console.log('🤖 Total agents registered:', this.agents.size);
   }
 
   /**

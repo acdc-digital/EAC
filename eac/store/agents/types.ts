@@ -93,4 +93,5 @@ export interface AgentState {
   setError: (error: string | null) => void;
   setLoading: (loading: boolean) => void;
   reset: () => void;
+  refreshAgents: () => void;
 }

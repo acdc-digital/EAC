@@ -350,7 +350,7 @@ export class SchedulingAgent extends BaseAgent {
           title: item.post.title,
           platformData: item.post.platformData,
           scheduledFor: item.scheduledFor,
-          userId: item.post.userId,
+          userId: item.post.userId || 'current-user', // Ensure we have a userId
         });
 
         results.push({

@@ -16,6 +16,7 @@ import {
 
 // Get initial agents from the registry
 const initialAgents: Agent[] = getAvailableAgents();
+console.log('🤖 Agent Store: Loaded agents:', initialAgents.map(a => ({ id: a.id, name: a.name, tools: a.tools.length })));
 
 export const useAgentStore = create<AgentState>()(
   devtools(
@@ -151,13 +152,21 @@ export const useAgentStore = create<AgentState>()(
         },
 
         reset: () => {
+          const freshAgents = getAvailableAgents();
+          console.log('🔄 Agent Store: Reset with fresh agents:', freshAgents.map(a => ({ id: a.id, name: a.name })));
           set({
-            agents: getAvailableAgents(),
+            agents: freshAgents,
             activeAgentId: null,
             executions: [],
             isLoading: false,
             error: null,
           });
+        },
+
+        refreshAgents: () => {
+          const freshAgents = getAvailableAgents();
+          console.log('🔄 Agent Store: Refreshed agents:', freshAgents.map(a => ({ id: a.id, name: a.name })));
+          set({ agents: freshAgents });
         },
 
         clearError: () => {
@@ -171,7 +180,7 @@ export const useAgentStore = create<AgentState>()(
       {
         name: "agent-store",
         partialize: (state) => ({
-          agents: state.agents,
+          // Don't persist agents array - always load fresh from registry
           activeAgentId: state.activeAgentId,
           executions: state.executions.slice(0, 50), // Keep only last 50 executions
         }),

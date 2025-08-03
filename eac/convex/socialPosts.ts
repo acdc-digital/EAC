@@ -47,6 +47,170 @@ export const getAllPosts = query({
   },
 });
 
+// Get scheduled posts for calendar view
+// Debug function to create a test scheduled post with current user
+export const createTestScheduledPostForCurrentUser = mutation({
+  args: {},
+  handler: async (ctx, args) => {
+    const userId = await getCurrentUserId(ctx);
+    console.log('🧪 Current user ID from auth:', userId);
+    
+    const now = Date.now();
+    const tomorrow = now + (24 * 60 * 60 * 1000); // 24 hours from now
+    
+    const testPost = {
+      fileName: `test-authenticated-post-${now}`,
+      fileType: 'twitter' as const,
+      content: 'This is a test scheduled post created by authenticated user! 🔐📅',
+      status: 'scheduled' as const,
+      scheduledFor: tomorrow,
+      createdAt: now,
+      updatedAt: now,
+      userId: userId || 'current-user',
+    };
+    
+    const id = await ctx.db.insert("agentPosts", testPost);
+    console.log('🧪 Authenticated test post created:', { id, ...testPost });
+    
+    return await ctx.db.get(id);
+  },
+});
+
+// Debug function to create a test scheduled post
+export const createTestScheduledPost = mutation({
+  args: {
+    userId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const tomorrow = now + (24 * 60 * 60 * 1000); // 24 hours from now
+    
+    const testPost = {
+      fileName: `test-post-${now}`,
+      fileType: 'twitter' as const,
+      content: 'This is a test scheduled post for calendar testing! 🗓️',
+      status: 'scheduled' as const,
+      scheduledFor: tomorrow,
+      createdAt: now,
+      updatedAt: now,
+      userId: args.userId || 'current-user',
+    };
+    
+    const id = await ctx.db.insert("agentPosts", testPost);
+    console.log('🧪 Test post created:', { id, ...testPost });
+    
+    return await ctx.db.get(id);
+  },
+});
+
+// Debug function to list all agent posts
+export const getAllAgentPosts = query({
+  args: {},
+  handler: async (ctx) => {
+    const allPosts = await ctx.db.query("agentPosts").collect();
+    
+    console.log(`📊 Database Debug - Total posts in agentPosts table: ${allPosts.length}`);
+    
+    allPosts.forEach((post, index) => {
+      console.log(`📊 Post ${index + 1}:`, {
+        id: post._id,
+        fileName: post.fileName,
+        status: post.status,
+        scheduledFor: post.scheduledFor ? new Date(post.scheduledFor).toISOString() : 'not scheduled',
+        userId: post.userId,
+        createdAt: new Date(post.createdAt).toISOString(),
+      });
+    });
+    
+    return allPosts;
+  },
+});
+
+export const getScheduledPostsForCalendar = query({
+  args: {
+    startDate: v.optional(v.number()),
+    endDate: v.optional(v.number()),
+    userId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    console.log('📅 Calendar Query - Args:', {
+      startDate: args.startDate ? new Date(args.startDate).toISOString() : 'undefined',
+      endDate: args.endDate ? new Date(args.endDate).toISOString() : 'undefined',
+      userId: args.userId || 'undefined'
+    });
+
+    let query = ctx.db
+      .query("agentPosts")
+      .withIndex("by_status", (q) => q.eq("status", "scheduled"));
+    
+    // Get all scheduled posts first for debugging
+    const allScheduledPosts = await query.collect();
+    console.log('📅 All scheduled posts in DB:', allScheduledPosts.length);
+    
+    // Log sample posts for debugging
+    if (allScheduledPosts.length > 0) {
+      console.log('📅 Sample post data:', {
+        fileName: allScheduledPosts[0].fileName,
+        userId: allScheduledPosts[0].userId,
+        scheduledFor: allScheduledPosts[0].scheduledFor ? new Date(allScheduledPosts[0].scheduledFor).toISOString() : 'undefined',
+        status: allScheduledPosts[0].status
+      });
+    }
+    
+    // Apply filters
+    let filteredPosts = allScheduledPosts;
+    
+    // Filter by user if provided (make this very lenient for debugging)
+    if (args.userId) {
+      const beforeUserFilter = filteredPosts.length;
+      filteredPosts = filteredPosts.filter(post => {
+        // Check various user ID formats - be very lenient
+        const matches = !post.userId || 
+                       post.userId === args.userId || 
+                       post.userId === 'current-user' || 
+                       post.userId === 'undefined' ||
+                       (typeof post.userId === 'string' && typeof args.userId === 'string' && post.userId.includes(args.userId)) ||
+                       (typeof args.userId === 'string' && typeof post.userId === 'string' && args.userId.includes(post.userId));
+        console.log(`📅 User filter - Post userId: "${post.userId}", Query userId: "${args.userId}", Matches: ${matches}`);
+        return matches;
+      });
+      console.log(`📅 User filter results: ${beforeUserFilter} -> ${filteredPosts.length} posts`);
+    } else {
+      console.log('📅 No user filter applied - showing all posts');
+    }
+    
+    // Filter by date range if provided
+    if (args.startDate !== undefined && args.endDate !== undefined) {
+      filteredPosts = filteredPosts.filter(post => {
+        if (!post.scheduledFor) return false;
+        const inRange = post.scheduledFor >= args.startDate! && post.scheduledFor <= args.endDate!;
+        console.log(`📅 Date filter - Post date: ${new Date(post.scheduledFor).toISOString()}, In range: ${inRange}`);
+        return inRange;
+      });
+    }
+    
+    console.log(`📅 Filtered posts: ${filteredPosts.length}`);
+    
+    // Transform to calendar format
+    const transformedPosts = filteredPosts.map(post => ({
+      _id: post._id,
+      platform: post.fileType, // Map fileType to platform
+      title: post.title || post.fileName,
+      content: post.content,
+      scheduledAt: post.scheduledFor || 0,
+      status: post.status,
+      fileName: post.fileName,
+      fileType: post.fileType,
+      userId: post.userId,
+      createdAt: post.createdAt,
+      updatedAt: post.updatedAt,
+    }));
+    
+    console.log('📅 Returning posts for calendar:', transformedPosts.length);
+    return transformedPosts;
+  },
+});
+
 // Get all posts by file type
 export const getPostsByFileType = query({
   args: { fileType: v.union(v.literal('reddit'), v.literal('twitter')) },
@@ -204,6 +368,16 @@ export const schedulePost = mutation({
     userId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    console.log('📅 schedulePost called with args:', {
+      fileName: args.fileName,
+      fileType: args.fileType,
+      scheduledFor: new Date(args.scheduledFor).toISOString(),
+      userId: args.userId,
+    });
+    
+    const currentUserId = await getCurrentUserId(ctx);
+    console.log('📅 Current authenticated user ID:', currentUserId);
+    
     const existingPost = await ctx.db
       .query("agentPosts")
       .withIndex("by_fileName", (q) => q.eq("fileName", args.fileName))
@@ -218,13 +392,16 @@ export const schedulePost = mutation({
       platformData: args.platformData,
       status: 'scheduled' as const,
       scheduledFor: args.scheduledFor,
-      userId: args.userId,
+      userId: args.userId || currentUserId || 'current-user', // Use auth user if available
       updatedAt: now,
     };
+    
+    console.log('📅 Storing post with userId:', postData.userId);
     
     if (existingPost) {
       // Update existing post
       await ctx.db.patch(existingPost._id, postData);
+      console.log('📅 Updated existing post:', existingPost._id);
       return await ctx.db.get(existingPost._id);
     } else {
       // Create new scheduled post
@@ -233,6 +410,7 @@ export const schedulePost = mutation({
         createdAt: now,
       });
       
+      console.log('📅 Created new scheduled post:', id);
       return await ctx.db.get(id);
     }
   },

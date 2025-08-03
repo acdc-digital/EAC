@@ -130,4 +130,22 @@
   .scrollbar-hidden::-webkit-scrollbar {
     display: none;
   }
+  
+  .scrollbar-vscode {
+    scrollbar-width: thin;
+    scrollbar-color: #454545 #2d2d30;
+  }
+  .scrollbar-vscode::-webkit-scrollbar {
+    width: 8px;
+  }
+  .scrollbar-vscode::-webkit-scrollbar-track {
+    background: #2d2d30;
+  }
+  .scrollbar-vscode::-webkit-scrollbar-thumb {
+    background-color: #454545;
+    border-radius: 4px;
+  }
+  .scrollbar-vscode::-webkit-scrollbar-thumb:hover {
+    background-color: #525252;
+  }
 }

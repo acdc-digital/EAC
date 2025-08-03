@@ -5,9 +5,17 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAddScheduledPost, useGetPostsByDate, useLoadScheduledPosts, useSetSelectedDate } from "@/store";
+import {
+  useAddScheduledPost,
+  useGetPostsByDate,
+  useScheduledPostsFromConvex,
+  useSetSelectedDate
+} from "@/store";
+import { useUser } from "@clerk/nextjs";
+import { useMutation, useQuery } from "convex/react";
 import { CalendarIcon, ChevronLeft, ChevronRight, Facebook, Instagram, MessageSquare, Plus, Twitter } from "lucide-react";
 import { useEffect, useState } from "react";
+import { api } from "../../../convex/_generated/api";
 
 interface CalendarProps {
   className?: string;
@@ -26,10 +34,14 @@ interface CalendarDay {
     content?: string;
     scheduledAt: number;
     status: string;
+    fileName?: string;
   }[];
 }
 
 export default function CalendarPage({ className }: CalendarProps) {
+  // Get authenticated user
+  const { user } = useUser();
+  
   // Calculate the rolling window (7 days ago to end of next month)
   const today = new Date();
   const sevenDaysAgo = new Date(today);
@@ -44,19 +56,61 @@ export default function CalendarPage({ className }: CalendarProps) {
     content?: string;
     scheduledAt: number;
     status: string;
+    fileName?: string;
   } | null>(null);
   
   // Calendar store integration
-  const loadScheduledPosts = useLoadScheduledPosts();
   const addScheduledPost = useAddScheduledPost();
   const setCalendarSelectedDate = useSetSelectedDate();
   const getPostsByDate = useGetPostsByDate();
 
-  // Load scheduled posts when component mounts
+  // Calculate date range for Convex query (current month +/- 1 month for better performance)
+  const queryStartDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+  const queryEndDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 2, 0);
+  
+  // Debug: Get all posts to see what's in the database
+  const allPosts = useQuery(api.socialPosts.getAllAgentPosts, {});
+  
+  // Debug: Mutation to create test post
+  const createTestPost = useMutation(api.socialPosts.createTestScheduledPost);
+  const createTestPostAuth = useMutation(api.socialPosts.createTestScheduledPostForCurrentUser);
+
+  // Load scheduled posts from Convex with actual user ID
+  const { posts: convexPosts, isLoading } = useScheduledPostsFromConvex(
+    user?.id || 'current-user', // Fallback to 'current-user' if no user ID
+    queryStartDate,
+    queryEndDate
+  );
+
+  // Debug logging
   useEffect(() => {
-    loadScheduledPosts('current-user');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    console.log('📅 Calendar Debug:', {
+      userExists: !!user,
+      userId: user?.id || 'current-user',
+      convexPosts: convexPosts?.length || 0,
+      convexPostsData: convexPosts,
+      allPostsInDB: allPosts?.length || 0,
+      allPostsData: allPosts,
+      isLoading,
+      queryStartDate: queryStartDate.toISOString(),
+      queryEndDate: queryEndDate.toISOString(),
+      currentMonth: currentMonth.toISOString(),
+    });
+    
+    if (convexPosts && convexPosts.length > 0) {
+      console.log('📅 First scheduled post:', convexPosts[0]);
+    }
+    
+    if (allPosts && allPosts.length > 0) {
+      console.log('📅 All posts in database:', allPosts.map(post => ({
+        id: post._id,
+        fileName: post.fileName,
+        status: post.status,
+        scheduledFor: post.scheduledFor ? new Date(post.scheduledFor).toISOString() : 'not scheduled',
+        userId: post.userId,
+      })));
+    }
+  }, [user, convexPosts, allPosts, isLoading, queryStartDate, queryEndDate, currentMonth]);
 
   // Sync with calendar store
   useEffect(() => {
@@ -188,9 +242,18 @@ export default function CalendarPage({ className }: CalendarProps) {
               <h1 className="text-2xl font-semibold text-[#cccccc]">
                 Content Calendar
               </h1>
+              {isLoading && (
+                <div className="ml-2 w-4 h-4 border-2 border-[#007acc] border-t-transparent rounded-full animate-spin" />
+              )}
             </div>
             
             <div className="flex gap-3">
+              {/* Debug Info */}
+              {convexPosts && (
+                <div className="text-xs text-[#858585] bg-[#2d2d2d] px-2 py-1 rounded">
+                  {convexPosts.length} scheduled posts
+                </div>
+              )}
               <Button
                 onClick={goToToday}
                 variant="outline"
@@ -224,6 +287,36 @@ export default function CalendarPage({ className }: CalendarProps) {
               </CardTitle>
               
               <div className="flex gap-2">
+                <Button
+                  onClick={async () => {
+                    try {
+                      const result = await createTestPost({ userId: user?.id });
+                      console.log('🧪 Test post created:', result);
+                    } catch (error) {
+                      console.error('🚨 Failed to create test post:', error);
+                    }
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="border-[#454545] text-[#cccccc] hover:bg-[#2d2d2d]"
+                >
+                  🧪 Test Post
+                </Button>
+                <Button
+                  onClick={async () => {
+                    try {
+                      const result = await createTestPostAuth();
+                      console.log('🔐 Authenticated test post created:', result);
+                    } catch (error) {
+                      console.error('🚨 Failed to create authenticated test post:', error);
+                    }
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="border-[#454545] text-[#cccccc] hover:bg-[#2d2d2d]"
+                >
+                  🔐 Auth Test
+                </Button>
                 <Button
                   onClick={goToPreviousMonth}
                   variant="outline"

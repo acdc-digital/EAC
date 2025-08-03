@@ -53,7 +53,7 @@ export function ChatMessages() {
   const { agents, activeAgentId, setActiveAgent, executeAgentTool } = useAgentStore();
   const createInstruction = useMutation(api.instructions.createInstructionFile);
   const ensureInstructionsProject = useMutation(api.instructions.ensureInstructionsProject);
-  const upsertPost = useMutation(api.twitter.upsertPost);
+  const upsertPost = useMutation(api.socialPosts.upsertPost);
   const schedulePost = useMutation(api.socialPosts.schedulePost);
   const createContentCreationFile = useMutation(api.files.createContentCreationFile);
   const allPosts = useQuery(api.socialPosts.getAllPosts, {});
