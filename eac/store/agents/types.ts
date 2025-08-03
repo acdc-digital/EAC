@@ -62,6 +62,16 @@ export interface ConvexMutations {
     platform?: 'facebook' | 'instagram' | 'twitter' | 'linkedin' | 'reddit' | 'youtube';
     extension?: string;
   }) => Promise<unknown>;
+  getAllPosts: () => Promise<any[]>;
+  schedulePost: (params: {
+    fileName: string;
+    fileType: 'reddit' | 'twitter';
+    content: string;
+    title?: string;
+    platformData?: string;
+    scheduledFor: number;
+    userId?: string;
+  }) => Promise<unknown>;
 }
 
 export interface AgentState {

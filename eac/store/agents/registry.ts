@@ -3,6 +3,7 @@
 
 import { BaseAgent } from './base';
 import { instructionsAgent } from './instructionsAgent';
+import { schedulingAgent } from './schedulingAgent';
 import { twitterAgent } from './twitterAgent';
 
 /**
@@ -14,6 +15,7 @@ export class AgentRegistry {
   constructor() {
     this.registerAgent(instructionsAgent);
     this.registerAgent(twitterAgent);
+    this.registerAgent(schedulingAgent);
   }
 
   /**

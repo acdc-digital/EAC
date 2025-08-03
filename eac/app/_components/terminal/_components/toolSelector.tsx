@@ -41,7 +41,8 @@ export function ToolSelector({ onToolSelect, onClose, selectedIndex, onIndexChan
           'AtSign': '🐦',
           'FileText': '📄',
           'Bot': '🤖',
-          'Settings': '⚙️'
+          'Settings': '⚙️',
+          'Calendar': '📅'
         };
         
         tools.push({

@@ -5,7 +5,7 @@
 
 import { useMCP } from "@/lib/hooks/useMCP";
 import { useAgentStore } from "@/store";
-import { AtSign, Bot, ChevronDown, ChevronRight, Command, FileText, Search, Terminal } from "lucide-react";
+import { AtSign, Bot, Calendar, ChevronDown, ChevronRight, Command, FileText, Search, Terminal } from "lucide-react";
 import { useState } from "react";
 
 // Icon mapping for agent icons
@@ -15,6 +15,7 @@ const iconMap = {
   Terminal,
   Command,
   AtSign,
+  Calendar,
   // Add more icons as needed
 } as const;
 

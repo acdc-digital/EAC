@@ -8,7 +8,9 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import { api } from '@/convex/_generated/api'
 import { cn } from '@/lib/utils'
+import { useQuery } from 'convex/react'
 import {
   AtSign,
   Calendar,
@@ -172,6 +174,10 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
   const [formData, setFormData] = useState<SocialPostData>(() => parseMarkdownToFormData(content));
   const [mode, setMode] = useState<'form' | 'preview'>('form');
 
+  // Fetch scheduling data from Convex database
+  const agentPosts = useQuery(api.socialPosts.getAllPosts);
+  const currentPost = agentPosts?.find((post: any) => post.fileName === fileName);
+
   // Debug: Log every render
   console.log('🎨 SocialMediaFormEditor render:', {
     platform,
@@ -181,8 +187,35 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
     mode,
     editable,
     contentPreview: content.substring(0, 200) + '...',
-    rawContent: content
+    rawContent: content,
+    currentPost: currentPost,
+    hasScheduleData: !!currentPost?.scheduledFor
   });
+
+  // Merge Convex scheduling data with form data
+  useEffect(() => {
+    if (currentPost?.scheduledFor && currentPost?.status === 'scheduled') {
+      console.log('📅 Found scheduled post data in Convex:', {
+        fileName,
+        scheduledFor: currentPost.scheduledFor,
+        status: currentPost.status
+      });
+
+      // Convert scheduledFor timestamp to date/time format
+      const scheduledDate = new Date(currentPost.scheduledFor);
+      const dateString = scheduledDate.toISOString().split('T')[0]; // YYYY-MM-DD
+      const timeString = scheduledDate.toTimeString().slice(0, 5); // HH:MM
+
+      setFormData(prevData => ({
+        ...prevData,
+        settings: {
+          ...prevData.settings,
+          scheduledDate: dateString,
+          scheduledTime: timeString
+        }
+      }));
+    }
+  }, [currentPost, fileName]);
 
   // Update form data when content prop changes
   useEffect(() => {
@@ -344,6 +377,21 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
               </TabsList>
 
               <TabsContent value="compose" className="space-y-6">
+                {/* Scheduling Status Indicator */}
+                {currentPost?.status === 'scheduled' && currentPost?.scheduledFor && (
+                  <Card className="bg-[#1a3f1a] border-[#4ade80]">
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-2 text-[#4ade80]">
+                        <CheckCircle className="w-4 h-4" />
+                        <span className="font-medium">Scheduled for Publishing</span>
+                      </div>
+                      <p className="text-sm text-[#90ee90] mt-1">
+                        This post will be published on {new Date(currentPost.scheduledFor).toLocaleDateString()} at {new Date(currentPost.scheduledFor).toLocaleTimeString()}
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Post Content */}
                 <Card className="bg-[#2d2d2d] border-[#454545]">
                   <CardHeader>
@@ -421,6 +469,21 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
               </TabsContent>
 
               <TabsContent value="schedule" className="space-y-6">
+                {/* Scheduling Status Indicator */}
+                {currentPost?.status === 'scheduled' && currentPost?.scheduledFor && (
+                  <Card className="bg-[#1a3f1a] border-[#4ade80]">
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-2 text-[#4ade80]">
+                        <CheckCircle className="w-4 h-4" />
+                        <span className="font-medium">Scheduled by Agent</span>
+                      </div>
+                      <p className="text-sm text-[#90ee90] mt-1">
+                        This post is scheduled for {new Date(currentPost.scheduledFor).toLocaleDateString()} at {new Date(currentPost.scheduledFor).toLocaleTimeString()}
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+
                 <Card className="bg-[#2d2d2d] border-[#454545]">
                   <CardHeader>
                     <CardTitle className="text-[#cccccc] flex items-center gap-2">
@@ -528,6 +591,7 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
                         <input
                           type="checkbox"
                           id="isThread"
+                          aria-label="Enable thread mode for Twitter posts"
                           checked={formData.settings.isThread || false}
                           onChange={(e) => handleFormChange({ 
                             settings: { isThread: e.target.checked }

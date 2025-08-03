@@ -20,7 +20,7 @@ const TiptapEditor = dynamic(() => import('@/app/_components/editor/_components/
 });
 
 // Dynamic import for social media form editor
-const SocialMediaFormEditor = dynamic(() => import('@/app/_components/editor/_components/SocialMediaFormEditor').then(mod => ({ default: mod.default })), {
+const SocialMediaFormEditor = dynamic(() => import('@/app/_components/editor/_components/SocialMediaFormEditor'), {
   ssr: false,
   loading: () => <div className="p-4 text-[#858585]">Loading social media editor...</div>
 });

@@ -11,7 +11,7 @@ import { useAgentStore, useEditorStore } from "@/store";
 import { useChatStore } from "@/store/terminal/chat";
 import { useSessionStore } from "@/store/terminal/session";
 import { useUser } from "@clerk/nextjs";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import React, { useEffect, useRef, useState } from "react";
 
 export function ChatMessages() {
@@ -54,6 +54,9 @@ export function ChatMessages() {
   const createInstruction = useMutation(api.instructions.createInstructionFile);
   const ensureInstructionsProject = useMutation(api.instructions.ensureInstructionsProject);
   const upsertPost = useMutation(api.twitter.upsertPost);
+  const schedulePost = useMutation(api.socialPosts.schedulePost);
+  const createContentCreationFile = useMutation(api.files.createContentCreationFile);
+  const allPosts = useQuery(api.socialPosts.getAllPosts, {});
   const instructionContext = useInstructionContext();
   const { isLoading: instructionsLoading } = useInstructions();
   const { createNewFile } = useEditorStore();
@@ -263,6 +266,20 @@ ${content}
     inputRef.current?.focus();
   };
 
+  // Helper function to create convexMutations object for agents
+  const createConvexMutations = () => {
+    return {
+      ensureInstructionsProject,
+      createInstructionFile: createInstruction,
+      upsertPost,
+      schedulePost,
+      createContentCreationFile,
+      getAllPosts: async () => {
+        return allPosts || [];
+      },
+    };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -287,6 +304,62 @@ Please start a new session to continue chatting.`,
     if (message.trim() && !isLoading) {
       const messageContent = message.trim();
       setMessage("");
+      
+      // Check if this is an agent command when an agent is active
+      if (activeAgentId && !messageContent.startsWith('/')) {
+        try {
+          console.log(`🤖 Executing agent ${activeAgentId} with message: ${messageContent}`);
+          
+          // Create convex mutations for the agent
+          const convexMutations = createConvexMutations();
+          
+          // Find the active agent and its default tool
+          const activeAgent = agents.find(agent => agent.id === activeAgentId);
+          if (activeAgent && activeAgent.tools.length > 0) {
+            const defaultTool = activeAgent.tools[0]; // Use the first tool as default
+            
+            // Execute the agent tool
+            const result = await executeAgentTool(
+              activeAgentId,
+              defaultTool.id,
+              messageContent,
+              convexMutations
+            );
+            
+            // Store both user message and agent result
+            await storeChatMessage({
+              role: "user",
+              content: messageContent,
+              sessionId,
+            });
+            
+            await storeChatMessage({
+              role: "assistant",
+              content: `🤖 **${activeAgent.name} Agent Result:**\n\n${result}`,
+              sessionId,
+            });
+            
+            return;
+          }
+        } catch (error) {
+          console.error('Agent execution error:', error);
+          
+          // Store the user message and error
+          await storeChatMessage({
+            role: "user",
+            content: messageContent,
+            sessionId,
+          });
+          
+          await storeChatMessage({
+            role: "assistant",
+            content: `❌ Agent execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            sessionId,
+          });
+          
+          return;
+        }
+      }
       
       // Check if this looks like a natural language MCP query
       if (mcpConnected && isMCPQuery(messageContent)) {
