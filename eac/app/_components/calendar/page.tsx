@@ -49,6 +49,7 @@ export default function CalendarPage({ className }: CalendarProps) {
   
   const [selectedDate, setSelectedDate] = useState<Date>(today);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [showAllPosts, setShowAllPosts] = useState(true); // Toggle for showing all posts vs user posts
   const [selectedPost, setSelectedPost] = useState<{
     _id: string;
     platform: string;
@@ -74,10 +75,13 @@ export default function CalendarPage({ className }: CalendarProps) {
   // Debug: Mutation to create test post
   const createTestPost = useMutation(api.socialPosts.createTestScheduledPost);
   const createTestPostAuth = useMutation(api.socialPosts.createTestScheduledPostForCurrentUser);
+  const createRealPost = useMutation(api.socialPosts.createRealPostExample);
+  const resetAndCreateExamples = useMutation(api.socialPosts.debugResetAndCreateExamples);
 
   // Load scheduled posts from Convex with actual user ID
+  // Toggle between all posts and user-specific posts
   const { posts: convexPosts, isLoading } = useScheduledPostsFromConvex(
-    user?.id || 'current-user', // Fallback to 'current-user' if no user ID
+    showAllPosts ? undefined : (user?.id || 'current-user'),
     queryStartDate,
     queryEndDate
   );
@@ -87,6 +91,7 @@ export default function CalendarPage({ className }: CalendarProps) {
     console.log('📅 Calendar Debug:', {
       userExists: !!user,
       userId: user?.id || 'current-user',
+      showAllPosts,
       convexPosts: convexPosts?.length || 0,
       convexPostsData: convexPosts,
       allPostsInDB: allPosts?.length || 0,
@@ -99,6 +104,8 @@ export default function CalendarPage({ className }: CalendarProps) {
     
     if (convexPosts && convexPosts.length > 0) {
       console.log('📅 First scheduled post:', convexPosts[0]);
+      console.log('📅 Posts by date for today:', getPostsForDate(today));
+      console.log('📅 User IDs in posts:', [...new Set(convexPosts.map(p => p.userId))]);
     }
     
     if (allPosts && allPosts.length > 0) {
@@ -110,12 +117,30 @@ export default function CalendarPage({ className }: CalendarProps) {
         userId: post.userId,
       })));
     }
-  }, [user, convexPosts, allPosts, isLoading, queryStartDate, queryEndDate, currentMonth]);
+  }, [user, convexPosts, allPosts, isLoading, queryStartDate, queryEndDate, currentMonth, today, showAllPosts]);
 
   // Sync with calendar store
   useEffect(() => {
     setCalendarSelectedDate(selectedDate);
   }, [selectedDate, setCalendarSelectedDate]);
+
+  // Get posts for a specific date from Convex data
+  const getPostsForDate = (date: Date): CalendarDay['posts'] => {
+    if (!convexPosts) return [];
+    
+    return convexPosts.filter(post => {
+      const postDate = new Date(post.scheduledAt);
+      return postDate.toDateString() === date.toDateString();
+    }).map(post => ({
+      _id: post._id,
+      platform: post.platform,
+      title: post.title || post.fileName,
+      content: post.content,
+      scheduledAt: post.scheduledAt,
+      status: post.status,
+      fileName: post.fileName,
+    }));
+  };
 
   // Generate calendar grid for current view
   const generateCalendarDays = (): CalendarDay[] => {
@@ -134,7 +159,8 @@ export default function CalendarPage({ className }: CalendarProps) {
     const currentDate = new Date(startOfGrid);
     
     while (currentDate <= endOfGrid) {
-      const dayPosts = getPostsByDate(currentDate);
+      // Use Convex data directly instead of Zustand store
+      const dayPosts = getPostsForDate(currentDate);
       const isCurrentMonth = currentDate.getMonth() === currentMonth.getMonth();
       const isToday = currentDate.toDateString() === today.toDateString();
       const isPast = currentDate < today && !isToday;
@@ -194,12 +220,13 @@ export default function CalendarPage({ className }: CalendarProps) {
 
   // Get platform icon component
   const getPlatformIcon = (platform: string) => {
-    switch (platform) {
+    switch (platform.toLowerCase()) {
       case 'facebook':
         return Facebook;
       case 'instagram':
         return Instagram;
       case 'twitter':
+      case 'x':
         return Twitter;
       case 'reddit':
         return MessageSquare;
@@ -251,7 +278,12 @@ export default function CalendarPage({ className }: CalendarProps) {
               {/* Debug Info */}
               {convexPosts && (
                 <div className="text-xs text-[#858585] bg-[#2d2d2d] px-2 py-1 rounded">
-                  {convexPosts.length} scheduled posts
+                  {convexPosts.length} convex posts
+                </div>
+              )}
+              {allPosts && (
+                <div className="text-xs text-[#858585] bg-[#2d2d2d] px-2 py-1 rounded">
+                  {allPosts.length} total in DB
                 </div>
               )}
               <Button
@@ -262,11 +294,50 @@ export default function CalendarPage({ className }: CalendarProps) {
                 Today
               </Button>
               <Button
+                onClick={() => setShowAllPosts(!showAllPosts)}
+                variant="outline"
+                className={`border-[#454545] hover:bg-[#2d2d2d] ${
+                  showAllPosts 
+                    ? 'text-[#007acc] border-[#007acc]' 
+                    : 'text-[#cccccc]'
+                }`}
+              >
+                {showAllPosts ? 'All Posts' : 'My Posts'} ({convexPosts?.length || 0})
+              </Button>
+              <Button
                 onClick={handleSchedulePost}
                 className="bg-[#007acc] hover:bg-[#005a9e] text-white"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Schedule Post
+              </Button>
+              <Button
+                onClick={async () => {
+                  try {
+                    await createRealPost({ userId: user?.id });
+                    console.log('✨ Created real post example!');
+                  } catch (error) {
+                    console.error('Failed to create real post:', error);
+                  }
+                }}
+                className="bg-[#28a745] hover:bg-[#218838] text-white"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Create Real Post
+              </Button>
+              <Button
+                onClick={async () => {
+                  try {
+                    const result = await resetAndCreateExamples({ userId: user?.id });
+                    console.log('🔄 Reset and created examples:', result);
+                  } catch (error) {
+                    console.error('Failed to reset and create examples:', error);
+                  }
+                }}
+                className="bg-[#6f42c1] hover:bg-[#5a32a3] text-white"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Reset & Create Examples
               </Button>
             </div>
           </div>
@@ -509,7 +580,8 @@ export default function CalendarPage({ className }: CalendarProps) {
             )}
 
             {(() => {
-              const dayPosts = getPostsByDate(selectedDate);
+              // Use Convex data directly for selected date
+              const dayPosts = getPostsForDate(selectedDate);
               
               if (dayPosts.length === 0) {
                 return (

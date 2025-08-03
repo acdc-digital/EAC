@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Agent Store</title>
+</head>
+<body>
+    <h2>Clear Agent Store LocalStorage</h2>
+    <button onclick="clearAgentStore()">Clear Agent Store</button>
+    <div id="result"></div>
+    
+    <script>
+        function clearAgentStore() {
+            localStorage.removeItem('agent-store');
+            document.getElementById('result').innerHTML = '<p style="color: green;">✅ Agent store cleared! Refresh your main app.</p>';
+        }
+        
+        // Auto-clear on load
+        clearAgentStore();
+    </script>
+</body>
+</html>

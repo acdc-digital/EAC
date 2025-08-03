@@ -103,6 +103,134 @@ export const createTestScheduledPost = mutation({
   },
 });
 
+// Create a real post example (not just test) for demonstration
+export const createRealPostExample = mutation({
+  args: {
+    userId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const tomorrow = now + (24 * 60 * 60 * 1000); // 24 hours from now
+    
+    const realPost = {
+      fileName: `my-awesome-reddit-post-${now}.reddit`,
+      fileType: 'reddit' as const,
+      title: 'Check out this amazing project I\'ve been working on!',
+      content: 'I\'ve been building an AI-powered content management system and wanted to share some insights about the development process. What features would you find most useful? #coding #AI #webdev',
+      status: 'scheduled' as const,
+      scheduledFor: tomorrow,
+      platformData: JSON.stringify({
+        subreddit: 'webdev',
+        postType: 'text',
+        nsfw: false,
+        spoiler: false,
+        sendReplies: true
+      }),
+      createdAt: now,
+      updatedAt: now,
+      userId: args.userId || 'current-user',
+    };
+    
+    const id = await ctx.db.insert("agentPosts", realPost);
+    console.log('✨ Real post example created:', { id, ...realPost });
+    
+    return await ctx.db.get(id);
+  },
+});
+
+// Debug: Clear all test posts and create fresh examples
+export const debugResetAndCreateExamples = mutation({
+  args: {
+    userId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = args.userId || 'current-user';
+    console.log('🔄 Debug: Resetting and creating example posts...');
+    
+    // Delete existing test posts
+    const existingPosts = await ctx.db.query("agentPosts").collect();
+    const testPosts = existingPosts.filter(post => 
+      post.fileName.includes('test-') || 
+      post.content.includes('test') || 
+      post.content.includes('Test')
+    );
+    
+    for (const post of testPosts) {
+      await ctx.db.delete(post._id);
+    }
+    console.log(`🗑️ Deleted ${testPosts.length} test posts`);
+    
+    // Create diverse examples
+    const now = Date.now();
+    const examples = [
+      {
+        fileName: `product-launch-announcement-${now}.reddit`,
+        fileType: 'reddit' as const,
+        title: 'Launching our new AI-powered dashboard next week!',
+        content: 'After months of development, we\'re excited to announce the launch of our new AI-powered content management dashboard. What features are you most excited about? #AI #ProductLaunch #WebDev',
+        status: 'scheduled' as const,
+        scheduledFor: now + (2 * 24 * 60 * 60 * 1000), // 2 days from now
+        platformData: JSON.stringify({
+          subreddit: 'startups',
+          postType: 'text',
+          nsfw: false,
+          spoiler: false,
+          sendReplies: true
+        }),
+        userId,
+      },
+      {
+        fileName: `weekly-dev-tips-${now}.twitter`,
+        fileType: 'twitter' as const,
+        content: '💡 Weekly Dev Tip: Always use semantic HTML elements! They improve accessibility and SEO. Instead of <div class="header">, use <header>. Small changes, big impact! 🚀 #WebDev #Accessibility #HTML',
+        status: 'scheduled' as const,
+        scheduledFor: now + (3 * 24 * 60 * 60 * 1000), // 3 days from now
+        userId,
+      },
+      {
+        fileName: `community-question-${now}.reddit`,
+        fileType: 'reddit' as const,
+        title: 'What\'s your favorite debugging technique?',
+        content: 'As developers, we all have our go-to debugging methods. Mine is rubber duck debugging - explaining the problem out loud often reveals the solution! What\'s yours? Share your best debugging stories below! 🦆🐛',
+        status: 'scheduled' as const,
+        scheduledFor: now + (7 * 24 * 60 * 60 * 1000), // 1 week from now
+        platformData: JSON.stringify({
+          subreddit: 'programming',
+          postType: 'text',
+          nsfw: false,
+          spoiler: false,
+          sendReplies: true
+        }),
+        userId,
+      },
+      {
+        fileName: `published-success-story-${now}.twitter`,
+        fileType: 'twitter' as const,
+        content: '🎉 Just deployed our biggest feature update yet! The new calendar integration is live and our users are loving it. Sometimes the best projects come from listening to user feedback. Thanks everyone! ❤️ #ProductUpdate #UserFeedback',
+        status: 'posted' as const,
+        scheduledFor: now - (24 * 60 * 60 * 1000), // Yesterday (published)
+        postedAt: now - (24 * 60 * 60 * 1000),
+        postId: 'tweet_123456789',
+        postUrl: 'https://twitter.com/example/status/123456789',
+        userId,
+      },
+    ];
+    
+    const created = [];
+    for (const example of examples) {
+      const id = await ctx.db.insert("agentPosts", {
+        ...example,
+        createdAt: now,
+        updatedAt: now,
+      });
+      created.push(id);
+    }
+    
+    console.log(`✨ Created ${created.length} example posts for calendar`);
+    return { created: created.length, postIds: created };
+  },
+});
+
 // Debug function to list all agent posts
 export const getAllAgentPosts = query({
   args: {},
@@ -139,26 +267,28 @@ export const getScheduledPostsForCalendar = query({
       userId: args.userId || 'undefined'
     });
 
-    let query = ctx.db
+    // Get ALL posts that have a scheduledFor date (not just "scheduled" status)
+    // This includes scheduled, posted, failed posts - all with dates for calendar view
+    const allPostsWithDates = await ctx.db
       .query("agentPosts")
-      .withIndex("by_status", (q) => q.eq("status", "scheduled"));
+      .collect();
     
-    // Get all scheduled posts first for debugging
-    const allScheduledPosts = await query.collect();
-    console.log('📅 All scheduled posts in DB:', allScheduledPosts.length);
+    // Filter posts that have scheduledFor dates (for calendar display)
+    const postsForCalendar = allPostsWithDates.filter(post => post.scheduledFor);
+    console.log('📅 All posts with dates in DB:', postsForCalendar.length);
     
     // Log sample posts for debugging
-    if (allScheduledPosts.length > 0) {
+    if (postsForCalendar.length > 0) {
       console.log('📅 Sample post data:', {
-        fileName: allScheduledPosts[0].fileName,
-        userId: allScheduledPosts[0].userId,
-        scheduledFor: allScheduledPosts[0].scheduledFor ? new Date(allScheduledPosts[0].scheduledFor).toISOString() : 'undefined',
-        status: allScheduledPosts[0].status
+        fileName: postsForCalendar[0].fileName,
+        userId: postsForCalendar[0].userId,
+        scheduledFor: postsForCalendar[0].scheduledFor ? new Date(postsForCalendar[0].scheduledFor).toISOString() : 'undefined',
+        status: postsForCalendar[0].status
       });
     }
     
     // Apply filters
-    let filteredPosts = allScheduledPosts;
+    let filteredPosts = postsForCalendar;
     
     // Filter by user if provided (make this very lenient for debugging)
     if (args.userId) {

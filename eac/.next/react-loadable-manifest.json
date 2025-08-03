@@ -17,6 +17,12 @@
       "static/chunks/_app-pages-browser_app__components_calendar_page_tsx.js"
     ]
   },
+  "app/_components/dashboard/dashEditor.tsx -> ../editor/_components/MarkdownEditor": {
+    "id": "app/_components/dashboard/dashEditor.tsx -> ../editor/_components/MarkdownEditor",
+    "files": [
+      "static/chunks/_app-pages-browser_app__components_editor__components_MarkdownEditor_tsx.js"
+    ]
+  },
   "app/_components/dashboard/dashEditor.tsx -> ../editor/editGenerals": {
     "id": "app/_components/dashboard/dashEditor.tsx -> ../editor/editGenerals",
     "files": [
@@ -59,6 +65,12 @@
       "static/chunks/_app-pages-browser_app__components_dashboard_fileEditor_tsx.js"
     ]
   },
+  "app/_components/dashboard/dashEditor.tsx -> ./platformInstructions": {
+    "id": "app/_components/dashboard/dashEditor.tsx -> ./platformInstructions",
+    "files": [
+      "static/chunks/_app-pages-browser_app__components_dashboard_platformInstructions_tsx.js"
+    ]
+  },
   "app/_components/dashboard/dashEditor.tsx -> ./signInTab": {
     "id": "app/_components/dashboard/dashEditor.tsx -> ./signInTab",
     "files": [
@@ -95,12 +107,6 @@
       "static/chunks/_app-pages-browser_app__components_dashboard_socialPlatforms_xPostEditor_tsx.js"
     ]
   },
-  "app/_components/dashboard/dashEditor.tsx -> @/app/_components/editor/_components/MarkdownEditor": {
-    "id": "app/_components/dashboard/dashEditor.tsx -> @/app/_components/editor/_components/MarkdownEditor",
-    "files": [
-      "static/chunks/_app-pages-browser_app__components_editor__components_MarkdownEditor_tsx.js"
-    ]
-  },
   "app/_components/dashboard/dashEditor.tsx -> @/app/_components/editor/_components/SocialMediaFormEditor": {
     "id": "app/_components/dashboard/dashEditor.tsx -> @/app/_components/editor/_components/SocialMediaFormEditor",
     "files": [
@@ -113,6 +119,10 @@
       "static/css/_app-pages-browser_app__components_editor__components_TiptapEditor_tsx.css",
       "static/chunks/_app-pages-browser_app__components_editor__components_TiptapEditor_tsx.js"
     ]
+  },
+  "store/agents/schedulingAgent.ts -> @/store": {
+    "id": "store/agents/schedulingAgent.ts -> @/store",
+    "files": []
   },
   "store/agents/twitterAgent.ts -> ../": {
     "id": "store/agents/twitterAgent.ts -> ../",
