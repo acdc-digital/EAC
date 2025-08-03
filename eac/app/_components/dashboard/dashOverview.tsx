@@ -6,12 +6,12 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,14 +20,14 @@ import { useInstructions } from "@/lib/hooks/useInstructions";
 import { useProjects } from "@/lib/hooks/useProjects";
 import { useEditorStore } from "@/store";
 import {
-    AlertTriangle,
-    Calendar,
-    CheckCircle,
-    Clock,
-    DollarSign,
-    Target,
-    TrendingUp,
-    Users
+  AlertTriangle,
+  Calendar,
+  CheckCircle,
+  Clock,
+  DollarSign,
+  Target,
+  TrendingUp,
+  Users
 } from "lucide-react";
 import React, { useState } from "react";
 import { FilesDatabase } from "./filesDatabase";
@@ -47,10 +47,7 @@ export function DashOverview() {
       setIsCreatingProject(true);
       
       try {
-        // Create folder in the local editor store
-        createFolder(newProjectName.trim(), 'project');
-        
-        // Also create a project in the Convex database
+        // First create the project in the Convex database
         const newProject = await createProject({
           name: newProjectName.trim(),
           status: 'active',
@@ -58,12 +55,20 @@ export function DashOverview() {
         
         console.log('Project created in database:', newProject);
         
+        // Then create folder in the local editor store with the Convex ID
+        createFolder(newProjectName.trim(), 'project', newProject?._id);
+        
         // Close dialog and reset form
         setIsDialogOpen(false);
         setNewProjectName('');
+        
       } catch (error) {
         console.error('Failed to create project in database:', error);
-        // You could add error toast here if desired
+        // Create folder locally even if database creation fails
+        createFolder(newProjectName.trim(), 'project');
+        // Still close dialog and reset form
+        setIsDialogOpen(false);
+        setNewProjectName('');
       } finally {
         setIsCreatingProject(false);
       }

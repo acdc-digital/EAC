@@ -16,31 +16,27 @@ const MarkdownEditor = ({ content, onChange, editable = true }: MarkdownEditorPr
   const [mode, setMode] = useState<'edit' | 'preview'>('edit')
   const [markdownContent, setMarkdownContent] = useState(content)
 
-  // Debug: Log every render
-  console.log('🎨 MarkdownEditor render:', {
-    contentProp: content,
-    contentLength: content.length,
-    markdownContentState: markdownContent,
-    stateLength: markdownContent.length,
-    editable,
-    mode
-  });
+  // Debug: Only log if content actually changes (reduce spam)
+  const contentChanged = content !== markdownContent;
+  if (contentChanged) {
+    console.log('🎨 MarkdownEditor content changed:', {
+      contentLength: content.length,
+      editable,
+      mode
+    });
+  }
 
   // Update local state when content prop changes
   useEffect(() => {
-    console.log('📝 MarkdownEditor: Content prop changed', {
-      newContent: content,
-      contentLength: content.length,
-      currentMarkdownContent: markdownContent,
-      currentLength: markdownContent.length,
-      areEqual: content === markdownContent
-    });
-    
     // Only update if content is actually different
     if (content !== markdownContent) {
+      console.log('📝 MarkdownEditor: Content updated', {
+        newLength: content.length,
+        oldLength: markdownContent.length
+      });
       setMarkdownContent(content)
     }
-  }, [content]) // Only depend on content prop, not internal state
+  }, [content, markdownContent]) // Include markdownContent since we're reading it
 
   const handleContentChange = (newContent: string) => {
     setMarkdownContent(newContent)

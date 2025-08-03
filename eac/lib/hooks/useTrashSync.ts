@@ -28,10 +28,10 @@ export function useTrashSync() {
 
   // Get the query functions for deleted items
   const getDeletedProjects = useQuery(api.trash.getDeletedProjects, 
-    isAuthenticated && user ? { userId: user.id } : "skip"
+    (isAuthenticated && user?.id) ? { userId: user.id } : "skip"
   );
   const getDeletedFiles = useQuery(api.trash.getDeletedFiles, 
-    isAuthenticated && user ? { userId: user.id } : "skip"
+    (isAuthenticated && user?.id) ? { userId: user.id } : "skip"
   );
 
   useEffect(() => {

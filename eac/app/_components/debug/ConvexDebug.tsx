@@ -3,17 +3,19 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/convex/_generated/api";
+import { useAuth } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
 import { useState } from "react";
 
 export function ConvexDebug() {
+  const { isSignedIn } = useAuth();
   const [debugInfo, setDebugInfo] = useState<string>('');
   const [currentUserId] = useState('debug-user-' + Date.now()); // Fixed user ID for session
 
-  // Test basic queries
-  const projects = useQuery(api.projects.getProjects, {});
-  const socialPosts = useQuery(api.socialPosts.getAllPosts, {});
-  const messages = useQuery(api.messages.getMessages, {});
+  // Test basic queries (only if signed in)
+  const projects = useQuery(api.projects.getProjects, isSignedIn ? {} : "skip");
+  const socialPosts = useQuery(api.socialPosts.getAllPosts, isSignedIn ? {} : "skip");
+  const messages = useQuery(api.messages.getMessages, isSignedIn ? {} : "skip");
 
   // Test mutations
   const createTestProject = useMutation(api.projects.createProject);

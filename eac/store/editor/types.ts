@@ -75,7 +75,8 @@ export interface EditorState {
   updateFileContentInStore: (fileId: string, content: string) => void;
   updateFileStatus: (fileId: string, status: 'draft' | 'scheduled' | 'complete') => void;
   updateFileConvexId: (fileId: string, convexId: string) => void;
-  createNewFile: (name: string, type: ProjectFile['type'], category?: ProjectFile['category'], folderId?: string, customContent?: string) => string;
+  updateFolderConvexId: (folderId: string, convexId: string) => void;
+  createNewFile: (name: string, type: ProjectFile['type'], category?: ProjectFile['category'], folderId?: string, customContent?: string, skipSync?: boolean) => string;
   createFolder: (name: string, category: 'project' | 'financial', convexId?: string) => void;
   deleteFile: (fileId: string) => void;
   renameFile: (fileId: string, newName: string) => void;
@@ -96,6 +97,8 @@ export interface EditorState {
   setError: (error: string | null) => void;
   repairFilesWithoutContent: () => void;
   cleanupDuplicateFolders: () => void;  // Emergency cleanup function
+  debugStorage: () => void; // Debug function to troubleshoot persistence issues
+  clearStorage: () => void; // Emergency function to clear all storage and reset
   reset: () => void;
   clearUserData: () => void; // Clear user data when signing out
 } 

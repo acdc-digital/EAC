@@ -16,16 +16,16 @@ import { useSocialPost } from "@/lib/hooks/useSocialPost";
 import { useXApi } from "@/lib/hooks/useXApi";
 import { cn } from "@/lib/utils";
 import {
-    AlertCircle,
-    AtSign,
-    Calendar,
-    CheckCircle,
-    Clock,
-    Globe,
-    Loader2,
-    MessageCircle,
-    Send,
-    Users
+  AlertCircle,
+  AtSign,
+  Calendar,
+  CheckCircle,
+  Clock,
+  Globe,
+  Loader2,
+  MessageCircle,
+  Send,
+  Users
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -143,6 +143,44 @@ export function XPostEditor({ fileName, onChange }: XPostEditorProps) {
       setHasInitialized(true);
     }
   }, [post, postLoading, hasInitialized, platformData, fileName]);
+
+  // Listen for twitterPostCreated events to refresh UI without page refresh
+  useEffect(() => {
+    const handleTwitterPostCreated = (event: CustomEvent) => {
+      const { fileName: eventFileName, content, platformData: eventPlatformData, status } = event.detail;
+      
+      // Only handle events for this file
+      if (eventFileName === fileName) {
+        console.log(`🔄 Received twitterPostCreated event for ${fileName}, refreshing form data`);
+        
+        setFormData({
+          content: content || "",
+          replySettings: eventPlatformData.replySettings || "following",
+          scheduledDate: eventPlatformData.scheduledDate || "",
+          scheduledTime: eventPlatformData.scheduledTime || "",
+          isThread: eventPlatformData.isThread || false,
+          threadTweets: eventPlatformData.threadTweets || [""],
+          hasPoll: eventPlatformData.hasPoll || false,
+          pollOptions: eventPlatformData.pollOptions || ["", ""],
+          pollDuration: eventPlatformData.pollDuration || 1440,
+        });
+        
+        if (!hasInitialized) {
+          setHasInitialized(true);
+        }
+        
+        console.log(`✅ Form data refreshed from event for ${fileName}`);
+      }
+    };
+
+    // Add event listener
+    window.addEventListener('twitterPostCreated', handleTwitterPostCreated as EventListener);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('twitterPostCreated', handleTwitterPostCreated as EventListener);
+    };
+  }, [fileName, hasInitialized]);
 
   // Auto-save on content change (debounced) - only after initialization
   useEffect(() => {

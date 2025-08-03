@@ -153,15 +153,26 @@ export class TwitterAgent extends BaseAgent {
         
         // Find or create the Content Creation system folder
         let contentCreationFolder = editorStore.projectFolders.find(
-          folder => folder.id === 'content-creation-folder' || folder.name === 'Content Creation'
+          folder => folder.id === 'content-creation-folder' || 
+          (folder.name === 'Content Creation' && folder.pinned)
         );
         
         if (!contentCreationFolder) {
-          // Create the Content Creation system folder if it doesn't exist
-          await editorStore.createFolder('Content Creation', 'project');
-          contentCreationFolder = editorStore.projectFolders.find(
-            folder => folder.name === 'Content Creation'
-          );
+          // Create the Content Creation system folder with proper system properties
+          const systemFolder = {
+            id: 'content-creation-folder',
+            name: 'Content Creation',
+            category: 'project' as const,
+            createdAt: new Date(),
+            pinned: true,
+          };
+          
+          // Add the system folder to the project folders
+          const currentFolders = editorStore.projectFolders;
+          editorStore.updateProjectFolders([systemFolder, ...currentFolders]);
+          
+          console.log("✅ Created Content Creation system folder with ID:", systemFolder.id);
+          contentCreationFolder = systemFolder;
         }
         
         // Override the project result to always use Content Creation
@@ -183,7 +194,7 @@ export class TwitterAgent extends BaseAgent {
         });
 
         // Step 3.1: Actually populate the form fields with the processed data
-        await this.fillTwitterFormFieldsWithData(fileName, result.content.content, formData);
+        await this.fillTwitterFormFieldsWithData(fileName, result.content.content, formData, convexMutations);
 
         // Step 4: Handle scheduling if requested
         let schedulingResult = "";
@@ -298,10 +309,20 @@ Please try again with a different approach or contact support.`;
       console.log(`📁 Looking for project folder: "${projectName}"`);
       console.log(`📂 Available folders:`, editorStore.projectFolders.map(f => ({ id: f.id, name: f.name })));
       
-      // Find the project folder (case-insensitive search)
-      const projectFolder = editorStore.projectFolders.find(
-        folder => folder.name.toLowerCase() === projectName.toLowerCase()
-      );
+      // Find the project folder - special handling for Content Creation system folder
+      let projectFolder;
+      if (projectName === 'Content Creation') {
+        // For Content Creation, look for the system folder first
+        projectFolder = editorStore.projectFolders.find(
+          folder => folder.id === 'content-creation-folder' || 
+          (folder.name === 'Content Creation' && folder.pinned)
+        );
+      } else {
+        // For other projects, use case-insensitive search
+        projectFolder = editorStore.projectFolders.find(
+          folder => folder.name.toLowerCase() === projectName.toLowerCase()
+        );
+      }
       
       if (projectFolder) {
         console.log(`✅ Found project folder:`, { id: projectFolder.id, name: projectFolder.name });
@@ -348,29 +369,54 @@ ${content}
       console.log(`📝 Creating file ${fileName} with intelligent content-based name`);
       console.log(`📄 Rich content preview:`, richContent.substring(0, 200) + "...");
       console.log(`📄 Rich content length:`, richContent.length);
-      console.log(`📁 Target folder ID:`, projectFolder?.id || 'NO FOLDER');
       
-      // Create the file with the unique content directly (no separate update needed)
-      const fileId = editorStore.createNewFile(fileName, "x", "project", projectFolder?.id, richContent);
-      
-      console.log(`✅ File created with unique content: ${fileName}.x (ID: ${fileId})`);
-      
-      // Save to database
+      // Save to database AND create locally for immediate UI visibility
       try {
-        await convexMutations.upsertPost({
-          fileName: fileName + ".x",
-          fileType: 'twitter',
-          content: content,
-          title: `Twitter Post - ${projectName}`,
-          status: 'draft'
+        await convexMutations.createContentCreationFile({
+          name: fileName + ".x",
+          content: richContent,
+          type: 'post',
+          platform: 'twitter',
+          extension: 'x'
         });
-        console.log("✅ Twitter post saved to database:", fileName + ".x");
+        console.log("✅ Twitter post saved to Content Creation project:", fileName + ".x");
       } catch (dbError) {
         console.warn("⚠️ Failed to save to database:", dbError);
-        // Continue anyway - file was created locally
+        // Continue anyway - file will be created locally
       }
       
-      return fileName + ".x";
+          // Also create the file locally for immediate UI visibility
+          try {
+            if (projectFolder) {
+              const fileId = editorStore.createNewFile(
+                fileName, // name without extension
+                'x' as any, // type
+                'project', // category
+                projectFolder.id, // folderId
+                richContent, // customContent
+                true // skipSync to prevent loops
+              );
+              console.log("✅ Twitter post also created locally for immediate UI visibility:", fileName + ".x");
+              
+              // Dispatch event to notify components that a new Twitter post was created
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('twitterFileCreated', {
+                  detail: {
+                    fileName: fileName + ".x",
+                    fileId: fileId,
+                    content: content,
+                    projectName: projectName
+                  }
+                }));
+                console.log(`📢 Dispatched twitterFileCreated event for ${fileName + ".x"}`);
+              }
+            } else {
+              console.warn("⚠️ Cannot create file locally - project folder not found");
+            }
+          } catch (localError) {
+            console.warn("⚠️ Failed to create file locally:", localError);
+            // Continue anyway - file was saved to database
+          }      return fileName + ".x";
     } catch (error) {
       console.error("❌ Failed to create Twitter file:", error);
       throw new Error(`Failed to create Twitter file: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -400,13 +446,10 @@ ${content}
         folder => folder.name === projectName
       );
       
-      if (projectFolder) {
-        // Create file in the project
-        editorStore.createNewFile(fileName, "x", "project", projectFolder.id);
-      } else {
-        // Create file at root level if project not found
-        editorStore.createNewFile(fileName, "x", "project");
-      }
+      // Note: We no longer create local files directly
+      // Files are saved to Convex database and synced via useFileLoad hook
+      console.log(`📡 Would save to project: ${projectFolder ? projectFolder.name : 'root level'}`);
+      console.log(`📡 File will be created via database sync: ${fileName}`);
       
       return fileName;
     } catch (error) {
@@ -437,6 +480,7 @@ ${content}
     fileName: string,
     content: string,
     preparedFormData: any,
+    convexMutations: any,
   ): Promise<void> {
     try {
       // Use the already prepared platform data
@@ -458,10 +502,38 @@ ${content}
         status: "draft",
       });
 
-      // Instead of trying to use Convex directly (which fails in server context),
-      // let's create a temporary storage mechanism that the client can pick up
+      // Save structured data to Convex database for UI to pick up
       try {
-        // Store the form data in localStorage for the client to pick up
+        if (convexMutations && convexMutations.upsertPost) {
+          await convexMutations.upsertPost({
+            fileName: fileName,
+            fileType: 'twitter',
+            content: content,
+            title: undefined, // Twitter doesn't use titles
+            platformData: JSON.stringify(platformData),
+            status: 'draft',
+          });
+          console.log(`✅ Twitter post data saved to Convex database for immediate UI refresh: ${fileName}`);
+        } else {
+          console.warn("⚠️ Convex upsertPost mutation not available - trying direct save");
+          
+          // Fallback: Try to dispatch a custom event for UI refresh
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('twitterPostCreated', {
+              detail: {
+                fileName: fileName,
+                content: content,
+                platformData: platformData,
+                status: 'draft'
+              }
+            }));
+            console.log(`📢 Dispatched twitterPostCreated event for UI refresh: ${fileName}`);
+          }
+        }
+      } catch (convexError) {
+        console.warn("⚠️ Could not save to Convex database:", convexError);
+        
+        // Fallback: Store in localStorage as before AND dispatch event
         if (typeof window !== 'undefined') {
           const formDataKey = `twitter-form-${fileName}`;
           const formDataToStore = {
@@ -472,15 +544,19 @@ ${content}
           };
           
           localStorage.setItem(formDataKey, JSON.stringify(formDataToStore));
-          console.log(`✅ Twitter form data stored in localStorage for ${fileName}`);
-        } else {
-          // Server-side: We'll let the client handle the data loading
-          console.log("📝 Server-side context - form data will be handled by client components");
+          console.log(`💾 Twitter form data stored in localStorage for ${fileName}`);
+          
+          // Dispatch event to trigger UI refresh
+          window.dispatchEvent(new CustomEvent('twitterPostCreated', {
+            detail: {
+              fileName: fileName,
+              content: content,
+              platformData: platformData,
+              status: 'draft'
+            }
+          }));
+          console.log(`� Dispatched twitterPostCreated event for UI refresh: ${fileName}`);
         }
-
-      } catch (storageError) {
-        console.warn("⚠️ Could not store form data:", storageError);
-        console.log("📝 Form data will be loaded from file content when editor opens");
       }
 
     } catch (error) {

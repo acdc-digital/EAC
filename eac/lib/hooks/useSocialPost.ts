@@ -1,6 +1,6 @@
 import { api } from "@/convex/_generated/api";
 import { useMutation, useQuery } from "convex/react";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 export type PostStatus = 'draft' | 'scheduled' | 'posting' | 'posted' | 'failed';
 
@@ -22,6 +22,28 @@ export function useSocialPost({ fileName, fileType }: UseSocialPostOptions) {
   // Use ref to get current status without dependency issues
   const currentStatusRef = useRef(post?.status);
   currentStatusRef.current = post?.status;
+  
+  // Add effect to listen for Twitter post creation events and trigger refetch
+  useEffect(() => {
+    const handleTwitterPostCreated = (event: CustomEvent) => {
+      const { fileName: eventFileName } = event.detail;
+      
+      // If this hook is for the file that was just created, we might want to refetch
+      if (eventFileName === fileName) {
+        console.log(`🔄 Twitter post created event received for ${fileName}, Convex will auto-update`);
+        // Convex queries automatically update when data changes, so we don't need to do anything special
+        // The post query will automatically re-run and get the latest data
+      }
+    };
+
+    // Add event listener
+    window.addEventListener('twitterPostCreated', handleTwitterPostCreated as EventListener);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('twitterPostCreated', handleTwitterPostCreated as EventListener);
+    };
+  }, [fileName]);
   
   // Auto-save content with debouncing - completely stable dependencies
   const saveContent = useCallback(async (
@@ -46,7 +68,6 @@ export function useSocialPost({ fileName, fileType }: UseSocialPostOptions) {
         platformData: platformData ? JSON.stringify(platformData) : undefined,
         // Only set status to 'draft' for new posts, preserve existing status
         status: currentStatus && currentStatus !== 'draft' ? undefined : 'draft',
-        userId: 'temp-user-id', // TODO: Replace with actual user ID
       });
     } catch (error) {
       console.error('Failed to save post content:', error);
@@ -93,7 +114,6 @@ export function useSocialPost({ fileName, fileType }: UseSocialPostOptions) {
         title,
         platformData: platformData ? JSON.stringify(platformData) : undefined,
         scheduledFor: scheduledFor.getTime(),
-        userId: 'temp-user-id', // TODO: Replace with actual user ID
       });
     } catch (error) {
       console.error('Failed to schedule post:', error);

@@ -100,6 +100,17 @@ export function useChat() {
     setLoading(true);
     
     try {
+      // Dispatch chat activity event to trigger file refresh mechanisms
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('chatActivity', { 
+          detail: { 
+            content: trimmedContent,
+            sessionId: currentSessionId,
+            timestamp: Date.now()
+          } 
+        }));
+      }
+      
       await sendChatMessage({
         content: trimmedContent,
         originalContent: originalTrimmedContent,
@@ -171,6 +182,18 @@ export function useChat() {
     setLoading(true);
     
     try {
+      // Dispatch chat activity event to trigger file refresh mechanisms
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('chatActivity', { 
+          detail: { 
+            content: trimmedContent,
+            sessionId: currentSessionId,
+            timestamp: Date.now(),
+            streaming: true
+          } 
+        }));
+      }
+      
       // Send the actual message to Convex (real AI thinking will stream from backend)
       await sendChatMessageWithStreaming({
         content: trimmedContent,

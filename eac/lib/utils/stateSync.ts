@@ -74,33 +74,39 @@ export function getSyncStatus(
  */
 export function syncConvexProjectsToZustand(
   convexProjects: Project[],
-  createFolder: (name: string, category: 'project' | 'financial') => void
+  createFolder: (name: string, category: 'project' | 'financial', convexId?: string) => void
 ) {
   const { projectFolders } = useEditorStore.getState();
   
-  // Get existing folder names (case-insensitive)
-  const existingFolderNames = new Set(
+  // Get existing folder names (case-insensitive) and their convex IDs
+  const existingFolders = new Map(
     projectFolders
       .filter(f => !f.pinned) // Don't sync over pinned folders like Instructions
-      .map(f => f.name.toLowerCase())
+      .map(f => [f.name.toLowerCase(), f.convexId])
   );
   
-  // Find projects that exist in Convex but not in Zustand
-  const newProjects = convexProjects.filter(project => 
-    project.name && !existingFolderNames.has(project.name.toLowerCase())
-  );
+  // Find projects that exist in Convex but not in Zustand, or exist but don't have convexId
+  const projectsToSync = convexProjects.filter(project => {
+    if (!project.name) return false;
+    
+    const folderName = project.name.toLowerCase();
+    const existingConvexId = existingFolders.get(folderName);
+    
+    // Sync if folder doesn't exist OR if it exists but doesn't have the convex ID
+    return !existingFolders.has(folderName) || !existingConvexId;
+  });
   
-  if (newProjects.length > 0) {
-    console.log(`🔄 Syncing ${newProjects.length} projects from Convex to Zustand:`, 
-      newProjects.map(p => p.name)
+  if (projectsToSync.length > 0) {
+    console.log(`🔄 Syncing ${projectsToSync.length} projects from Convex to Zustand:`, 
+      projectsToSync.map(p => p.name)
     );
     
-    // Add missing projects to editor store
-    newProjects.forEach((project, index) => {
+    // Add missing projects to editor store or update existing ones with convex ID
+    projectsToSync.forEach((project, index) => {
       // Use setTimeout to prevent race conditions with ID generation
       setTimeout(() => {
-        createFolder(project.name, 'project');
-        console.log(`  ✅ Added folder: ${project.name}`);
+        createFolder(project.name, 'project', project._id);
+        console.log(`  ✅ Synced folder: ${project.name} with Convex ID: ${project._id}`);
       }, index * 50); // 50ms delay between folder creations
     });
   }
@@ -145,7 +151,7 @@ export function removeOrphanedZustandFolders(
  */
 export function performFullSync(
   convexProjects: Project[],
-  createFolder: (name: string, category: 'project' | 'financial') => void,
+  createFolder: (name: string, category: 'project' | 'financial', convexId?: string) => void,
   deleteFolder: (folderId: string) => void
 ) {
   console.log("🔄 Performing full sync between Convex and Zustand...");

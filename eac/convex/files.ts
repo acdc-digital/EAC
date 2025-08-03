@@ -81,6 +81,33 @@ async function getContentCreationProject(ctx: QueryCtx | MutationCtx, userId: an
   return contentCreationProject;
 }
 
+// Helper function to ensure Content Creation project exists for user
+async function ensureContentCreationProjectHelper(ctx: MutationCtx, userId: any) {
+  // Check if Content Creation project already exists for this user
+  const existingContentCreation = await ctx.db
+    .query("projects")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .filter((q) => q.eq(q.field("name"), "Content Creation"))
+    .first();
+    
+  if (existingContentCreation) {
+    return existingContentCreation;
+  }
+  
+  // Create Content Creation project
+  const now = Date.now();
+  const contentCreationProjectId = await ctx.db.insert("projects", {
+    name: "Content Creation",
+    status: "active" as const,
+    description: "System project for content creation files and social media posts",
+    userId: userId,
+    createdAt: now,
+    updatedAt: now,
+  });
+  
+  return await ctx.db.get(contentCreationProjectId);
+}
+
 // User-scoped: Get all files for a specific project
 export const getFilesByProject = query({
   args: { 
@@ -644,8 +671,17 @@ export const getContentCreationFiles = query({
       return [];
     }
     
-    // Get the Content Creation project for this user
-    const contentCreationProject = await getContentCreationProject(ctx, userId);
+    // Try to get the Content Creation project for this user
+    const contentCreationProject = await ctx.db
+      .query("projects")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .filter((q) => q.eq(q.field("name"), "Content Creation"))
+      .first();
+    
+    // Return empty array if no Content Creation project exists yet
+    if (!contentCreationProject) {
+      return [];
+    }
     
     const files = await ctx.db
       .query("files")
@@ -683,22 +719,26 @@ export const createContentCreationFile = mutation({
   handler: async (ctx, args) => {
     const userId = await getCurrentUserId(ctx);
     
-    // Get the Content Creation project for this user
-    const contentCreationProject = await getContentCreationProject(ctx, userId);
+    // Ensure the Content Creation project exists for this user
+    const contentCreationProject = await ensureContentCreationProjectHelper(ctx, userId);
     
     const now = Date.now();
+    
+    // Determine appropriate MIME type based on extension
+    const extension = args.extension || "md";
+    const mimeType = extension === "x" ? "text/plain" : "text/markdown";
     
     // Create the content creation file
     const fileId = await ctx.db.insert("files", {
       name: args.name,
       type: args.type || "post",
-      extension: args.extension || "md",
+      extension: extension,
       content: args.content,
-      projectId: contentCreationProject._id,
+      projectId: contentCreationProject!._id,
       userId: userId,
       path: "/content-creation/",
       platform: args.platform,
-      mimeType: "text/markdown",
+      mimeType: mimeType,
       isDeleted: false,
       lastModified: now,
       createdAt: now,
@@ -706,5 +746,37 @@ export const createContentCreationFile = mutation({
     });
     
     return await ctx.db.get(fileId);
+  },
+});
+
+// Get all files for the current user across all projects
+export const getAllUserFiles = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getCurrentUserId(ctx);
+    
+    // Get all projects owned by the user
+    const userProjects = await ctx.db
+      .query("projects")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    
+    if (userProjects.length === 0) {
+      return [];
+    }
+    
+    // Get all files for all user projects
+    const allFiles = [];
+    for (const project of userProjects) {
+      const projectFiles = await ctx.db
+        .query("files")
+        .withIndex("by_project", (q) => q.eq("projectId", project._id))
+        .filter((q) => q.neq(q.field("isDeleted"), true))
+        .collect();
+      
+      allFiles.push(...projectFiles);
+    }
+    
+    return allFiles;
   },
 });

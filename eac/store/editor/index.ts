@@ -3,7 +3,7 @@
 
 import { AtSign, Braces, Calendar, Camera, FileCode, FileSpreadsheet, FileText, FileType, HelpCircle, MessageSquare } from 'lucide-react';
 import { create } from 'zustand';
-import { devtools, persist } from 'zustand/middleware';
+import { devtools } from 'zustand/middleware';
 import { EditorState, EditorTab, ProjectFile, ProjectFolder, TrashItem } from './types';
 
 // Helper function to get icon based on file type
@@ -275,8 +275,7 @@ const initialProjectFolders: ProjectFolder[] = [];
 
 export const useEditorStore = create<EditorState>()(
   devtools(
-    persist(
-      (set, get) => ({
+    (set, get) => ({
         // Initial state
         openTabs: [],
         activeTab: '',
@@ -298,7 +297,10 @@ export const useEditorStore = create<EditorState>()(
             id: file.id,
             name: file.name,
             contentLength: file.content?.length || 0,
-            contentPreview: file.content?.substring(0, 100) || 'NO CONTENT'
+            contentPreview: file.content?.substring(0, 100) || 'NO CONTENT',
+            type: file.type,
+            platform: (file as any).platform,
+            rawContent: file.content
           });
           
           // Check if tab is already open
@@ -702,7 +704,26 @@ export const useEditorStore = create<EditorState>()(
           });
         },
 
-        createNewFile: (name: string, type: ProjectFile['type'], category: ProjectFile['category'] = 'project', folderId?: string, customContent?: string) => {
+        updateFolderConvexId: (folderId: string, convexId: string) => {
+          const { projectFolders, financialFolders } = get();
+
+          // Update in project folders
+          const updatedProjectFolders = projectFolders.map(folder =>
+            folder.id === folderId ? { ...folder, convexId } : folder
+          );
+
+          // Update in financial folders
+          const updatedFinancialFolders = financialFolders.map(folder =>
+            folder.id === folderId ? { ...folder, convexId } : folder
+          );
+
+          set({
+            projectFolders: updatedProjectFolders,
+            financialFolders: updatedFinancialFolders
+          });
+        },
+
+        createNewFile: (name: string, type: ProjectFile['type'], category: ProjectFile['category'] = 'project', folderId?: string, customContent?: string, skipSync?: boolean) => {
           const { projectFiles, financialFiles } = get();
           
           console.log('🔧 createNewFile called with:', {
@@ -777,32 +798,37 @@ export const useEditorStore = create<EditorState>()(
           });
 
           // Save to Convex database (async - don't block UI)
-          try {
-            // We need to import the Convex hooks here, which isn't ideal
-            // Better to handle this in the component level
-            console.log('File created locally:', newFile);
-            
-            // Get the folder's convex ID if available
-            let projectId = null;
-            if (folderId) {
-              const { projectFolders, financialFolders } = get();
-              const allFolders = [...projectFolders, ...financialFolders];
-              const folder = allFolders.find(f => f.id === folderId);
-              projectId = folder?.convexId || null;
+          // Skip if this is a sync operation to prevent loops
+          if (!skipSync) {
+            try {
+              // TEMPORARILY DISABLED TO STOP INFINITE LOOP
+              console.log('🚫 TEMPORARILY DISABLED: File created locally (not dispatching event):', newFile);
+              
+              // Get the folder's convex ID if available
+              // let projectId = null;
+              // if (folderId) {
+              //   const { projectFolders, financialFolders } = get();
+              //   const allFolders = [...projectFolders, ...financialFolders];
+              //   const folder = allFolders.find(f => f.id === folderId);
+              //   projectId = folder?.convexId || null;
+              // }
+              
+              // Dispatch custom event that components can listen to
+              // TEMPORARILY DISABLED TO STOP INFINITE LOOP
+              // if (typeof window !== 'undefined') {
+              //   window.dispatchEvent(new CustomEvent('fileCreated', { 
+              //     detail: { 
+              //       file: newFile,
+              //       projectId: projectId // Use folder's convexId if available
+              //     } 
+              //   }));
+              // }
+              
+            } catch (error) {
+              console.error('Failed to save file to database:', error);
             }
-            
-            // Dispatch custom event that components can listen to
-            if (typeof window !== 'undefined') {
-              window.dispatchEvent(new CustomEvent('fileCreated', { 
-                detail: { 
-                  file: newFile,
-                  projectId: projectId // Use folder's convexId if available
-                } 
-              }));
-            }
-            
-          } catch (error) {
-            console.error('Failed to save file to database:', error);
+          } else {
+            console.log('🔄 File created from sync, skipping database save:', newFile.name);
           }
 
           // Return the file ID so caller can reference it
@@ -810,16 +836,22 @@ export const useEditorStore = create<EditorState>()(
         },
 
         createFolder: (name: string, category: 'project' | 'financial', convexId?: string) => {
-          const { projectFolders, financialFolders } = get();
+          const { projectFolders, financialFolders, updateFolderConvexId } = get();
           
-          // Check if folder with this name already exists to prevent duplicates
+          // Check if folder with this name already exists
           const existingFolders = category === 'financial' ? financialFolders : projectFolders;
-          const folderExists = existingFolders.some(folder => 
+          const existingFolder = existingFolders.find(folder => 
             folder.name.toLowerCase() === name.toLowerCase()
           );
           
-          if (folderExists) {
-            console.log(`Folder "${name}" already exists in ${category} category, skipping creation`);
+          if (existingFolder) {
+            // If folder exists but doesn't have a convexId, update it
+            if (convexId && !existingFolder.convexId) {
+              console.log(`Updating existing folder "${name}" with Convex ID: ${convexId}`);
+              updateFolderConvexId(existingFolder.id, convexId);
+            } else {
+              console.log(`Folder "${name}" already exists in ${category} category, skipping creation`);
+            }
             return;
           }
           
@@ -1352,160 +1384,99 @@ export const useEditorStore = create<EditorState>()(
             showFinancialCategory: false,
           });
         },
-      }),
-      {
-        name: 'editor-storage',
-        version: 1, // Add version for tab pinning persistence
-        // Only persist specific fields
-        partialize: (state) => ({ 
-          openTabs: state.openTabs.map(tab => ({
-            id: tab.id,
-            name: tab.name,
-            modified: tab.modified,
-            content: tab.content,
-            filePath: tab.filePath,
-            type: tab.type,
-            pinned: tab.pinned, // Persist pinned state
-            pinnedOrder: tab.pinnedOrder, // Persist pinned order
-            // We'll need to restore the icon based on file type
-          })),
-          activeTab: state.activeTab,
-          projectFiles: state.projectFiles,
-          financialFiles: state.financialFiles,
-          projectFolders: state.projectFolders,
-          financialFolders: state.financialFolders,
-          showProjectsCategory: state.showProjectsCategory,
-          showFinancialCategory: state.showFinancialCategory,
-        }),
-        // Custom storage to handle icon restoration
-        storage: {
-          getItem: (name) => {
-            const str = localStorage.getItem(name);
-            if (!str) return null;
-            const { state } = JSON.parse(str);
-            
-            // Restore icons based on file type
-            const restoredTabs = (state.openTabs || []).map((tab: Omit<EditorTab, 'icon'>) => {
-              let icon = FileCode;
-              
-              switch (tab.type) {
-                case 'typescript':
-                case 'javascript':
-                  icon = FileCode;
-                  break;
-                case 'json':
-                  icon = Braces;
-                  break;
-                case 'excel':
-                  icon = FileSpreadsheet;
-                  break;
-                case 'markdown':
-                  icon = FileText;
-                  break;
-                case 'pdf':
-                  icon = FileType;
-                  break;
-              }
-              
-              return {
-                ...tab,
-                icon,
-              };
+
+        // Debug function to help troubleshoot file persistence issues
+        debugStorage: () => {
+          const state = get();
+          console.log('🔍 Current store state:', {
+            projectFiles: state.projectFiles.length,
+            financialFiles: state.financialFiles.length,
+            projectFolders: state.projectFolders.length,
+            financialFolders: state.financialFolders.length,
+            trashItems: state.trashItems.length,
+            openTabs: state.openTabs.length,
+            activeTab: state.activeTab,
+            showProjectsCategory: state.showProjectsCategory,
+            showFinancialCategory: state.showFinancialCategory
+          });
+          
+          if (state.projectFiles.length > 0) {
+            console.log('📁 Project files:');
+            state.projectFiles.forEach((file, index) => {
+              console.log(`  ${index + 1}. ${file.name} (${file.type}) - Created: ${file.createdAt}`);
             });
-            
-            return {
-              state: {
-                ...state,
-                openTabs: restoredTabs,
-              },
-            };
-          },
-          setItem: (name, value) => {
-            if (typeof window !== 'undefined' && localStorage) {
-              localStorage.setItem(name, JSON.stringify(value));
-            }
-          },
-          removeItem: (name) => {
-            if (typeof window !== 'undefined' && localStorage) {
-              localStorage.removeItem(name);
-            }
-          },
-        },
-        onRehydrateStorage: () => (state) => {
-          if (state) {
-            // Repair any files that don't have content
-            if (state.projectFiles) {
-              state.projectFiles = state.projectFiles.map(file => {
-                if (!file.content || file.content.trim() === '') {
-                  return {
-                    ...file,
-                    content: getDefaultContent(file.type, file.name),
-                    modifiedAt: new Date()
-                  };
-                }
-                return file;
+          }
+          
+          if (state.financialFiles.length > 0) {
+            console.log('💰 Financial files:');
+            state.financialFiles.forEach((file, index) => {
+              console.log(`  ${index + 1}. ${file.name} (${file.type}) - Created: ${file.createdAt}`);
+            });
+          }
+          
+          // Check localStorage
+          if (typeof window !== 'undefined' && window.localStorage) {
+            const stored = localStorage.getItem('editor-storage');
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              console.log('💾 Stored state:', {
+                projectFiles: parsed.state?.projectFiles?.length || 0,
+                financialFiles: parsed.state?.financialFiles?.length || 0,
+                version: parsed.version
               });
-            }
-            
-            if (state.financialFiles) {
-              state.financialFiles = state.financialFiles.map(file => {
-                if (!file.content || file.content.trim() === '') {
-                  return {
-                    ...file,
-                    content: getDefaultContent(file.type, file.name),
-                    modifiedAt: new Date()
-                  };
-                }
-                return file;
-              });
-            }
-            
-            // Ensure system folders exist if there are project folders
-            if (state.projectFolders && state.projectFolders.length > 0) {
-              // Only ensure the system folders if there are already some project folders
-              // This prevents auto-creation when storage is intentionally cleared
-              const hasInstructionsFolder = state.projectFolders.some(folder =>
-                folder.id === 'instructions-folder' && folder.pinned
-              );
-              
-              const hasContentCreationFolder = state.projectFolders.some(folder =>
-                folder.id === 'content-creation-folder' && folder.pinned
-              );
-              
-              const systemFolders: ProjectFolder[] = [];
-              
-              if (!hasInstructionsFolder) {
-                systemFolders.push({
-                  id: 'instructions-folder',
-                  name: 'Instructions',
-                  category: 'project' as const,
-                  createdAt: new Date(),
-                  pinned: true,
-                });
-              }
-              
-              if (!hasContentCreationFolder) {
-                systemFolders.push({
-                  id: 'content-creation-folder',
-                  name: 'Content Creation',
-                  category: 'project' as const,
-                  createdAt: new Date(),
-                  pinned: true,
-                });
-              }
-              
-              if (systemFolders.length > 0) {
-                state.projectFolders = [
-                  ...systemFolders,
-                  ...state.projectFolders
-                ];
-              }
+            } else {
+              console.log('❌ No data in localStorage');
             }
           }
-          // If projectFolders is empty, respect that (don't auto-create anything)
         },
-      }
-    ),
+
+        // Emergency function to clear all storage and reset to initial state
+        clearStorage: () => {
+          console.log('🧹 Clearing all storage and resetting to initial state...');
+          
+          // Clear localStorage
+          if (typeof window !== 'undefined' && window.localStorage) {
+            localStorage.removeItem('editor-storage');
+            console.log('✅ localStorage cleared');
+          }
+          
+          // Reset store to initial state
+          set({
+            openTabs: [],
+            activeTab: '',
+            projectFiles: [],
+            financialFiles: [],
+            projectFolders: [],
+            financialFolders: [],
+            trashItems: [],
+            showProjectsCategory: true,
+            showFinancialCategory: false,
+            isLoading: false,
+            error: null,
+          });
+          
+          console.log('✅ Store reset to initial state');
+          console.log('🔄 Please refresh the page to complete the reset');
+        },
+
+        // Replace project files with database files (for aggressive sync)
+        replaceWithDatabaseFiles: (databaseFiles: ProjectFile[]) => {
+          console.log('🔄 Replacing local project files with database files...');
+          console.log(`📁 Replacing ${get().projectFiles.length} local files with ${databaseFiles.length} database files`);
+          
+          set({ 
+            projectFiles: databaseFiles,
+            showProjectsCategory: databaseFiles.length > 0 
+          });
+          
+          console.log('✅ Project files replaced with database files');
+        },
+      }),
     { name: 'editor-store' }
   )
-); 
+);
+
+// Make store available globally for debugging
+if (typeof window !== 'undefined') {
+  (window as any).useEditorStore = useEditorStore;
+} 

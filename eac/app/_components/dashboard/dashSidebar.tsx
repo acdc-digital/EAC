@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useContentCreation } from "@/lib/hooks/useContentCreation";
+import { useFileLoad } from "@/lib/hooks/useFileLoad";
 import { useFiles } from "@/lib/hooks/useFiles";
 import { useFileSync } from "@/lib/hooks/useFileSync";
 import { useInstructions } from "@/lib/hooks/useInstructions";
@@ -70,6 +71,9 @@ export function DashSidebar({ activePanel }: SidebarProps) {
 
   // Initialize file sync system for database integration
   useFileSync();
+
+  // Initialize file load system to sync files from Convex to local store
+  useFileLoad();
 
   // TODO: Re-enable once files have Convex IDs
   // const deleteFile = useMutation(api.files.deleteFile);
@@ -409,25 +413,45 @@ export function DashSidebar({ activePanel }: SidebarProps) {
           isSystemFolder: true, // Mark as system folder (non-deletable)
           children: [
             // Show content creation files that belong to this project
-            ...(contentCreationFiles || []).map(file => ({
-              id: file._id,
-              name: file.name,
-              icon: FileText, // Use FileText icon for content creation files
-              type: 'markdown' as const, // Content creation files are markdown files
-              file: {
+            ...(contentCreationFiles || []).map(file => {
+              // Determine file type based on extension or platform
+              const extension = (file as any).extension || 'md';
+              const fileType = extension === 'x' ? 'x' as const : 'markdown' as const;
+              
+              // Choose appropriate icon based on extension and platform
+              let icon = FileText; // Default
+              if (extension === 'x' || (file as any).platform === 'twitter') {
+                icon = AtSign; // Twitter/X icon
+              } else if (extension === 'md') {
+                icon = FileText; // Markdown icon
+              }
+              
+              // Construct proper filename with extension
+              const displayName = file.name.includes('.') ? file.name : `${file.name}.${extension}`;
+              
+              return {
                 id: file._id,
-                name: file.name,
-                icon: FileText,
-                type: 'markdown' as const,
-                category: 'project' as const,
-                content: file.content || '',
-                filePath: file.path || `/content-creation/${file.name}`,
-                createdAt: new Date(file._creationTime),
-                modifiedAt: new Date(file._creationTime),
-                folderId: `content-creation-${contentCreationProject._id}`,
-                convexId: file._id,
-              },
-            }))
+                name: displayName,
+                icon: icon,
+                type: fileType,
+                file: {
+                  id: file._id,
+                  name: displayName,
+                  icon: icon,
+                  type: fileType,
+                  category: 'project' as const,
+                  content: file.content || '',
+                  filePath: file.path || `/content-creation/${displayName}`,
+                  createdAt: new Date(file._creationTime),
+                  modifiedAt: new Date(file._creationTime),
+                  folderId: `content-creation-${contentCreationProject._id}`,
+                  convexId: file._id,
+                  // Include extra metadata for debugging
+                  platform: (file as any).platform,
+                  extension: extension,
+                },
+              };
+            })
           ]
         });
       }

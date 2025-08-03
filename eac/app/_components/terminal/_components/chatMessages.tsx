@@ -83,13 +83,16 @@ export function ChatMessages() {
     }
   }, [activeSessionId, sessionId, setSessionId]);
 
-  // Process messages with operations to create UI files
+  // DISABLED: Process messages with operations to create UI files
+  // This is now handled by useFileLoad hook which syncs from Convex to local store
+  /*
   useEffect(() => {
     if (!messages) return;
     
     console.log('🔍 Processing messages for operations:', {
       totalMessages: messages.length,
-      recentMessagesCount: messages.slice(-10).length
+      recentMessagesCount: messages.slice(-10).length,
+      processedCount: processedOperations.current.size
     });
     
     // Look for messages with operations that need UI processing
@@ -102,7 +105,8 @@ export function ChatMessages() {
         hasOperation: !!message.operation,
         operationType: message.operation?.type,
         operationDetails: message.operation?.details,
-        contentPreview: message.content?.substring(0, 100)
+        contentPreview: message.content?.substring(0, 100),
+        alreadyProcessed: processedOperations.current.has(message._id)
       });
       
       if (message.operation?.type === 'file_created' && message._id) {
@@ -136,7 +140,7 @@ export function ChatMessages() {
             allDetails: message.operation.details
           });
           
-          // Mark as processed
+          // Mark as processed FIRST to prevent race conditions
           processedOperations.current.add(message._id);
           
           // Parse the platform data with error handling
@@ -176,8 +180,10 @@ ${content}
 - Likes: 0
 - Shares: 0`;
 
+          // Get the createNewFile function from the store at execution time
+          const { createNewFile, projectFolders } = useEditorStore.getState();
+          
           // Find the Content Creation folder ID
-          const { projectFolders } = useEditorStore.getState();
           const contentCreationFolder = projectFolders.find(folder => 
             folder.name === 'Content Creation'
           );
@@ -208,7 +214,8 @@ ${content}
         }
       }
     });
-  }, [messages, createNewFile]);
+  }, [messages]); // Removed createNewFile from dependencies to prevent re-runs on panel switches
+  */
 
   // Helper function to strip markdown formatting
   const stripMarkdown = (text: string): string => {

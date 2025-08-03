@@ -55,6 +55,13 @@ export interface ConvexMutations {
     scheduledFor?: number;
     userId?: string;
   }) => Promise<unknown>;
+  createContentCreationFile: (params: {
+    name: string;
+    content: string;
+    type?: 'post' | 'campaign' | 'note' | 'document' | 'other';
+    platform?: 'facebook' | 'instagram' | 'twitter' | 'linkedin' | 'reddit' | 'youtube';
+    extension?: string;
+  }) => Promise<unknown>;
 }
 
 export interface AgentState {

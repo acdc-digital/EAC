@@ -19,6 +19,7 @@ import type * as chat from "../chat.js";
 import type * as chatActions from "../chatActions.js";
 import type * as cron from "../cron.js";
 import type * as crons from "../crons.js";
+import type * as debug from "../debug.js";
 import type * as eacConvexSchema from "../eacConvexSchema.js";
 import type * as files from "../files.js";
 import type * as messages from "../messages.js";
@@ -55,6 +56,7 @@ declare const fullApi: ApiFromModules<{
   chatActions: typeof chatActions;
   cron: typeof cron;
   crons: typeof crons;
+  debug: typeof debug;
   eacConvexSchema: typeof eacConvexSchema;
   files: typeof files;
   messages: typeof messages;

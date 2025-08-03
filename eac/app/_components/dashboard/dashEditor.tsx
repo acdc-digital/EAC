@@ -26,7 +26,7 @@ const SocialMediaFormEditor = dynamic(() => import('@/app/_components/editor/_co
 });
 
 // Dynamic import for markdown editor with preview
-const MarkdownEditor = dynamic(() => import('@/app/_components/editor/_components/MarkdownEditor'), {
+const MarkdownEditor = dynamic(() => import('../editor/_components/MarkdownEditor'), {
   ssr: false,
   loading: () => <div className="p-4 text-[#858585]">Loading markdown editor...</div>
 });

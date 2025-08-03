@@ -192,10 +192,7 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
     });
     
     const newFormData = parseMarkdownToFormData(content);
-    // Only update if the parsed content is different
-    if (JSON.stringify(newFormData) !== JSON.stringify(formData)) {
-      setFormData(newFormData);
-    }
+    setFormData(newFormData);
   }, [content]); // Only depend on content prop
 
   // Handle form changes and update parent

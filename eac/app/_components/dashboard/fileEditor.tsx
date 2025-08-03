@@ -8,11 +8,13 @@ import { api } from "@/convex/_generated/api";
 import { logger } from "@/lib/logger";
 import { useEditorStore } from "@/store";
 import { ProjectFile } from "@/store/editor/types";
+import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { AtSign, Camera, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, FileText, Folder, MessageSquare } from "lucide-react";
 import { useMemo, useState } from 'react';
 
 export function FileEditor() {
+  const { isSignedIn } = useAuth();
   const { 
     projectFiles, 
     financialFiles, 
@@ -24,8 +26,8 @@ export function FileEditor() {
 
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   
-  // Get all social posts to sync real status
-  const allSocialPosts = useQuery(api.socialPosts.getAllPosts);
+  // Get all social posts to sync real status (only if signed in)
+  const allSocialPosts = useQuery(api.socialPosts.getAllPosts, isSignedIn ? {} : "skip");
   
   // Create a map of fileName -> real status from Convex
   const statusMap = useMemo(() => {

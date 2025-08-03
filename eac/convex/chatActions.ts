@@ -404,6 +404,46 @@ Return ONLY the title, no quotes or explanations.`;
       scheduledFor: schedule ? new Date(schedule).getTime() : undefined,
     });
 
+    // ALSO create a file entry so it shows up in the UI sidebar
+    try {
+      // Format the content in the proper markdown structure for Twitter files
+      const formattedContent = `# ${fileName} - X/Twitter Post
+Platform: X (Twitter)
+Created: ${new Date().toLocaleDateString()}
+
+## Post Content
+${cleanContent}
+
+## Settings
+- Reply Settings: Everyone
+- Schedule: Now
+- Thread: Single Tweet
+
+## Media
+- Images: []
+- Videos: []
+- GIFs: []
+
+## Analytics
+- Impressions: 0
+- Engagements: 0
+- Retweets: 0
+- Likes: 0
+- Replies: 0`;
+
+      await ctx.runMutation(api.files.createContentCreationFile, {
+        name: fileName,
+        content: formattedContent,
+        type: 'post',
+        platform: 'twitter',
+        extension: 'x'
+      });
+      console.log("✅ File also created in Content Creation project for UI display");
+    } catch (fileError) {
+      console.warn("⚠️ Failed to create file entry for UI:", fileError);
+      // Continue anyway - the agentPost was created successfully
+    }
+
     // Store the file creation operation for the UI to pick up
     await ctx.runMutation(api.chat.storeChatMessage, {
       role: "terminal",
