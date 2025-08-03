@@ -12,7 +12,6 @@ import {
   Bug,
   Calendar,
   Contact,
-  Edit3,
   FileText,
   Info,
   Puzzle,
@@ -54,7 +53,6 @@ export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps
   const activityItems = [
     { id: "explorer", icon: FileText, label: "Explorer" },
     { id: "social-connectors", icon: Contact, label: "Social Media Connectors" },
-    { id: "file-editor", icon: Edit3, label: "File Editor" },
     { id: "calendar", icon: Calendar, label: "Content Calendar" },
     { id: "agents", icon: Bot, label: "Agents" },
     { id: "extensions", icon: Puzzle, label: "Extensions" },
@@ -70,18 +68,20 @@ export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps
       return;
     }
     
+    // For explorer, open file-explorer tab and set eac explorer panel
+    if (id === 'explorer') {
+      openSpecialTab('file-explorer', 'File Explorer', 'post-creator');
+      onPanelChange('explorer'); // Set indicator to explorer button and open eac explorer panel
+      return;
+    }
+    
     // For social connectors, now open panel instead of tab
     if (id === 'social-connectors') {
       onPanelChange('social-connectors');
       return;
     }
     
-    // For file editor and calendar, open tabs and set panel indicator
-    if (id === 'file-editor') {
-      openSpecialTab('file-editor', 'File Editor', 'post-creator');
-      onPanelChange('file-editor'); // Set indicator to file-editor button
-      return;
-    }
+    // For calendar, open tab and set panel indicator
     if (id === 'calendar') {
       openSpecialTab('calendar', 'Content Calendar', 'calendar');
       onPanelChange('calendar'); // Set indicator to calendar button
@@ -171,16 +171,16 @@ export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps
               `}
               title={isAuthenticated ? item.label : 'Sign in to access'}
             >
-              <Icon 
+              <Icon
                 className={`w-5 h-5 ${
                   isActive ? 'text-[#cccccc]' : 'text-[#858585]'
-                }`} 
+                }`}
               />
             </Button>
           );
         })}
       </div>
-      
+
       {/* Bottom Section - Help */}
       <div className="mt-auto mb-2 flex flex-col items-center">
         <Button
@@ -206,4 +206,4 @@ export function DashActivityBar({ activePanel, onPanelChange }: ActivityBarProps
       </div>
     </aside>
   );
-} 
+}
