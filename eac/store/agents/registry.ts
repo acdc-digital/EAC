@@ -2,6 +2,7 @@
 // /Users/matthewsimon/Projects/eac/eac/store/agents/registry.ts
 
 import { BaseAgent } from './base';
+import { fileCreatorAgent } from './fileCreatorAgent';
 import { instructionsAgent } from './instructionsAgent';
 import { projectCreatorAgent } from './projectCreatorAgent';
 import { schedulingAgent } from './schedulingAgent';
@@ -23,6 +24,8 @@ export class AgentRegistry {
     console.log('🤖 Registered:', schedulingAgent.id, schedulingAgent.name);
     this.registerAgent(projectCreatorAgent);
     console.log('🤖 Registered:', projectCreatorAgent.id, projectCreatorAgent.name);
+    this.registerAgent(fileCreatorAgent);
+    console.log('🤖 Registered:', fileCreatorAgent.id, fileCreatorAgent.name);
     console.log('🤖 Total agents registered:', this.agents.size);
   }
 
