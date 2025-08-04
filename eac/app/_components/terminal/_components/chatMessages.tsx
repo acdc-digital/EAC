@@ -19,7 +19,7 @@ export function ChatMessages() {
   const inputRef = useRef<HTMLInputElement>(null);
   const processedOperations = useRef<Set<string>>(new Set());
   const [message, setMessage] = useState("");
-  const [enableThinkingStream, setEnableThinkingStream] = useState(true); // Toggle for streaming thinking
+
   
   const { user, isLoaded } = useUser();
   const { initializeUserSession, addTerminalFeedback, setSessionId } = useChatStore();
@@ -418,16 +418,6 @@ Please start a new session to continue chatting.`,
           {/* Terminal Welcome Text */}
           <div className="text-[#cccccc] space-y-1 mb-4">
             <div>EAC Financial Dashboard - AI Assistant</div>
-            <div className="text-[#4ec9b0]">▲ Next.js 15.0.0 + Convex Backend</div>
-            <div>- Anthropic Claude 3.5 Sonnet Integration</div>
-            <div className={`text-xs ${mcpConnected ? 'text-[#4ec9b0]' : 'text-[#f48771]'}`}>
-              🔌 MCP Server: {mcpConnected ? 'Connected' : 'Disconnected'}
-              {mcpConnected && ` (${availableTools.length} tools)`}
-            </div>
-            <div className={`text-xs ${activeAgentId ? 'text-[#4ec9b0]' : 'text-[#858585]'}`}>
-              🤖 Agents: {activeAgentId ? `Active (${agents.find(a => a.id === activeAgentId)?.name})` : 'None selected'}
-              {activeAgentId && ` (${agents.find(a => a.id === activeAgentId)?.tools.length || 0} tools)`}
-            </div>
             {mcpError && (
               <div className="text-[#f48771] text-xs">MCP Error: {mcpError}</div>
             )}
@@ -445,22 +435,7 @@ Please start a new session to continue chatting.`,
               )}
             </div>
             
-            {/* Thinking Stream Toggle */}
-            <div className="text-xs mt-1 flex items-center gap-2">
-              <button
-                onClick={() => setEnableThinkingStream(!enableThinkingStream)}
-                className={`px-2 py-1 rounded text-xs transition-colors ${
-                  enableThinkingStream 
-                    ? 'bg-[#007acc] text-white hover:bg-[#005a9e]' 
-                    : 'bg-[#2d2d2d] text-[#858585] hover:bg-[#3a3a3a]'
-                }`}
-              >
-                🧠 {enableThinkingStream ? 'Thinking ON' : 'Thinking OFF'}
-              </button>
-              <span className="text-[#858585]">
-                {enableThinkingStream ? 'See AI reasoning stream in real-time' : 'Show thinking only in final messages'}
-              </span>
-            </div>
+
           </div>
 
           {/* Messages */}
@@ -497,7 +472,7 @@ Please start a new session to continue chatting.`,
           ))}
 
           {/* Streaming Thinking Display */}
-          {enableThinkingStream && isStreamingThinking && streamingThinking && (
+          {isStreamingThinking && streamingThinking && (
             <div className="space-y-1">
               <div className="text-[#d4d4aa]">
                 <span className="text-[#d4d4aa]">🧠 thinking:</span>

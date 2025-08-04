@@ -9,22 +9,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { api } from '@/convex/_generated/api'
+import { useXApi } from '@/lib/hooks/useXApi'
 import { cn } from '@/lib/utils'
-import { useQuery } from 'convex/react'
+import { useEditorStore } from '@/store'
+import { useMutation, useQuery } from 'convex/react'
 import {
-  AtSign,
-  Calendar,
-  CheckCircle,
-  Edit3,
-  Eye,
-  Facebook,
-  Globe,
-  Instagram,
-  MessageCircle,
-  Twitter,
-  Users
+    AtSign,
+    Calendar,
+    CheckCircle,
+    Edit3,
+    Eye,
+    Facebook,
+    Globe,
+    Instagram,
+    MessageCircle,
+    Twitter,
+    Users
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 interface SocialMediaFormEditorProps {
   content: string
@@ -173,6 +175,21 @@ ${data.settings.taggedUsers ? `- Tagged Users: ${data.settings.taggedUsers}` : '
 const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, fileName }: SocialMediaFormEditorProps) => {
   const [formData, setFormData] = useState<SocialPostData>(() => parseMarkdownToFormData(content));
   const [mode, setMode] = useState<'form' | 'preview'>('form');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  
+  // Track when we're updating content from form to prevent parsing loop
+  const isUpdatingFromForm = useRef(false);
+
+  // Editor store access
+  const { openTabs, updateFileContent, updateFileStatus } = useEditorStore();
+
+  // Convex mutations
+  const upsertPost = useMutation(api.socialPosts.upsertPost);
+  const schedulePost = useMutation(api.socialPosts.schedulePost);
+
+  // X API integration for actual posting
+  const { postTweet, hasConnection } = useXApi();
 
   // Fetch scheduling data from Convex database
   const agentPosts = useQuery(api.socialPosts.getAllPosts);
@@ -217,9 +234,14 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
     }
   }, [currentPost, fileName]);
 
-  // Update form data when content prop changes
+  // Update form data when content prop changes (but not when we're updating from form)
   useEffect(() => {
-    console.log('📝 SocialMediaFormEditor: Content prop changed', {
+    if (isUpdatingFromForm.current) {
+      isUpdatingFromForm.current = false;
+      return;
+    }
+    
+    console.log('📝 SocialMediaFormEditor: Content prop changed from external source', {
       newContentLength: content.length,
       currentFormDataLength: formData.content.length
     });
@@ -247,10 +269,149 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
     
     // Convert back to markdown and notify parent
     if (onChange) {
+      isUpdatingFromForm.current = true; // Prevent parsing loop
       const markdownContent = convertFormDataToMarkdown(newFormData, platform, fileName);
       onChange(markdownContent);
     }
   };
+
+  // Handle saving draft
+  const handleSaveDraft = useCallback(async () => {
+    setIsSaving(true);
+    
+    try {
+      console.log('💾 Saving draft:', { fileName, content: formData.content });
+      
+      const currentTab = openTabs.find(tab => tab.name === fileName || tab.filePath.includes(fileName));
+      
+      if (currentTab) {
+        // Convert form data to markdown format (same as normal form changes)
+        const markdownContent = convertFormDataToMarkdown(formData, platform, fileName);
+        
+        // Update file content in editor store
+        updateFileContent(currentTab.id, markdownContent);
+        updateFileStatus(currentTab.id, 'draft');
+        
+        console.log('✅ Draft saved successfully as markdown');
+      }
+      
+      // Also save to Convex database
+      const normalizedPlatform = platform === 'x' ? 'twitter' : platform;
+      if (normalizedPlatform === 'twitter' || normalizedPlatform === 'reddit') {
+        await upsertPost({
+          content: formData.content,
+          fileName: fileName,
+          fileType: normalizedPlatform,
+          status: 'draft',
+          platformData: JSON.stringify(formData.settings)
+        });
+        
+        console.log('✅ Draft saved to database');
+      }
+      
+    } catch (error) {
+      console.error('❌ Failed to save draft:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [fileName, formData, openTabs, updateFileContent, updateFileStatus, upsertPost, platform]);
+
+  // Handle publishing or scheduling
+  const handlePublish = useCallback(async () => {
+    setIsPublishing(true);
+    
+    try {
+      console.log('🚀 Publishing post:', { fileName, content: formData.content });
+      
+      const isScheduled = formData.settings.scheduledDate && formData.settings.scheduledTime;
+      const normalizedPlatform = platform === 'x' ? 'twitter' : platform;
+      
+      if (isScheduled) {
+        // Schedule the post
+        const scheduledDateTime = new Date(`${formData.settings.scheduledDate}T${formData.settings.scheduledTime}`);
+        
+        if (normalizedPlatform === 'twitter' || normalizedPlatform === 'reddit') {
+          await schedulePost({
+            content: formData.content,
+            fileName: fileName,
+            fileType: normalizedPlatform,
+            scheduledFor: scheduledDateTime.getTime(),
+            platformData: JSON.stringify(formData.settings)
+          });
+        }
+        
+        console.log('✅ Post scheduled successfully for:', scheduledDateTime);
+      } else {
+        // Publish immediately to actual platform
+        if (normalizedPlatform === 'twitter') {
+          // Check if we have a Twitter connection
+          if (!hasConnection) {
+            throw new Error('No X/Twitter connection found. Please connect your X account in Settings → Social Connections.');
+          }
+
+          // First update database status to 'posting'
+          await upsertPost({
+            content: formData.content,
+            fileName: fileName,
+            fileType: normalizedPlatform,
+            status: 'posting',
+            platformData: JSON.stringify(formData.settings)
+          });
+
+          // Actually post to Twitter using the API
+          const tweetResult = await postTweet({
+            text: formData.content,
+            reply_settings: formData.settings.replySettings as any || 'following'
+          });
+
+          if (tweetResult.success) {
+            // Update database with success status
+            await upsertPost({
+              content: formData.content,
+              fileName: fileName,
+              fileType: normalizedPlatform,
+              status: 'posted',
+              platformData: JSON.stringify(formData.settings)
+            });
+            console.log('✅ Post published successfully to Twitter:', tweetResult.data);
+          } else {
+            // Update database with failed status
+            await upsertPost({
+              content: formData.content,
+              fileName: fileName,
+              fileType: normalizedPlatform,
+              status: 'failed',
+              platformData: JSON.stringify(formData.settings)
+            });
+            throw new Error(tweetResult.error || 'Failed to publish to Twitter');
+          }
+        } else if (normalizedPlatform === 'reddit') {
+          // Reddit publishing (existing logic)
+          await upsertPost({
+            content: formData.content,
+            fileName: fileName,
+            fileType: normalizedPlatform,
+            status: 'posted',
+            platformData: JSON.stringify(formData.settings)
+          });
+          console.log('✅ Post published successfully to Reddit');
+        }
+      }
+      
+      // Update file status in editor
+      const currentTab = openTabs.find(tab => tab.name === fileName || tab.filePath.includes(fileName));
+      if (currentTab) {
+        updateFileStatus(currentTab.id, isScheduled ? 'scheduled' : 'complete');
+      }
+      
+    } catch (error) {
+      console.error('❌ Failed to publish post:', error);
+      // Show user-friendly error message
+      alert(`❌ Failed to publish post:\n\n${error instanceof Error ? error.message : 'Unknown error occurred'}`);
+    } finally {
+      setIsPublishing(false);
+    }
+  }, [fileName, formData, schedulePost, upsertPost, platform, openTabs, updateFileStatus, postTweet, hasConnection]);
 
   const getPlatformIcon = () => {
     switch (platform) {
@@ -377,6 +538,21 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
               </TabsList>
 
               <TabsContent value="compose" className="space-y-6">
+                {/* Connection Warning for Twitter */}
+                {(platform === 'x' || platform === 'twitter') && !hasConnection && (
+                  <Card className="bg-[#2d1b00] border-[#fbbf24]">
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-2 text-[#fbbf24]">
+                        <div className="w-4 h-4">⚠️</div>
+                        <span className="font-medium">X Account Not Connected</span>
+                      </div>
+                      <p className="text-sm text-[#fcd34d] mt-1">
+                        Connect your X account in Settings → Social Connections to enable real posting. You can still compose and save drafts.
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Scheduling Status Indicator */}
                 {currentPost?.status === 'scheduled' && currentPost?.scheduledFor && (
                   <Card className="bg-[#1a3f1a] border-[#4ade80]">
@@ -608,17 +784,27 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
 
             {/* Action Buttons */}
             <div className="flex gap-3 pt-4 border-t border-[#454545]">
-              <Button className={cn(
-                "flex-1",
-                platform === 'x' || platform === 'twitter' ? "bg-[#1DA1F2] hover:bg-[#1a8cd8]" :
-                platform === 'facebook' ? "bg-[#1877f2] hover:bg-[#166fe5]" :
-                platform === 'instagram' ? "bg-[#e4405f] hover:bg-[#d73549]" :
-                "bg-[#007acc] hover:bg-[#005a9e]"
-              )}>
-                {formData.settings.scheduledDate && formData.settings.scheduledTime ? 'Schedule Post' : 'Publish Now'}
+              <Button 
+                onClick={handlePublish}
+                disabled={isPublishing || isSaving || !formData.content.trim()}
+                className={cn(
+                  "flex-1",
+                  platform === 'x' || platform === 'twitter' ? "bg-[#1DA1F2] hover:bg-[#1a8cd8]" :
+                  platform === 'facebook' ? "bg-[#1877f2] hover:bg-[#166fe5]" :
+                  platform === 'instagram' ? "bg-[#e4405f] hover:bg-[#d73549]" :
+                  "bg-[#007acc] hover:bg-[#005a9e]"
+                )}
+              >
+                {isPublishing ? 'Publishing...' : 
+                 formData.settings.scheduledDate && formData.settings.scheduledTime ? 'Schedule Post' : 'Publish Now'}
               </Button>
-              <Button variant="outline" className="border-[#454545] text-[#cccccc] hover:bg-[#2d2d2d]">
-                Save Draft
+              <Button 
+                onClick={handleSaveDraft}
+                disabled={isSaving || isPublishing || !formData.content.trim()}
+                variant="outline" 
+                className="border-[#454545] text-[#cccccc] hover:bg-[#2d2d2d]"
+              >
+                {isSaving ? 'Saving...' : 'Save Draft'}
               </Button>
             </div>
           </div>

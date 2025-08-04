@@ -17,13 +17,11 @@ import {
   ChevronRight,
   Contact,
   Facebook,
-  Info,
   Instagram,
   Linkedin,
   MessageSquare,
   Music,
-  Twitter,
-  XCircle
+  Twitter
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -50,6 +48,8 @@ export function DashSocialConnections() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [isConnecting, setIsConnecting] = useState<{[key: string]: boolean}>({});
   const [error, setError] = useState<string | null>(null);
+  const [pendingTabOpen, setPendingTabOpen] = useState<string | null>(null);
+  const [pendingTabClose, setPendingTabClose] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<SocialFormData>({
     facebook: { username: '', apiKey: '', accessToken: '' },
@@ -103,13 +103,64 @@ export function DashSocialConnections() {
     }
   }, []);
 
+  // Handle opening platform instructions tab asynchronously
+  useEffect(() => {
+    if (pendingTabOpen) {
+      const { openTabs, closeTab } = useEditorStore.getState();
+      
+      // Close any existing platform instructions tab
+      const existingInstructionsTab = openTabs.find(tab => tab.type === 'platform-instructions');
+      if (existingInstructionsTab) {
+        closeTab(existingInstructionsTab.id);
+      }
+      
+      // Open instructions tab for the pending platform
+      openSpecialTab(
+        `${pendingTabOpen}-instructions`,
+        `${platformNames[pendingTabOpen as keyof typeof platformNames]} Connection Instructions`,
+        'platform-instructions'
+      );
+      
+      // Clear the pending state
+      setPendingTabOpen(null);
+    }
+  }, [pendingTabOpen, openSpecialTab, platformNames]);
+
+  // Handle closing platform instructions tab asynchronously
+  useEffect(() => {
+    if (pendingTabClose) {
+      const { openTabs, closeTab } = useEditorStore.getState();
+      
+      // Close the instructions tab for this platform
+      const instructionsTabId = `${pendingTabClose}-instructions`;
+      const instructionsTab = openTabs.find(tab => tab.id === instructionsTabId);
+      if (instructionsTab) {
+        closeTab(instructionsTabId);
+      }
+      
+      // Clear the pending state
+      setPendingTabClose(null);
+    }
+  }, [pendingTabClose]);
+
   const toggleSection = (section: string) => {
     setExpandedSections(prev => {
       const next = new Set(prev);
-      if (next.has(section)) {
+      const wasExpanded = next.has(section);
+      
+      if (wasExpanded) {
+        // Closing the section - defer tab closing to useEffect
         next.delete(section);
+        // Set pending tab to close asynchronously
+        setPendingTabClose(section);
       } else {
+        // Opening the section - defer tab opening to useEffect
+        // Close any currently expanded sections
+        next.clear();
         next.add(section);
+        
+        // Set pending tab to open asynchronously
+        setPendingTabOpen(section);
       }
       return next;
     });
@@ -127,7 +178,17 @@ export function DashSocialConnections() {
 
   const getConnectionStatus = (platform: string) => {
     const connection = connections?.find(conn => conn.platform === platform);
-    return connection?.isActive || false;
+    if (!connection?.isActive) return 'disconnected';
+    
+    // For OAuth platforms, check if they have access tokens
+    if (platform === 'reddit') {
+      return connection.accessToken ? 'authenticated' : 'connected';
+    } else if (platform === 'twitter') {
+      return connection.twitterAccessToken ? 'authenticated' : 'connected';
+    }
+    
+    // For other platforms, just check if active
+    return connection.isActive ? 'authenticated' : 'disconnected';
   };
 
   const getConnectionInfo = (platform: string) => {
@@ -204,6 +265,91 @@ export function DashSocialConnections() {
     }
   };
 
+  // Handle OAuth authorization for Reddit
+  const handleStartRedditOAuth = async (connectionId: string) => {
+    try {
+      // Get Reddit connection from Convex to get the client ID
+      const connection = connections?.find(c => c._id === connectionId);
+      const clientId = connection?.clientId || formData.reddit.clientId;
+      
+      if (!clientId) {
+        setError('Please enter your Reddit Client ID first');
+        return;
+      }
+
+      // Use environment variable to ensure consistency with backend
+      const redirectUri = 'http://localhost:3000/api/auth/reddit/callback';
+      console.log('🔗 Starting OAuth with redirect URI:', redirectUri);
+      
+      const scope = 'submit,identity,read'; // Added 'read' scope for analytics data
+      const state = connectionId; // Pass connection ID as state
+      
+      const authUrl = new URL('https://www.reddit.com/api/v1/authorize');
+      authUrl.searchParams.set('client_id', clientId);
+      authUrl.searchParams.set('response_type', 'code');
+      authUrl.searchParams.set('state', state);
+      authUrl.searchParams.set('redirect_uri', redirectUri);
+      authUrl.searchParams.set('duration', 'permanent');
+      authUrl.searchParams.set('scope', scope);
+      
+      // Redirect to Reddit authorization
+      window.location.href = authUrl.toString();
+
+    } catch (error) {
+      console.error('Failed to start Reddit OAuth:', error);
+      setError(error instanceof Error ? error.message : 'Failed to start OAuth');
+    }
+  };
+
+  // Handle OAuth authorization for Twitter/X
+  const handleStartXOAuth = async (connectionId: string) => {
+    try {
+      // Get X connection from Convex to get the client ID
+      const connection = connections?.find((c: any) => c._id === connectionId);
+      const clientId = connection?.twitterClientId || connection?.apiKey || formData.twitter.clientId;
+      
+      if (!clientId) {
+        setError('Please enter your X (Twitter) Client ID first');
+        return;
+      }
+
+      // Use environment variable to ensure consistency with backend
+      const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/auth/twitter/callback`;
+      console.log('🐦 Starting X OAuth with redirect URI:', redirectUri);
+      
+      const scope = 'tweet.read tweet.write users.read like.write offline.access'; // Complete scopes for dashboard
+      
+      // Generate PKCE challenge (simplified for demo - should be more secure)
+      const codeVerifier = btoa(Math.random().toString()).substring(0, 43);
+      const codeChallenge = codeVerifier; // In production, use SHA256 hash
+      
+      // Pass both connection ID and code verifier in state parameter
+      const state = JSON.stringify({
+        connectionId: connectionId,
+        codeVerifier: codeVerifier
+      });
+      
+      const authUrl = new URL('https://twitter.com/i/oauth2/authorize');
+      authUrl.searchParams.set('response_type', 'code');
+      authUrl.searchParams.set('client_id', clientId);
+      authUrl.searchParams.set('redirect_uri', redirectUri);
+      authUrl.searchParams.set('scope', scope);
+      authUrl.searchParams.set('state', encodeURIComponent(state));
+      authUrl.searchParams.set('code_challenge', codeChallenge);
+      authUrl.searchParams.set('code_challenge_method', 'plain'); // Simplified for demo
+      
+      console.log('🐦 OAuth URL:', authUrl.toString());
+      console.log('🐦 State being sent:', state);
+      
+      // Redirect to X authorization
+      window.location.href = authUrl.toString();
+
+    } catch (error) {
+      console.error('Failed to start X OAuth:', error);
+      setError(error instanceof Error ? error.message : 'Failed to start X OAuth');
+    }
+  };
+
   // Show sign-in prompt when not authenticated
   if (!isAuthenticated) {
     return (
@@ -255,7 +401,7 @@ export function DashSocialConnections() {
         <div className="space-y-1 mt-2">
           {platforms.map((platform) => {
             const Icon = platformIcons[platform];
-            const isConnected = getConnectionStatus(platform);
+            const connectionStatus = getConnectionStatus(platform);
             const connectionInfo = getConnectionInfo(platform);
             const isExpanded = expandedSections.has(platform);
             const isCurrentlyConnecting = isConnecting[platform];
@@ -278,12 +424,18 @@ export function DashSocialConnections() {
                   <div className="flex items-center gap-1">
                     {isCurrentlyConnecting ? (
                       <div className="w-3 h-3 border border-[#007acc] border-t-transparent rounded-full animate-spin" />
-                    ) : isConnected ? (
-                      <CheckCircle className="w-3 h-3 text-green-400" />
                     ) : (
-                      <XCircle className="w-3 h-3 text-red-400" />
+                      <div className="flex items-center gap-1">
+                        {/* Three-state connection status indicator */}
+                        {connectionStatus === 'authenticated' ? (
+                          <CheckCircle className="w-3 h-3 text-green-400" />
+                        ) : connectionStatus === 'connected' ? (
+                          <AlertCircle className="w-3 h-3 text-orange-400" />
+                        ) : (
+                          <div className="w-3 h-3 border border-[#858585] rounded-full" />
+                        )}
+                      </div>
                     )}
-                    <Info className="w-3 h-3 text-[#858585]" />
                   </div>
                 </button>
                 
@@ -291,13 +443,15 @@ export function DashSocialConnections() {
                   <div className="px-2 pb-2 space-y-2">
                     <Separator className="bg-[#2d2d2d]" />
                     
-                    {isConnected && connectionInfo ? (
-                      // Connected State
+                    {(connectionStatus === 'connected' || connectionStatus === 'authenticated') && connectionInfo ? (
+                      // Connected State (with or without OAuth)
                       <div className="space-y-2">
                         <div className="text-[10px] text-[#858585] space-y-1">
                           <div className="flex justify-between">
                             <span>Status:</span>
-                            <span className="text-green-400">✅ Connected</span>
+                            <span className={connectionStatus === 'authenticated' ? "text-green-400" : "text-orange-400"}>
+                              {connectionStatus === 'authenticated' ? "✅ Connected & Authorized" : "🟡 Connected (Auth Required)"}
+                            </span>
                           </div>
                           {connectionInfo.username && (
                             <div className="flex justify-between">
@@ -305,9 +459,78 @@ export function DashSocialConnections() {
                               <span className="text-[#cccccc] font-mono">{connectionInfo.username}</span>
                             </div>
                           )}
+                          {(platform === 'reddit' || platform === 'twitter') && (
+                            <div className="flex justify-between">
+                              <span>OAuth:</span>
+                              <span className={
+                                (platform === 'reddit' && connectionInfo.accessToken) || 
+                                (platform === 'twitter' && connectionInfo.twitterAccessToken) 
+                                  ? "text-green-400" : "text-orange-400"
+                              }>
+                                {(platform === 'reddit' && connectionInfo.accessToken) || 
+                                 (platform === 'twitter' && connectionInfo.twitterAccessToken)
+                                  ? "✅ Authorized" : "⚠️ Needs Auth"}
+                              </span>
+                            </div>
+                          )}
                         </div>
                         
                         <Separator className="bg-[#2d2d2d]" />
+                        
+                        {/* OAuth Authorization Section - only show if needs auth */}
+                        {((platform === 'reddit' && !connectionInfo.accessToken) || 
+                          (platform === 'twitter' && !connectionInfo.twitterAccessToken)) && (
+                          <div className="space-y-2">
+                            <div className="text-[10px] text-[#858585] uppercase font-medium">OAuth Required</div>
+                            <div className="text-[10px] text-[#cccccc] leading-relaxed">
+                              {platform === 'reddit' 
+                                ? 'Complete OAuth to enable Reddit posting'
+                                : 'Complete OAuth to enable Twitter posting'
+                              }
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-[#858585]">Authorize Access</span>
+                              <button
+                                onClick={() => {
+                                  if (platform === 'reddit') {
+                                    handleStartRedditOAuth(connectionInfo._id);
+                                  } else if (platform === 'twitter') {
+                                    handleStartXOAuth(connectionInfo._id);
+                                  }
+                                }}
+                                disabled={isCurrentlyConnecting}
+                                className="text-xs text-[#007acc] hover:text-[#1e90ff] underline-offset-2 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {platform === 'reddit' ? 'Authorize Reddit' : 'Authorize X'}
+                              </button>
+                            </div>
+                            <Separator className="bg-[#2d2d2d]" />
+                          </div>
+                        )}
+                        
+                        {/* Re-authorization option for already authorized connections */}
+                        {((platform === 'reddit' && connectionInfo.accessToken) || 
+                          (platform === 'twitter' && connectionInfo.twitterAccessToken)) && (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-[#858585]">Re-authorize</span>
+                              <button
+                                onClick={() => {
+                                  if (platform === 'reddit') {
+                                    handleStartRedditOAuth(connectionInfo._id);
+                                  } else if (platform === 'twitter') {
+                                    handleStartXOAuth(connectionInfo._id);
+                                  }
+                                }}
+                                disabled={isCurrentlyConnecting}
+                                className="text-xs text-[#858585] hover:text-[#cccccc] underline-offset-2 hover:underline disabled:opacity-50"
+                              >
+                                Re-authorize
+                              </button>
+                            </div>
+                            <Separator className="bg-[#2d2d2d]" />
+                          </div>
+                        )}
                         
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-[#858585]">Disconnect</span>
@@ -327,16 +550,9 @@ export function DashSocialConnections() {
                         
                         {/* Platform Connection Instructions Link */}
                         <div className="text-[10px]">
-                          <button
-                            onClick={() => openSpecialTab(
-                              `${platform}-instructions`,
-                              `${platformNames[platform]} Connection Instructions`,
-                              'platform-instructions'
-                            )}
-                            className="text-[#007acc] hover:text-[#1e90ff] underline-offset-2 hover:underline"
-                          >
-                            Find your connection instructions here →
-                          </button>
+                          <span className="text-[#858585]">
+                            Connection instructions opened automatically →
+                          </span>
                         </div>
                         
                         {/* Platform-specific form fields */}

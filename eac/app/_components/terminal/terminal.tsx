@@ -10,7 +10,7 @@ import { ResizablePanel } from "@/components/ui/resizable";
 import { useTerminalStore } from "@/store/terminal";
 import { useSessionStore } from "@/store/terminal/session";
 import { useConvexAuth } from "convex/react";
-import { AlertCircle, History, Settings, Terminal as TerminalIcon } from "lucide-react";
+import { Bell, History, Settings, Terminal as TerminalIcon } from "lucide-react";
 import { AgentsPanel, ChatMessages, SessionsPanel, SessionsRow } from "./_components";
 import { HistoryTab } from "./historyTab";
 
@@ -108,8 +108,8 @@ export function Terminal() {
                 className="rounded-none text-xs h-[25px] bg-transparent text-white opacity-60 px-3 min-w-[70px] flex items-center justify-center"
                 disabled
               >
-                <AlertCircle className="w-3 h-3 mr-1" />
-                Problems
+                <Bell className="w-3 h-3 mr-1" />
+                Alerts
               </button>
               <button
                 className="rounded-none text-xs h-[25px] bg-transparent text-white opacity-60 px-3 min-w-[70px] flex items-center justify-center"
@@ -142,10 +142,10 @@ export function Terminal() {
               </>
             )}
             {activeTab === "history" && <HistoryTab />}
-            {activeTab === "problems" && (
+            {activeTab === "alerts" && (
               <div className="flex-1 bg-[#0e0e0e] p-2 min-h-0">
                 <div className="text-xs text-[#858585]">
-                  No problems detected.
+                  No alerts at this time.
                 </div>
               </div>
             )}

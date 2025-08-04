@@ -47,8 +47,4 @@ export const useTerminalStore = create<TerminalState>((set, get) => ({
   setActiveTab: (tab: string) => {
     set({ activeTab: tab });
   }
-}));
-
-// Export session store
-export { useSessionStore } from './session';
-export type { ChatSession } from './session';
+})); 

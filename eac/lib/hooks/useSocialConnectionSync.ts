@@ -12,7 +12,12 @@ interface Connection {
   platform: string;
   username: string;
   isActive: boolean;
-  twitterAccessToken?: string;
+  // OAuth token fields
+  accessToken?: string; // For Reddit and general OAuth
+  twitterAccessToken?: string; // For Twitter specifically
+  // Additional fields that might be present
+  clientId?: string;
+  twitterClientId?: string;
 }
 
 export function useSocialConnectionSync(userId: string = 'temp-user-id') {

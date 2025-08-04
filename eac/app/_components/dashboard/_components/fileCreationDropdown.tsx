@@ -75,6 +75,7 @@ export function FileCreationDropdown({ isOpen, onClose, preselectedFolder, butto
               projectId: selectedFolder.convexId as Id<"projects">,
               content: getDefaultContentForType(newFileType),
               extension: getFileExtension(newFileType),
+              platform: getPlatformForFileType(newFileType),
               size: 0,
             });
             
@@ -121,6 +122,22 @@ export function FileCreationDropdown({ isOpen, onClose, preselectedFolder, butto
         return 'other';
       default:
         return 'other';
+    }
+  };
+
+  // Helper function to map editor file types to platform names
+  const getPlatformForFileType = (editorType: ProjectFile['type']): "facebook" | "instagram" | "twitter" | "linkedin" | "reddit" | "youtube" | undefined => {
+    switch (editorType) {
+      case 'facebook':
+        return 'facebook';
+      case 'instagram':
+        return 'instagram';
+      case 'x':
+        return 'twitter';
+      case 'reddit':
+        return 'reddit';
+      default:
+        return undefined;
     }
   };
 

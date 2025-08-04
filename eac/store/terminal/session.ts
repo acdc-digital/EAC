@@ -47,7 +47,7 @@ export const useSessionStore = create<SessionState>()(
     (set, get) => ({
       sessions: [],
       activeSessionId: null,
-      isSessionsPanelOpen: false,
+      isSessionsPanelOpen: true, // Default to open so Sessions view is shown by default
       isAgentsPanelOpen: false,
       
       setSessions: (sessions) => {

@@ -8,15 +8,15 @@ import { useEditorStore } from "@/store/editor";
 import { useUser } from "@clerk/nextjs";
 import { Authenticated, Unauthenticated, useConvexAuth } from "convex/react";
 import {
-  Bot,
-  Bug,
-  Calendar,
-  Contact,
-  FileText,
-  Info,
-  Puzzle,
-  Trash2,
-  User
+    Bot,
+    Bug,
+    Calendar,
+    Contact,
+    FileText,
+    Info,
+    Puzzle,
+    Trash2,
+    User
 } from "lucide-react";
 
 interface ActivityBarProps {

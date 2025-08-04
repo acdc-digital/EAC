@@ -5,32 +5,44 @@
 
 import { Separator } from "@/components/ui/separator";
 import { api } from "@/convex/_generated/api";
+import { useFileLoad } from "@/lib/hooks/useFileLoad";
 import { useProjects } from "@/lib/hooks/useProjects";
 import { useProjectSync } from "@/lib/hooks/useProjectSync";
 import { clearAllPersistedState, performFullSync } from "@/lib/utils/stateSync";
 import { useEditorStore, useScheduledPostsFromConvex } from "@/store";
+import { useChatStore } from "@/store/terminal/chat";
+import { useAuth } from "@clerk/nextjs";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import {
-  Activity,
-  AtSign,
-  Calendar,
-  CheckCircle,
-  ChevronDown,
-  ChevronRight,
-  Clock,
-  Database,
-  Eye,
-  FileText,
-  Hash,
-  Settings2,
-  Terminal,
-  Wifi,
-  XCircle
+    Activity,
+    AtSign,
+    Calendar,
+    CheckCircle,
+    ChevronDown,
+    ChevronRight,
+    Clock,
+    Database,
+    Eye,
+    FileText,
+    Hash,
+    RefreshCw,
+    Settings2,
+    Terminal,
+    Wifi,
+    XCircle
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export function DashDebug() {
   const { isAuthenticated } = useConvexAuth();
+  const { isSignedIn, userId } = useAuth();
+  
+  // Chat store for terminal configuration
+  const { messages, sessionId, streamingThinking, isStreamingThinking } = useChatStore();
+  
+  // File sync hook for debugging
+  const { allUserFiles, isLoading: fileSyncLoading, isSynced } = useFileLoad();
+  
   const [isExpanded, setIsExpanded] = useState({
     state: false,
     actions: false,
@@ -522,6 +534,73 @@ export function DashDebug() {
           )}
         </div>
         
+        {/* Terminal Configuration */}
+        <div className="rounded bg-[#1e1e1e] border border-[#2d2d2d]">
+          <button
+            onClick={() => toggleSection('terminal')}
+            className="w-full flex items-center gap-2 p-2 hover:bg-[#2d2d2d]/30 transition-colors"
+          >
+            {expandedSections.has('terminal') ? 
+              <ChevronDown className="w-3.5 h-3.5 text-[#858585]" /> : 
+              <ChevronRight className="w-3.5 h-3.5 text-[#858585]" />
+            }
+            <Terminal className="w-3.5 h-3.5 text-[#858585]" />
+            <span className="text-xs font-medium flex-1 text-left">Terminal Config</span>
+            <div className="flex items-center gap-1">
+              <CheckCircle className="w-3 h-3 text-green-400" />
+            </div>
+          </button>
+          
+          {expandedSections.has('terminal') && (
+            <div className="px-2 pb-2 space-y-2">
+              <Separator className="bg-[#2d2d2d]" />
+              
+              {/* Terminal Configuration Display */}
+              <div className="text-[10px] text-[#858585] space-y-1">
+                <div className="flex justify-between">
+                  <span>AI Thinking Mode:</span>
+                  <span className="text-xs text-green-400">
+                    ✅ Always Enabled
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Thinking Stream:</span>
+                  <span className="text-xs text-green-400">
+                    {isStreamingThinking ? '🔄 Active' : '✅ Ready'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Chat Messages:</span>
+                  <span className="text-xs text-[#cccccc]">
+                    {messages.length} stored
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Session Active:</span>
+                  <span className="text-xs text-green-400">
+                    ✅ {sessionId.slice(0, 12)}...
+                  </span>
+                </div>
+                {streamingThinking && (
+                  <div className="flex justify-between">
+                    <span>Current Thinking:</span>
+                    <span className="text-xs text-yellow-400">
+                      {streamingThinking.length} chars
+                    </span>
+                  </div>
+                )}
+              </div>
+              
+              <Separator className="bg-[#2d2d2d]" />
+              <div className="text-[10px] text-[#858585] p-1 bg-[#2d2d2d]/30 rounded">
+                💡 <strong>Thinking Mode:</strong><br />
+                AI reasoning is now permanently enabled for all terminal interactions. 
+                You'll always see the AI's thought process in real-time.
+              </div>
+            </div>
+          )}
+        </div>
+        
         {/* Calendar Debug */}
         <div className="rounded bg-[#1e1e1e] border border-[#2d2d2d]">
           <button
@@ -818,6 +897,68 @@ export function DashDebug() {
                   
                   <div className="text-xs text-[#4a4a4a] mt-2 px-1">
                     Files: {projectFiles.length + financialFiles.length} total, {[...projectFiles, ...financialFiles].filter(file => !file.content || file.content.trim() === '').length} empty
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* File Sync */}
+        <div className="rounded bg-[#1e1e1e] border border-[#2d2d2d]">
+          <button
+            onClick={() => toggleSection('filesync')}
+            className="w-full flex items-center gap-2 p-2 hover:bg-[#2d2d2d]/30 transition-colors"
+          >
+            {expandedSections.has('filesync') ? 
+              <ChevronDown className="w-3.5 h-3.5 text-[#858585]" /> : 
+              <ChevronRight className="w-3.5 h-3.5 text-[#858585]" />
+            }
+            <RefreshCw className="w-3.5 h-3.5 text-[#858585]" />
+            <span className="text-xs font-medium flex-1 text-left">File Sync</span>
+            <div className="flex items-center gap-1">
+              {fileSyncLoading && <Clock className="w-3 h-3 text-yellow-400" />}
+              {!fileSyncLoading && isSynced && <CheckCircle className="w-3 h-3 text-green-400" />}
+              {!fileSyncLoading && !isSynced && <XCircle className="w-3 h-3 text-red-400" />}
+            </div>
+          </button>
+          
+          {expandedSections.has('filesync') && (
+            <div className="px-2 pb-2 space-y-2">
+              <Separator className="bg-[#2d2d2d]" />
+              <div className="px-1 space-y-2">
+                <div className="text-xs text-[#858585] mb-2">Database to Store synchronization</div>
+                
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-[#858585]">Authenticated</span>
+                    <span className="text-xs text-[#cccccc]">{isSignedIn ? '✅' : '❌'}</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-[#858585]">DB Files</span>
+                    <span className="text-xs text-[#cccccc]">{allUserFiles?.length || 0}</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-[#858585]">Store Files</span>
+                    <span className="text-xs text-[#cccccc]">{projectFiles.length}</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-[#858585]">Sync Status</span>
+                    <span className="text-xs text-[#cccccc]">{isSynced ? '✅' : '⏳'}</span>
+                  </div>
+                  
+                  {userId && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-[#858585]">User ID</span>
+                      <span className="text-xs text-[#cccccc] font-mono">{userId.slice(-6)}</span>
+                    </div>
+                  )}
+                  
+                  <div className="text-xs text-[#4a4a4a] mt-2 px-1">
+                    Syncing {allUserFiles?.length || 0} database files to store
                   </div>
                 </div>
               </div>

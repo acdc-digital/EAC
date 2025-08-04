@@ -104,6 +104,17 @@ export function useFileLoad() {
   const syncedRef = useRef<boolean>(false);
   const lastSyncRef = useRef<string>('');
 
+  // Add debugging for authentication and data loading
+  useEffect(() => {
+    console.log('🔍 useFileLoad Debug:', {
+      isSignedIn,
+      allUserFilesLength: allUserFiles?.length,
+      allProjectsLength: allProjects?.length,
+      allUserFilesState: allUserFiles === undefined ? 'loading' : allUserFiles === null ? 'null' : 'loaded',
+      allProjectsState: allProjects === undefined ? 'loading' : allProjects === null ? 'null' : 'loaded'
+    });
+  }, [isSignedIn, allUserFiles, allProjects]);
+
   // Aggressive sync: Replace local files with database files
   useEffect(() => {
     if (!isSignedIn || !allUserFiles || !allProjects) return;
