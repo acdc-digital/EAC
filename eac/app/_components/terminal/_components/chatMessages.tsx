@@ -59,6 +59,7 @@ export function ChatMessages() {
   const createProject = useMutation(api.projects.createProject);
   const createFile = useMutation(api.files.createFile);
   const allPosts = useQuery(api.socialPosts.getAllPosts, {});
+  const allProjects = useQuery(api.projects.getProjects, {});
   const instructionContext = useInstructionContext();
   const { isLoading: instructionsLoading } = useInstructions();
   const { createNewFile } = useEditorStore();
@@ -283,6 +284,9 @@ ${content}
           status: params.status || 'active',
           budget: params.budget,
         });
+      },
+      getProjects: async () => {
+        return allProjects || [];
       },
       createFile: async (params: any) => {
         return await createFile({

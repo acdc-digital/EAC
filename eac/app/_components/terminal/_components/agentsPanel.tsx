@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { useAgentStore } from "@/store";
 import { useSessionStore } from "@/store/terminal/session";
 import { useConvexAuth } from "convex/react";
-import { Bot, MessageSquare } from "lucide-react";
+import { Bot, Calendar, FilePlus, FileText, LucideIcon, MessageSquare, Twitter } from "lucide-react";
 import { useState } from "react";
 
 interface AgentsPanelProps {
@@ -22,6 +22,21 @@ export function AgentsPanel({ className }: AgentsPanelProps) {
   const { agents, activeAgentId, setActiveAgent } = useAgentStore();
   const { availableTools: mcpTools } = useMCP();
   const [selectedToolId, setSelectedToolId] = useState<string | null>(null);
+
+  // Map icon strings to Lucide React components
+  const getIconComponent = (iconName: string): LucideIcon => {
+    console.log('Getting icon for:', iconName);
+    const iconMap: Record<string, LucideIcon> = {
+      'FileText': FileText,
+      'FilePlus': FilePlus,
+      'Calendar': Calendar,
+      'Twitter': Twitter,
+      'Bot': Bot,
+    };
+    const icon = iconMap[iconName] || Bot;
+    console.log('Mapped to:', icon.name || 'Bot');
+    return icon;
+  };
 
   const handleBackToChat = () => {
     setAgentsPanelOpen(false);
@@ -37,29 +52,32 @@ export function AgentsPanel({ className }: AgentsPanelProps) {
   };
 
   // Flatten all agent tools into a single list with metadata
-  const allAgentTools = agents.flatMap(agent => 
-    agent.tools.map(tool => ({
+  const allAgentTools = agents.flatMap(agent => {
+    console.log('Agent:', agent.name, 'Icon:', agent.icon);
+    return agent.tools.map(tool => ({
       ...tool,
       agentId: agent.id,
       agentName: agent.name,
+      agentIcon: agent.icon,
       type: 'agent' as const,
       isActive: activeAgentId === agent.id
-    }))
-  );
+    }));
+  });
 
   // Format MCP tools to match agent tools structure
-  const allMcpTools = (mcpTools || []).map(tool => ({
-    id: tool.name,
-    name: tool.name,
-    command: `/${tool.name}`,
-    description: tool.description,
-    agentId: 'mcp',
-    agentName: 'MCP Server',
-    type: 'mcp' as const,
-    isActive: false
-  }));
+  // const allMcpTools = (mcpTools || []).map(tool => ({
+  //   id: tool.name,
+  //   name: tool.name,
+  //   command: `/${tool.name}`,
+  //   description: tool.description,
+  //   agentId: 'mcp',
+  //   agentName: 'MCP Server',
+  //   type: 'mcp' as const,
+  //   isActive: false
+  // }));
 
-  const allTools = [...allAgentTools, ...allMcpTools];
+  // Temporarily comment out MCP tools from terminal selection
+  const allTools = [...allAgentTools]; // ...allMcpTools];
 
   if (!isAuthenticated) {
     return (
@@ -88,6 +106,7 @@ export function AgentsPanel({ className }: AgentsPanelProps) {
             {/* Table Header - Fixed */}
             <div className="sticky top-0 z-10 flex items-center px-3 py-1.5 bg-[#2d2d30] border-b border-[#454545] text-xs text-[#858585]">
               <div className="flex-shrink-0 w-16">Select</div>
+              <div className="flex-shrink-0 w-8">Icon</div>
               <div className="flex-shrink-0 w-24">Agent</div>
               <div className="flex-shrink-0 w-32">Tool</div>
               <div className="flex-1 px-2">Description</div>
@@ -123,6 +142,17 @@ export function AgentsPanel({ className }: AgentsPanelProps) {
                       <div className="w-4 h-4 rounded-sm border border-[#454545] bg-[#333] flex items-center justify-center">
                         <span className="text-[10px] text-[#858585] font-bold">M</span>
                       </div>
+                    )}
+                  </div>
+                  <div className="flex-shrink-0 w-8 flex items-center justify-center">
+                    {tool.type === 'agent' && 'agentIcon' in tool ? (
+                      (() => {
+                        console.log('Rendering icon for tool:', tool.name, 'agentIcon:', tool.agentIcon);
+                        const IconComponent = getIconComponent(tool.agentIcon as string);
+                        return <IconComponent className="w-4 h-4 text-[#858585]" />;
+                      })()
+                    ) : (
+                      <Bot className="w-4 h-4 text-[#858585]" />
                     )}
                   </div>
                   <div className="flex-shrink-0 w-24 text-xs text-[#cccccc]">

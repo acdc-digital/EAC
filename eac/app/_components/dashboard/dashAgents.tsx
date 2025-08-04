@@ -5,7 +5,7 @@
 
 import { useMCP } from "@/lib/hooks/useMCP";
 import { useAgentStore } from "@/store";
-import { AtSign, Bot, Calendar, ChevronDown, ChevronRight, Command, FileText, Search, Terminal } from "lucide-react";
+import { AtSign, Bot, Calendar, ChevronDown, ChevronRight, Command, FilePlus, FileText, Search, Terminal } from "lucide-react";
 import { useState } from "react";
 
 // Icon mapping for agent icons
@@ -16,6 +16,7 @@ const iconMap = {
   Command,
   AtSign,
   Calendar,
+  FilePlus
   // Add more icons as needed
 } as const;
 
@@ -108,7 +109,7 @@ export function DashAgents() {
                     {(() => {
                       if (agent.icon in iconMap) {
                         const IconComponent = iconMap[agent.icon as keyof typeof iconMap];
-                        return <IconComponent className="w-3.5 h-3.5 text-[#858585]" />;
+                        return <IconComponent className="w-4 h-4 text-[#858585]" />;
                       } else {
                         return <span className="text-[#858585] text-sm">{agent.icon}</span>;
                       }
@@ -168,9 +169,14 @@ export function DashAgents() {
           })}
         </div>
 
-        {/* MCP Tools Section */}
+        {/* Admin Tools Section */}
         {mcpTools && mcpTools.length > 0 && (
           <div className="mt-3">
+            {/* Admin Tools Sub-heading */}
+            <div className="flex items-center justify-between text-[10px] uppercase text-[#858585] px-2 py-1 mb-2">
+              <span>Admin Tools</span>
+            </div>
+            
             <div className="p-2 rounded bg-[#1e1e1e] border border-[#2d2d2d]">
               <div className="flex items-center gap-2 mb-1">
                 <Terminal className="w-3.5 h-3.5 text-[#858585]" />

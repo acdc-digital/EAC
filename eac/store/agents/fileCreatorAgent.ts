@@ -25,6 +25,13 @@ export class FileCreatorAgent extends BaseAgent {
   description = 'Creates files in existing projects using natural language with project selection';
   icon = 'FilePlus';
 
+  // State to track pending file creation
+  private static pendingFileCreation: {
+    fileDetails: FileCreationDetails;
+    projects: any[];
+    timestamp: number;
+  } | null = null;
+
   // Predefined file type options
   private fileTypeOptions: FileTypeOption[] = [
     {
@@ -112,6 +119,22 @@ export class FileCreatorAgent extends BaseAgent {
     const normalizedInput = input.toLowerCase().trim();
     console.log('🔍 Processing file creation input:', normalizedInput);
 
+    // Check for pending file creation (project selection response)
+    if (FileCreatorAgent.pendingFileCreation) {
+      const pendingAge = Date.now() - FileCreatorAgent.pendingFileCreation.timestamp;
+      
+      // If pending request is less than 5 minutes old, try to handle as project selection
+      if (pendingAge < 5 * 60 * 1000) {
+        const projectSelectionResult = await this.handleProjectSelection(input, convexMutations);
+        if (projectSelectionResult) {
+          return projectSelectionResult;
+        }
+      } else {
+        // Clear expired pending request
+        FileCreatorAgent.pendingFileCreation = null;
+      }
+    }
+
     // Check if this is a help request
     if (this.isHelpRequest(normalizedInput)) {
       return this.getHelpMessage();
@@ -132,11 +155,79 @@ export class FileCreatorAgent extends BaseAgent {
 
     // If no project specified, ask for project selection
     if (!fileDetails.projectName) {
-      return this.getProjectSelectionPrompt(fileDetails);
+      return await this.getProjectSelectionPrompt(fileDetails, convexMutations);
     }
 
     // Create the file
     return await this.createFile(fileDetails, convexMutations);
+  }
+
+  /**
+   * Handle project selection response
+   */
+  private async handleProjectSelection(input: string, convexMutations: ConvexMutations): Promise<string | null> {
+    if (!FileCreatorAgent.pendingFileCreation) {
+      return null;
+    }
+
+    const { fileDetails, projects } = FileCreatorAgent.pendingFileCreation;
+    const normalizedInput = input.toLowerCase().trim();
+
+    let selectedProject: any = null;
+
+    // Try to match by number (e.g., "1", "2", "3")
+    const numberMatch = input.match(/^\d+$/);
+    if (numberMatch) {
+      const index = parseInt(numberMatch[0]) - 1;
+      if (index >= 0 && index < projects.length) {
+        selectedProject = projects[index];
+      }
+    }
+
+    // Try to match by project name patterns
+    if (!selectedProject) {
+      const projectSelectionPatterns = [
+        /(?:add.*to|put.*in|create.*for|use|select)\s+[\"\']?([^\"\']+?)[\"\']?$/i,
+        /^[\"\']?([^\"\']+?)[\"\']?$/i // Just the project name
+      ];
+
+      for (const pattern of projectSelectionPatterns) {
+        const match = input.match(pattern);
+        if (match && match[1]) {
+          const projectName = match[1].trim().toLowerCase();
+          selectedProject = projects.find((p: any) => 
+            p.name.toLowerCase().includes(projectName) || 
+            projectName.includes(p.name.toLowerCase())
+          );
+          if (selectedProject) break;
+        }
+      }
+    }
+
+    if (!selectedProject) {
+      // Re-show project selection with error message
+      let result = `❌ **Project not found.** Please select from the available projects:\n\n`;
+      result += `**📁 Available Projects:**\n`;
+      projects.forEach((project: any, index: number) => {
+        result += `${index + 1}. **${project.name}**\n`;
+      });
+      result += `\n**💡 You can:**\n`;
+      result += `• Type a number (e.g., "1", "2")\n`;
+      result += `• Type the project name (e.g., "${projects[0]?.name}")\n`;
+      result += `• Or say "add it to ${projects[0]?.name}"\n`;
+      return result;
+    }
+
+    // Clear pending state
+    FileCreatorAgent.pendingFileCreation = null;
+
+    // Create the file with selected project
+    const updatedFileDetails = {
+      ...fileDetails,
+      projectName: selectedProject.name
+    };
+
+    return await this.createFile(updatedFileDetails, convexMutations);
   }
 
   /**
@@ -243,10 +334,11 @@ export class FileCreatorAgent extends BaseAgent {
       extension = '.md';
     }
 
-    // Extract project name (words after "for", "in", "to")
+    // Extract project name (only very explicit project mentions)
     const projectPatterns = [
-      /(?:for|in|to)\s+(?:the\s+)?(?:project\s+)?[\"\']?([^\"\']+?)[\"\']?(?:\s+project)?(?:\s*$)/i,
-      /project\s+[\"\']?([^\"\']+?)[\"\']?/i
+      /(?:for|in|to)\s+(?:the\s+)?project\s+[\"\']?([^\"\']+?)[\"\']?(?:\s*$)/i,
+      /project\s+[\"\']([^\"\']+)[\"\']?/i,
+      /in\s+[\"\']([^\"\']+)[\"\']?\s+project/i
     ];
 
     for (const pattern of projectPatterns) {
@@ -289,18 +381,32 @@ export class FileCreatorAgent extends BaseAgent {
         return '❌ File creation is not available. Please check system configuration.';
       }
 
+      if (!convexMutations.getProjects) {
+        return '❌ Project lookup is not available. Please check system configuration.';
+      }
+
+      // Look up the actual project ID by name
+      const projects = await convexMutations.getProjects();
+      const targetProject = projects.find((p: any) => 
+        p.name.toLowerCase() === fileDetails.projectName?.toLowerCase()
+      );
+
+      if (!targetProject) {
+        return `❌ **Project Not Found**\n\nCould not find a project named "${fileDetails.projectName}". Please check the project name and try again.\n\n**Available projects:**\n${projects.map((p: any) => `• ${p.name}`).join('\n')}`;
+      }
+
       // Find the file type option for content template
       const fileTypeOption = this.fileTypeOptions.find(option => option.type === fileDetails.fileType);
       
       // Generate content from template
       const content = this.generateFileContent(fileDetails, fileTypeOption);
 
-      // Create the file (Note: In real implementation, we'd need to lookup the actual project ID)
+      // Create the file with the actual project ID
       const newFile = await convexMutations.createFile({
         name: fileDetails.fileName,
         content: content,
         type: this.mapToConvexFileType(fileDetails.fileType),
-        projectId: 'project-lookup-needed' // Would need actual project lookup in real implementation
+        projectId: targetProject._id // Use the actual project ID
       });
 
       let result = `✅ **File Created Successfully!**\n\n`;
@@ -388,22 +494,60 @@ Type your request or say "**file types**" to see all available options! 🚀`;
   /**
    * Get project selection prompt when project is not specified
    */
-  private getProjectSelectionPrompt(fileDetails: FileCreationDetails): string {
-    return `🤖 **Almost There! Which Project?**
+  private async getProjectSelectionPrompt(fileDetails: FileCreationDetails, convexMutations: ConvexMutations): Promise<string> {
+    try {
+      if (!convexMutations.getProjects) {
+        return `🤖 **Almost There! Which Project?**
 
 I'm ready to create your **${fileDetails.fileType}** file: \`${fileDetails.fileName}\`
 
-**📁 Please specify which project to add it to:**
+**📁 Please specify which project to add it to.**
 
-**Examples:**
-• "Add it to Marketing Campaign"
-• "Put it in Development Project"  
-• "Create it for Q1 Budget Planning"
-
-**🎯 Just tell me the project name and I'll create your file!**
-
-**💡 Tip:** You can also say the full command like:
+**💡 Tip:** You can say something like:
 "Create ${fileDetails.fileName} for [Your Project Name]"`;
+      }
+
+      // Fetch available projects
+      const projects = await convexMutations.getProjects();
+      
+      let result = `🤖 **Almost There! Which Project?**\n\n`;
+      result += `I'm ready to create your **${fileDetails.fileType}** file: \`${fileDetails.fileName}\`\n\n`;
+      result += `**📁 Available Projects:**\n`;
+      
+      if (projects && projects.length > 0) {
+        // Store pending file creation state
+        FileCreatorAgent.pendingFileCreation = {
+          fileDetails,
+          projects,
+          timestamp: Date.now()
+        };
+
+        projects.forEach((project: any, index: number) => {
+          result += `${index + 1}. **${project.name}**\n`;
+        });
+        
+        result += `\n**🎯 Select a project:**\n`;
+        result += `• Type a number: **1**, **2**, **3**, etc.\n`;
+        result += `• Type the name: **${projects[0]?.name}**\n`;
+        result += `• Or say: "**add it to ${projects[0]?.name}**"\n\n`;
+        result += `💡 **Next message:** Just type your selection!`;
+      } else {
+        result += `No projects found. Please create a project first or specify a project name.\n`;
+      }
+
+      return result;
+      
+    } catch (error) {
+      console.error('Error fetching projects for selection:', error);
+      return `🤖 **Almost There! Which Project?**
+
+I'm ready to create your **${fileDetails.fileType}** file: \`${fileDetails.fileName}\`
+
+**📁 Please specify which project to add it to.**
+
+**💡 Tip:** You can say something like:
+"Create ${fileDetails.fileName} for [Your Project Name]"`;
+    }
   }
 
   /**

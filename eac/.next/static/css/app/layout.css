@@ -88,6 +88,8 @@
     --text-xl--line-height: calc(1.75 / 1.25);
     --text-2xl: 1.5rem;
     --text-2xl--line-height: calc(2 / 1.5);
+    --text-3xl: 1.875rem;
+    --text-3xl--line-height: calc(2.25 / 1.875);
     --font-weight-normal: 400;
     --font-weight-medium: 500;
     --font-weight-semibold: 600;
@@ -1373,6 +1375,9 @@
   .border-\[\#f48771\] {
     border-color: #f48771;
   }
+  .border-\[\#fbbf24\] {
+    border-color: #fbbf24;
+  }
   .border-\[\#ff4500\] {
     border-color: #ff4500;
   }
@@ -1405,6 +1410,15 @@
   }
   .border-border {
     border-color: var(--border);
+  }
+  .border-current {
+    border-color: currentcolor;
+  }
+  .border-destructive\/20 {
+    border-color: var(--destructive);
+    @supports (color: color-mix(in lab, red, red)) {
+      border-color: color-mix(in oklab, var(--destructive) 20%, transparent);
+    }
   }
   .border-gray-300 {
     border-color: var(--color-gray-300);
@@ -1576,6 +1590,9 @@
   }
   .bg-\[\#2a2a2a\] {
     background-color: #2a2a2a;
+  }
+  .bg-\[\#2d1b00\] {
+    background-color: #2d1b00;
   }
   .bg-\[\#2d2d2d\] {
     background-color: #2d2d2d;
@@ -1774,6 +1791,12 @@
   }
   .bg-destructive {
     background-color: var(--destructive);
+  }
+  .bg-destructive\/10 {
+    background-color: var(--destructive);
+    @supports (color: color-mix(in lab, red, red)) {
+      background-color: color-mix(in oklab, var(--destructive) 10%, transparent);
+    }
   }
   .bg-gray-50 {
     background-color: var(--color-gray-50);
@@ -2220,6 +2243,10 @@
     font-size: var(--text-2xl);
     line-height: var(--tw-leading, var(--text-2xl--line-height));
   }
+  .text-3xl {
+    font-size: var(--text-3xl);
+    line-height: var(--tw-leading, var(--text-3xl--line-height));
+  }
   .text-base {
     font-size: var(--text-base);
     line-height: var(--tw-leading, var(--text-base--line-height));
@@ -2251,6 +2278,9 @@
   }
   .text-\[10px\] {
     font-size: 10px;
+  }
+  .text-\[12px\] {
+    font-size: 12px;
   }
   .leading-5 {
     --tw-leading: calc(var(--spacing) * 5);
@@ -2431,6 +2461,9 @@
   .text-\[\#fbbf24\] {
     color: #fbbf24;
   }
+  .text-\[\#fcd34d\] {
+    color: #fcd34d;
+  }
   .text-\[\#ff6b6b\] {
     color: #ff6b6b;
   }
@@ -2481,6 +2514,9 @@
   }
   .text-cyan-400 {
     color: var(--color-cyan-400);
+  }
+  .text-destructive {
+    color: var(--destructive);
   }
   .text-emerald-500 {
     color: var(--color-emerald-500);
@@ -4771,6 +4807,21 @@
     &:last-child[data-selected=true] button {
       border-top-right-radius: calc(var(--radius) - 2px);
       border-bottom-right-radius: calc(var(--radius) - 2px);
+    }
+  }
+  .\[\&\>div\]\:bg-destructive {
+    &>div {
+      background-color: var(--destructive);
+    }
+  }
+  .\[\&\>div\]\:bg-primary {
+    &>div {
+      background-color: var(--primary);
+    }
+  }
+  .\[\&\>div\]\:bg-yellow-500 {
+    &>div {
+      background-color: var(--color-yellow-500);
     }
   }
   .\[\&\>span\]\:text-xs {

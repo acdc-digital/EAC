@@ -51,6 +51,7 @@ export interface ConvexMutations {
     status?: 'active' | 'completed' | 'on-hold';
     budget?: number;
   }) => Promise<unknown>;
+  getProjects?: () => Promise<any[]>; // Add getProjects query
   createFile?: (params: {
     name: string;
     type: 'post' | 'campaign' | 'note' | 'document' | 'image' | 'video' | 'other';
