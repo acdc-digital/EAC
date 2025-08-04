@@ -181,13 +181,23 @@ export const getUserSessions = query({
       return [];
     }
     
+    // Get all deleted sessions for this user
+    const deletedSessions = await ctx.db
+      .query("chatSessions")
+      .withIndex("by_user_not_deleted", (q) => 
+        q.eq("userId", userId).eq("isDeleted", true)
+      )
+      .collect();
+    
+    const deletedSessionIds = new Set(deletedSessions.map(s => s.sessionId));
+    
     // Get all messages for this user
     const messages = await ctx.db
       .query("chatMessages")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
     
-    // Extract unique sessions with metadata
+    // Extract unique sessions with metadata, excluding deleted ones
     const sessionMap = new Map<string, {
       sessionId: string;
       lastActivity: number;
@@ -196,7 +206,7 @@ export const getUserSessions = query({
     }>();
     
     messages.forEach(message => {
-      if (message.sessionId) {
+      if (message.sessionId && !deletedSessionIds.has(message.sessionId)) {
         const existing = sessionMap.get(message.sessionId);
         if (!existing) {
           sessionMap.set(message.sessionId, {
@@ -218,5 +228,58 @@ export const getUserSessions = query({
     // Convert to array and sort by last activity
     return Array.from(sessionMap.values())
       .sort((a, b) => b.lastActivity - a.lastActivity);
+  },
+});
+
+// Mutation to soft delete a chat session (user-specific)
+export const deleteSession = mutation({
+  args: {
+    sessionId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Get authenticated user
+    const userId = await getCurrentUserIdOptional(ctx);
+    if (!userId) {
+      throw new Error("Authentication required to delete session");
+    }
+
+    // Find existing chatSessions record for this sessionId and user
+    const existingSession = await ctx.db
+      .query("chatSessions")
+      .withIndex("by_session_id", (q) => q.eq("sessionId", args.sessionId))
+      .filter((q) => q.eq(q.field("userId"), userId))
+      .first();
+
+    if (existingSession) {
+      // Update existing session record
+      await ctx.db.patch(existingSession._id, {
+        isDeleted: true,
+        lastActivity: Date.now(), // Update timestamp for audit trail
+      });
+    } else {
+      // Create a new session record marked as deleted
+      // This handles cases where session was derived from messages but no session record exists
+      await ctx.db.insert("chatSessions", {
+        sessionId: args.sessionId,
+        userId: userId,
+        totalTokens: 0,
+        totalInputTokens: 0,
+        totalOutputTokens: 0,
+        totalCost: 0,
+        messageCount: 0,
+        isActive: false,
+        isDeleted: true,
+        maxTokensAllowed: 180000,
+        createdAt: Date.now(),
+        lastActivity: Date.now(),
+        title: "Deleted Session",
+        preview: "This session has been deleted",
+      });
+    }
+
+    // Note: We keep the chat messages in the database for data integrity,
+    // but they won't be shown in the UI since the session is marked as deleted
+    
+    return { success: true, deletedSessionId: args.sessionId };
   },
 });

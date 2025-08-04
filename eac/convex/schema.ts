@@ -59,6 +59,7 @@ export default defineSchema({
     totalCost: v.number(), // Total estimated cost in USD for this session
     messageCount: v.number(), // Number of messages in this session
     isActive: v.boolean(), // Whether this session is still active
+    isDeleted: v.optional(v.boolean()), // Soft delete flag - hidden from UI when true
     maxTokensAllowed: v.number(), // Maximum tokens allowed for this session (default: 180000)
     createdAt: v.number(),
     lastActivity: v.number(),
@@ -68,7 +69,8 @@ export default defineSchema({
   }).index("by_session_id", ["sessionId"])
     .index("by_user", ["userId", "createdAt"])
     .index("by_user_active", ["userId", "isActive", "lastActivity"])
-    .index("by_active", ["isActive", "lastActivity"]),
+    .index("by_active", ["isActive", "lastActivity"])
+    .index("by_user_not_deleted", ["userId", "isDeleted", "lastActivity"]),
   
   // Add more tables as needed for your EAC dashboard
   projects: defineTable({

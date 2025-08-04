@@ -9,6 +9,7 @@ import { useAgentStore } from "@/store";
 import { useChatStore } from "@/store/terminal/chat";
 import { useSessionStore } from "@/store/terminal/session";
 import { useConvexAuth, useQuery } from "convex/react";
+import { Bot } from "lucide-react";
 import { useEffect } from "react";
 
 interface SessionsRowProps {
@@ -152,14 +153,23 @@ export function SessionsRow({ className }: SessionsRowProps) {
         </button>
       </div>
 
-      {/* Active Agent Indicator */}
-      {activeAgentId && (
-        <div className="px-3">
+      {/* Right Side - Active Agent & Thinking Indicator */}
+      <div className="flex items-center gap-3 px-3">
+        {/* Active Agent Indicator */}
+        {activeAgentId && (
           <span className="text-xs font-medium text-[#4fc3f7]">
             {agents.find(agent => agent.id === activeAgentId)?.name || 'Unknown Agent'}
           </span>
+        )}
+        
+        {/* Thinking Active Indicator */}
+        <div 
+          className="flex items-center"
+          title="AI Thinking Active - Enhanced reasoning enabled for all conversations"
+        >
+          <Bot className="w-3.5 h-3.5 text-white" />
         </div>
-      )}
+      </div>
     </div>
   );
 }

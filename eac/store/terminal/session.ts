@@ -23,6 +23,7 @@ interface SessionState {
   addSession: (session: ChatSession) => void;
   updateSession: (sessionId: string, updates: Partial<ChatSession>) => void;
   removeSession: (sessionId: string) => void;
+  deleteSession: (sessionId: string) => void; // New function for soft delete
   setActiveSession: (sessionId: string | null) => void;
   
   // UI state
@@ -82,6 +83,12 @@ export const useSessionStore = create<SessionState>()(
             activeSessionId: newActiveSessionId
           };
         });
+      },
+      
+      deleteSession: (sessionId) => {
+        // This is a placeholder that will be replaced with Convex mutation call
+        // The actual deletion logic will be handled by the component using useMutation
+        get().removeSession(sessionId);
       },
       
       setActiveSession: (sessionId) => {
