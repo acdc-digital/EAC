@@ -52,6 +52,11 @@ export const storeChatMessage = mutation({
       ),
       details: v.optional(v.any()),
     })),
+    processIndicator: v.optional(v.object({
+      type: v.union(v.literal("continuing"), v.literal("waiting")),
+      processType: v.string(),
+      color: v.union(v.literal("blue"), v.literal("green")),
+    })),
   },
   handler: async (ctx, args) => {
     // Get authenticated user - only store messages if authenticated
@@ -68,6 +73,7 @@ export const storeChatMessage = mutation({
       userId: userId,
       createdAt: Date.now(),
       ...(args.operation && { operation: args.operation }),
+      ...(args.processIndicator && { processIndicator: args.processIndicator }),
     });
     
     return messageId;

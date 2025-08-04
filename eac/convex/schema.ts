@@ -31,6 +31,12 @@ export default defineSchema({
       ),
       details: v.optional(v.any()),
     })),
+    // Process indicator for visual continuity in multi-step agent interactions
+    processIndicator: v.optional(v.object({
+      type: v.union(v.literal("continuing"), v.literal("waiting")),
+      processType: v.string(),
+      color: v.union(v.literal("blue"), v.literal("green")),
+    })),
   }).index("by_created_at", ["createdAt"])
     .index("by_session", ["sessionId", "createdAt"])
     .index("by_user", ["userId", "createdAt"])

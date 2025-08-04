@@ -19,6 +19,16 @@ export function ChatMessages() {
   const inputRef = useRef<HTMLInputElement>(null);
   const processedOperations = useRef<Set<string>>(new Set());
   const [message, setMessage] = useState("");
+  const [activeAgentProcess, setActiveAgentProcess] = useState<{
+    agentId: string;
+    processType: string;
+    timestamp: number;
+  } | null>(null);
+
+  // Debug logging for activeAgentProcess changes
+  useEffect(() => {
+    console.log('activeAgentProcess changed:', activeAgentProcess);
+  }, [activeAgentProcess]);
 
   
   const { user, isLoaded } = useUser();
@@ -88,6 +98,20 @@ export function ChatMessages() {
       setSessionId(activeSessionId);
     }
   }, [activeSessionId, sessionId, setSessionId]);
+
+  // Clear active agent process after timeout
+  useEffect(() => {
+    if (activeAgentProcess) {
+      const timeout = setTimeout(() => {
+        const age = Date.now() - activeAgentProcess.timestamp;
+        if (age > 5 * 60 * 1000) { // 5 minutes timeout
+          setActiveAgentProcess(null);
+        }
+      }, 5 * 60 * 1000);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [activeAgentProcess]);
 
   // DISABLED: Process messages with operations to create UI files
   // This is now handled by useFileLoad hook which syncs from Convex to local store
@@ -338,6 +362,21 @@ Please start a new session to continue chatting.`,
           // Create convex mutations for the agent
           const convexMutations = createConvexMutations();
           
+          // Check if the last message was an agent waiting for input
+          const lastMessage = messages && messages.length > 0 ? messages[messages.length - 1] : null;
+          const isFollowUpToWaitingAgent = lastMessage && 
+            lastMessage.role === 'assistant' && 
+            lastMessage.processIndicator?.type === 'waiting';
+          
+          console.log('Pre-execution state:', {
+            lastMessage: lastMessage ? {
+              role: lastMessage.role,
+              processIndicator: lastMessage.processIndicator,
+              contentPreview: lastMessage.content.substring(0, 50)
+            } : null,
+            isFollowUpToWaitingAgent
+          });
+          
           // Find the active agent and its default tool
           const activeAgent = agents.find(agent => agent.id === activeAgentId);
           if (activeAgent && activeAgent.tools.length > 0) {
@@ -351,17 +390,76 @@ Please start a new session to continue chatting.`,
               convexMutations
             );
             
-            // Store both user message and agent result
+            // Check if result indicates waiting for user input (project selection)
+            const isWaitingForInput = result.includes("🎯 Select a project:") || 
+                                    result.includes("💡 **Next message:** Just type your selection!") ||
+                                    result.includes("Which Project?") ||
+                                    result.includes("Available Projects:");
+            
+            // Check if result indicates successful completion
+            const isCompletionResponse = result.includes("✅ **File Created Successfully!**") ||
+                                       result.includes("File Created Successfully!") ||
+                                       result.includes("**Next Steps:**") ||
+                                       result.includes("Next Steps:");
+            
+            console.log('Agent Execution Debug:', {
+              activeAgentId,
+              result: result.substring(0, 200) + '...',
+              isWaitingForInput,
+              isCompletionResponse,
+              isFollowUpToWaitingAgent,
+              hasSelectProject: result.includes("🎯 Select a project:"),
+              hasNextMessage: result.includes("💡 **Next message:** Just type your selection!"),
+              hasWhichProject: result.includes("Which Project?"),
+              hasAvailableProjects: result.includes("Available Projects:"),
+              hasFileCreated: result.includes("✅ **File Created Successfully!**"),
+              hasNextSteps: result.includes("**Next Steps:**")
+            });
+            
+            if (isWaitingForInput) {
+              console.log('Setting active agent process for file creation');
+              setActiveAgentProcess({
+                agentId: activeAgentId,
+                processType: 'file-creation',
+                timestamp: Date.now()
+              });
+            } else {
+              console.log('Clearing active agent process - agent completed');
+              // Clear active process when agent completes
+              setActiveAgentProcess(null);
+            }
+            
+            // Store both user message and agent result with process indicators
             await storeChatMessage({
               role: "user",
               content: messageContent,
               sessionId,
+              processIndicator: (isFollowUpToWaitingAgent || isWaitingForInput) ? {
+                type: 'continuing',
+                processType: 'file-creation',
+                color: 'blue'
+              } : undefined,
             });
             
             await storeChatMessage({
               role: "assistant",
               content: `🤖 **${activeAgent.name} Agent Result:**\n\n${result}`,
               sessionId,
+              processIndicator: (isWaitingForInput || isCompletionResponse || isFollowUpToWaitingAgent) ? {
+                type: 'waiting',
+                processType: 'file-creation',
+                color: 'green'
+              } : undefined,
+            });
+            
+            // Debug log for what processIndicator was set
+            console.log('StoreChatMessage Debug:', {
+              messageType: 'assistant',
+              willHaveProcessIndicator: !!(isWaitingForInput || isCompletionResponse || isFollowUpToWaitingAgent),
+              isWaitingForInput,
+              isCompletionResponse,
+              isFollowUpToWaitingAgent,
+              resultSnippet: result.substring(0, 100)
             });
             
             return;
@@ -464,37 +562,57 @@ Please start a new session to continue chatting.`,
           </div>
 
           {/* Messages */}
-          {messages.map((msg, index) => (
-            <div key={index} className="space-y-1">
-              {msg.role === 'user' && (
-                <div className="text-[#007acc]">
-                  <span className="text-[#007acc]">$ user:</span>
-                  <span className="ml-1 text-[#cccccc]">{msg.content}</span>
-                </div>
-              )}
-              {msg.role === 'assistant' && (
-                <div className="text-[#4ec9b0]">
-                  <span className="text-[#4ec9b0]">🤖 assistant:</span>
-                  <div className="ml-1 text-[#cccccc] whitespace-pre-wrap">{msg.content}</div>
-                </div>
-              )}
-              {msg.role === 'thinking' && (
-                <div className="text-[#d4d4aa]">
-                  <span className="text-[#d4d4aa]">🧠 thinking:</span>
-                  <div className="ml-1 text-[#cccccc] whitespace-pre-wrap text-xs font-mono italic">
-                    {msg.content}
+          {messages.map((msg, index) => {
+            // Use the stored processIndicator for visual continuity
+            const hasProcessIndicator = msg.processIndicator;
+            const isUserProcessMessage = hasProcessIndicator && msg.role === 'user' && hasProcessIndicator.type === 'continuing';
+            const isAgentProcessMessage = hasProcessIndicator && msg.role === 'assistant' && hasProcessIndicator.type === 'waiting';
+            
+            return (
+              <div key={index} className="space-y-1">
+                {msg.role === 'user' && (
+                  <div className={`text-[#007acc] ${isUserProcessMessage ? 'border-l-4 border-[#0078d4] pl-3' : ''}`}>
+                    <span className="text-[#007acc]">$ user:</span>
+                    <span className="ml-1 text-[#cccccc]">{msg.content}</span>
+                    {isUserProcessMessage && (
+                      <div className="text-[10px] text-[#0078d4] mt-1 opacity-80">
+                        ↳ Continuing {msg.processIndicator?.processType?.replace('-', ' ')}...
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
-              {msg.role === 'terminal' && (
-                <div className="text-[#858585]">
-                  <div className="text-[#585858] whitespace-pre-wrap bg-[#1a1a1a] p-1 rounded text-[10px] border-l-2 border-[#333]">
-                    {msg.content}
+                )}
+                {msg.role === 'assistant' && (
+                  <div className={`text-[#4ec9b0] ${isAgentProcessMessage ? 'border-l-4 border-[#4ec9b0] pl-3' : ''}`}>
+                    <span className="text-[#4ec9b0]">🤖 assistant:</span>
+                    <div className="ml-1 text-[#cccccc] whitespace-pre-wrap">{msg.content}</div>
+                    {isAgentProcessMessage && (
+                      <div className="text-[10px] text-[#4ec9b0] mt-1 opacity-80">
+                        {msg.content.includes("✅ **File Created Successfully!**") 
+                          ? "↳ Process completed successfully!"
+                          : "↳ Agent waiting for your input..."
+                        }
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
-            </div>
-          ))}
+                )}
+                {msg.role === 'thinking' && (
+                  <div className="text-[#d4d4aa]">
+                    <span className="text-[#d4d4aa]">🧠 thinking:</span>
+                    <div className="ml-1 text-[#cccccc] whitespace-pre-wrap text-xs font-mono italic">
+                      {msg.content}
+                    </div>
+                  </div>
+                )}
+                {msg.role === 'terminal' && (
+                  <div className="text-[#858585]">
+                    <div className="text-[#585858] whitespace-pre-wrap bg-[#1a1a1a] p-1 rounded text-[10px] border-l-2 border-[#333]">
+                      {msg.content}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
 
           {/* Streaming Thinking Display */}
           {isStreamingThinking && streamingThinking && (
