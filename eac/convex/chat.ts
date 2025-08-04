@@ -191,13 +191,20 @@ export const getUserSessions = query({
     
     const deletedSessionIds = new Set(deletedSessions.map(s => s.sessionId));
     
+    // Get all active chatSessions records for this user (these have token tracking)
+    const chatSessions = await ctx.db
+      .query("chatSessions")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .filter((q) => q.neq(q.field("isDeleted"), true)) // Exclude deleted sessions
+      .collect();
+    
     // Get all messages for this user
     const messages = await ctx.db
       .query("chatMessages")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
     
-    // Extract unique sessions with metadata, excluding deleted ones
+    // Create session map starting with chatSessions records (these have token data)
     const sessionMap = new Map<string, {
       sessionId: string;
       lastActivity: number;
@@ -205,10 +212,24 @@ export const getUserSessions = query({
       preview: string;
     }>();
     
+    // First, add sessions from chatSessions table (these have proper token tracking)
+    chatSessions.forEach(session => {
+      if (!deletedSessionIds.has(session.sessionId)) {
+        sessionMap.set(session.sessionId, {
+          sessionId: session.sessionId,
+          lastActivity: session.lastActivity,
+          messageCount: session.messageCount,
+          preview: session.preview || session.title || 'No messages yet',
+        });
+      }
+    });
+    
+    // Then, update with message data and add message-only sessions (for backwards compatibility)
     messages.forEach(message => {
       if (message.sessionId && !deletedSessionIds.has(message.sessionId)) {
         const existing = sessionMap.get(message.sessionId);
         if (!existing) {
+          // This is a session with messages but no chatSessions record (legacy data)
           sessionMap.set(message.sessionId, {
             sessionId: message.sessionId,
             lastActivity: message.createdAt,
@@ -216,7 +237,7 @@ export const getUserSessions = query({
             preview: message.content.substring(0, 50) + (message.content.length > 50 ? '...' : ''),
           });
         } else {
-          existing.messageCount++;
+          // Update existing session with latest message data
           if (message.createdAt > existing.lastActivity) {
             existing.lastActivity = message.createdAt;
             existing.preview = message.content.substring(0, 50) + (message.content.length > 50 ? '...' : '');
