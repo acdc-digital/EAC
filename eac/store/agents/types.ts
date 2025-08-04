@@ -52,6 +52,30 @@ export interface ConvexMutations {
     budget?: number;
   }) => Promise<unknown>;
   getProjects?: () => Promise<any[]>; // Add getProjects query
+  storeChatMessage?: (params: {
+    role: 'user' | 'assistant' | 'system' | 'terminal' | 'thinking';
+    content: string;
+    sessionId?: string;
+    operation?: {
+      type: 'file_created' | 'project_created' | 'tool_executed' | 'error';
+      details?: any;
+    };
+    processIndicator?: {
+      type: 'continuing' | 'waiting';
+      processType: string;
+      color: 'blue' | 'green';
+    };
+    interactiveComponent?: {
+      type: 'project_selector';
+      data?: any;
+      status: 'pending' | 'completed' | 'cancelled';
+    };
+  }) => Promise<any>;
+  updateInteractiveComponent?: (params: {
+    messageId: string;
+    status: 'pending' | 'completed' | 'cancelled';
+    result?: any;
+  }) => Promise<any>;
   createFile?: (params: {
     name: string;
     type: 'post' | 'campaign' | 'note' | 'document' | 'image' | 'video' | 'other';

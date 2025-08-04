@@ -57,6 +57,12 @@ export const storeChatMessage = mutation({
       processType: v.string(),
       color: v.union(v.literal("blue"), v.literal("green")),
     })),
+    interactiveComponent: v.optional(v.object({
+      type: v.union(v.literal("project_selector")),
+      data: v.optional(v.any()),
+      status: v.union(v.literal("pending"), v.literal("completed"), v.literal("cancelled")),
+      result: v.optional(v.any()),
+    })),
   },
   handler: async (ctx, args) => {
     // Get authenticated user - only store messages if authenticated
@@ -74,9 +80,44 @@ export const storeChatMessage = mutation({
       createdAt: Date.now(),
       ...(args.operation && { operation: args.operation }),
       ...(args.processIndicator && { processIndicator: args.processIndicator }),
+      ...(args.interactiveComponent && { interactiveComponent: args.interactiveComponent }),
     });
     
     return messageId;
+  },
+});
+
+// Mutation to update interactive component status
+export const updateInteractiveComponent = mutation({
+  args: {
+    messageId: v.id("chatMessages"),
+    status: v.union(v.literal("pending"), v.literal("completed"), v.literal("cancelled")),
+    result: v.optional(v.any()),
+  },
+  handler: async (ctx, args) => {
+    // Get authenticated user
+    const userId = await getCurrentUserIdOptional(ctx);
+    if (!userId) {
+      console.log("⚠️ Attempted to update interactive component while unauthenticated - skipping");
+      return null;
+    }
+
+    // Get the message and verify ownership
+    const message = await ctx.db.get(args.messageId);
+    if (!message || message.userId !== userId) {
+      throw new Error("Message not found or access denied");
+    }
+
+    // Update the interactive component
+    await ctx.db.patch(args.messageId, {
+      interactiveComponent: {
+        ...(message.interactiveComponent || {}),
+        status: args.status,
+        ...(args.result && { result: args.result }),
+      },
+    });
+
+    return args.messageId;
   },
 });
 

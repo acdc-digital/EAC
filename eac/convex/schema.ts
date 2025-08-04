@@ -37,6 +37,13 @@ export default defineSchema({
       processType: v.string(),
       color: v.union(v.literal("blue"), v.literal("green")),
     })),
+    // Interactive component for user input collection
+    interactiveComponent: v.optional(v.object({
+      type: v.union(v.literal("project_selector")),
+      data: v.optional(v.any()),
+      status: v.union(v.literal("pending"), v.literal("completed"), v.literal("cancelled")),
+      result: v.optional(v.any()), // Result data from component interaction
+    })),
   }).index("by_created_at", ["createdAt"])
     .index("by_session", ["sessionId", "createdAt"])
     .index("by_user", ["userId", "createdAt"])
