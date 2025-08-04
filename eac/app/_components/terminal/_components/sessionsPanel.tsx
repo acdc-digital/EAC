@@ -4,6 +4,7 @@
 "use client";
 
 import { api } from "@/convex/_generated/api";
+import { useTokenManagement } from "@/lib/hooks/useTokenManagement";
 import { cn } from "@/lib/utils";
 import { useChatStore } from "@/store/terminal/chat";
 import { useSessionStore } from "@/store/terminal/session";
@@ -84,6 +85,38 @@ export function SessionsPanel({ className }: SessionsPanelProps) {
     });
   };
 
+  // Component to display token usage for a session
+  const TokenUsageCell = ({ sessionId }: { sessionId: string }) => {
+    const { tokenUsage } = useTokenManagement(sessionId);
+    
+    if (!tokenUsage) {
+      return (
+        <span 
+          className="text-[#858585]" 
+          title="Token usage data not available"
+        >
+          --
+        </span>
+      );
+    }
+
+    const getTokenColor = (percent: number) => {
+      if (percent >= 90) return 'text-red-400';
+      if (percent >= 75) return 'text-yellow-400';
+      if (percent >= 50) return 'text-blue-400';
+      return 'text-[#858585]';
+    };
+
+    return (
+      <span 
+        className={getTokenColor(tokenUsage.percentUsed)}
+        title={`Token Usage: ${tokenUsage.formattedTokens} / ${tokenUsage.maxTokens.toLocaleString()} (${tokenUsage.percentUsed}%)\nCost: ${tokenUsage.formattedCost}\nMessages: ${tokenUsage.messageCount}`}
+      >
+        {tokenUsage.totalTokens.toLocaleString()}
+      </span>
+    );
+  };
+
   if (!isAuthenticated) {
     return (
       <div className={cn("flex-1 bg-[#0e0e0e] flex items-center justify-center", className)}>
@@ -119,7 +152,12 @@ export function SessionsPanel({ className }: SessionsPanelProps) {
             <div className="flex items-center px-3 py-1.5 bg-[#2d2d30] border-b border-[#454545] text-xs text-[#858585] font-medium">
               <div className="flex-shrink-0 w-20">Session</div>
               <div className="flex-1 px-2">Preview</div>
-              <div className="flex-shrink-0 w-16 text-center">Msgs/500</div>
+              <div 
+                className="flex-shrink-0 w-16 text-center" 
+                title="Total tokens used in this session out of 180K limit"
+              >
+                Tokens/180k
+              </div>
               <div className="flex-shrink-0 w-20 text-right">Time</div>
             </div>
             
@@ -143,8 +181,8 @@ export function SessionsPanel({ className }: SessionsPanelProps) {
                     {session.preview}
                   </div>
                 </div>
-                <div className="flex-shrink-0 w-16 text-center text-xs text-[#858585]">
-                  {session.messageCount}
+                <div className="flex-shrink-0 w-16 text-center text-xs">
+                  <TokenUsageCell sessionId={session.sessionId} />
                 </div>
                 <div className="flex-shrink-0 w-20 text-right text-xs text-[#858585]">
                   {formatTime(session.lastActivity)}

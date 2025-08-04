@@ -33,6 +33,7 @@ import type * as socialConnections from "../socialConnections.js";
 import type * as socialPosts from "../socialPosts.js";
 import type * as test from "../test.js";
 import type * as testSimple from "../testSimple.js";
+import type * as tokenActions from "../tokenActions.js";
 import type * as trash from "../trash.js";
 import type * as users from "../users.js";
 import type * as utils from "../utils.js";
@@ -70,6 +71,7 @@ declare const fullApi: ApiFromModules<{
   socialPosts: typeof socialPosts;
   test: typeof test;
   testSimple: typeof testSimple;
+  tokenActions: typeof tokenActions;
   trash: typeof trash;
   users: typeof users;
   utils: typeof utils;

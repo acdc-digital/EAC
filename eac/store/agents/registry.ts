@@ -3,6 +3,7 @@
 
 import { BaseAgent } from './base';
 import { instructionsAgent } from './instructionsAgent';
+import { projectCreatorAgent } from './projectCreatorAgent';
 import { schedulingAgent } from './schedulingAgent';
 import { twitterAgent } from './twitterAgent';
 
@@ -20,6 +21,8 @@ export class AgentRegistry {
     console.log('🤖 Registered:', twitterAgent.id, twitterAgent.name);
     this.registerAgent(schedulingAgent);
     console.log('🤖 Registered:', schedulingAgent.id, schedulingAgent.name);
+    this.registerAgent(projectCreatorAgent);
+    console.log('🤖 Registered:', projectCreatorAgent.id, projectCreatorAgent.name);
     console.log('🤖 Total agents registered:', this.agents.size);
   }
 
@@ -176,4 +179,19 @@ export function getAvailableCommands(): string[] {
   }
   
   return commands;
+}
+
+/**
+ * Legacy support function for project creator agent
+ */
+export async function executeProjectCreatorAgent(
+  input: string,
+  convexMutations: any
+): Promise<string> {
+  return await agentRegistry.executeAgent(
+    'project-creator',
+    'create-project-with-files',
+    input,
+    convexMutations
+  );
 }

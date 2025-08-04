@@ -16,6 +16,11 @@ export default defineSchema({
     sessionId: v.optional(v.string()),
     userId: v.optional(v.union(v.string(), v.id("users"))), // Associate messages with users
     createdAt: v.number(),
+    // Token tracking for API usage and costs
+    tokenCount: v.optional(v.number()), // Number of tokens in this message
+    inputTokens: v.optional(v.number()), // Input tokens used for this API call (for assistant messages)
+    outputTokens: v.optional(v.number()), // Output tokens generated for this API call (for assistant messages)
+    estimatedCost: v.optional(v.number()), // Estimated cost in USD for this API call
     // Operation tracking for terminal messages
     operation: v.optional(v.object({
       type: v.union(
@@ -30,6 +35,27 @@ export default defineSchema({
     .index("by_session", ["sessionId", "createdAt"])
     .index("by_user", ["userId", "createdAt"])
     .index("by_user_session", ["userId", "sessionId", "createdAt"]),
+
+  // Chat sessions for token tracking and limits
+  chatSessions: defineTable({
+    sessionId: v.string(),
+    userId: v.optional(v.union(v.string(), v.id("users"))),
+    totalTokens: v.number(), // Total tokens used in this session
+    totalInputTokens: v.number(), // Total input tokens for this session
+    totalOutputTokens: v.number(), // Total output tokens for this session
+    totalCost: v.number(), // Total estimated cost in USD for this session
+    messageCount: v.number(), // Number of messages in this session
+    isActive: v.boolean(), // Whether this session is still active
+    maxTokensAllowed: v.number(), // Maximum tokens allowed for this session (default: 180000)
+    createdAt: v.number(),
+    lastActivity: v.number(),
+    // Session metadata
+    title: v.optional(v.string()), // Auto-generated title for the session
+    preview: v.optional(v.string()), // Preview of the first user message
+  }).index("by_session_id", ["sessionId"])
+    .index("by_user", ["userId", "createdAt"])
+    .index("by_user_active", ["userId", "isActive", "lastActivity"])
+    .index("by_active", ["isActive", "lastActivity"]),
   
   // Add more tables as needed for your EAC dashboard
   projects: defineTable({

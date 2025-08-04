@@ -45,6 +45,21 @@ export interface ConvexMutations {
     topic?: string;
     audience?: string;
   }) => Promise<unknown>;
+  createProject?: (params: {
+    name: string;
+    description?: string;
+    status?: 'active' | 'completed' | 'on-hold';
+    budget?: number;
+  }) => Promise<unknown>;
+  createFile?: (params: {
+    name: string;
+    type: 'post' | 'campaign' | 'note' | 'document' | 'image' | 'video' | 'other';
+    projectId: string;
+    content?: string;
+    extension?: string;
+    platform?: 'facebook' | 'instagram' | 'twitter' | 'linkedin' | 'reddit' | 'youtube';
+    size?: number;
+  }) => Promise<unknown>;
   upsertPost: (params: {
     fileName: string;
     fileType: 'reddit' | 'twitter';

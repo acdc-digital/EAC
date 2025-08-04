@@ -823,6 +823,38 @@ For general questions not requiring MCP analysis, provide helpful guidance about
         throw new Error("No response from Claude");
       }
 
+      // Track token usage for this conversation
+      if (args.sessionId) {
+        try {
+          const inputTokens = completion.usage?.input_tokens || 0;
+          const outputTokens = completion.usage?.output_tokens || 0;
+          
+          // Calculate cost (Claude 3.7 Sonnet pricing: $3/MTok input, $15/MTok output)
+          const inputCost = (inputTokens / 1000000) * 3.0;
+          const outputCost = (outputTokens / 1000000) * 15.0;
+          const totalCost = inputCost + outputCost;
+
+          // First ensure session exists
+          await ctx.runMutation(api.tokenActions.upsertChatSession, {
+            sessionId: args.sessionId,
+            preview: args.originalContent || args.content,
+          });
+
+          // Update token usage
+          await ctx.runMutation(api.tokenActions.updateSessionTokens, {
+            sessionId: args.sessionId,
+            inputTokens,
+            outputTokens,
+            estimatedCost: totalCost,
+          });
+
+          console.log(`🔢 Token usage - Session: ${args.sessionId}, Input: ${inputTokens}, Output: ${outputTokens}, Cost: $${totalCost.toFixed(4)}`);
+        } catch (tokenError) {
+          console.error("Token tracking error:", tokenError);
+          // Don't fail the whole request if token tracking fails
+        }
+      }
+
       // Store the thinking content first (if any)
       if (thinkingContent) {
         await ctx.runMutation(api.chat.storeChatMessage, {
@@ -1078,6 +1110,40 @@ For general questions not requiring MCP analysis, provide helpful guidance about
 
       if (!assistantResponse) {
         throw new Error("No response from Claude");
+      }
+
+      // Track token usage for this conversation
+      if (args.sessionId) {
+        try {
+          // Get final message with usage data
+          const finalMessage = await stream.finalMessage();
+          const inputTokens = finalMessage.usage?.input_tokens || 0;
+          const outputTokens = finalMessage.usage?.output_tokens || 0;
+          
+          // Calculate cost (Claude 3.7 Sonnet pricing: $3/MTok input, $15/MTok output)
+          const inputCost = (inputTokens / 1000000) * 3.0;
+          const outputCost = (outputTokens / 1000000) * 15.0;
+          const totalCost = inputCost + outputCost;
+
+          // First ensure session exists
+          await ctx.runMutation(api.tokenActions.upsertChatSession, {
+            sessionId: args.sessionId,
+            preview: args.originalContent || args.content,
+          });
+
+          // Update token usage
+          await ctx.runMutation(api.tokenActions.updateSessionTokens, {
+            sessionId: args.sessionId,
+            inputTokens,
+            outputTokens,
+            estimatedCost: totalCost,
+          });
+
+          console.log(`🔢 Token usage (streaming) - Session: ${args.sessionId}, Input: ${inputTokens}, Output: ${outputTokens}, Cost: $${totalCost.toFixed(4)}`);
+        } catch (tokenError) {
+          console.error("Token tracking error:", tokenError);
+          // Don't fail the whole request if token tracking fails
+        }
       }
 
       // Return the streamed response (already stored during streaming)

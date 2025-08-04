@@ -51,11 +51,13 @@ export function ChatMessages() {
   
   // Agent execution and mutations
   const { agents, activeAgentId, setActiveAgent, executeAgentTool } = useAgentStore();
-  const createInstruction = useMutation(api.instructions.createInstructionFile);
-  const ensureInstructionsProject = useMutation(api.instructions.ensureInstructionsProject);
+  const createInstruction = useMutation(api.files.createInstructionFile);
+  const ensureInstructionsProject = useMutation(api.projects.ensureInstructionsProject);
   const upsertPost = useMutation(api.socialPosts.upsertPost);
   const schedulePost = useMutation(api.socialPosts.schedulePost);
   const createContentCreationFile = useMutation(api.files.createContentCreationFile);
+  const createProject = useMutation(api.projects.createProject);
+  const createFile = useMutation(api.files.createFile);
   const allPosts = useQuery(api.socialPosts.getAllPosts, {});
   const instructionContext = useInstructionContext();
   const { isLoading: instructionsLoading } = useInstructions();
@@ -274,6 +276,25 @@ ${content}
       upsertPost,
       schedulePost,
       createContentCreationFile,
+      createProject: async (params: any) => {
+        return await createProject({
+          name: params.name,
+          description: params.description,
+          status: params.status || 'active',
+          budget: params.budget,
+        });
+      },
+      createFile: async (params: any) => {
+        return await createFile({
+          name: params.name,
+          type: params.type,
+          projectId: params.projectId, // This should be an Id<"projects"> from the actual project creation
+          content: params.content,
+          extension: params.extension,
+          platform: params.platform,
+          size: params.size,
+        });
+      },
       getAllPosts: async () => {
         return allPosts || [];
       },
