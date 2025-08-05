@@ -175,34 +175,35 @@ export const updateChatMessage = mutation({
 export const getUserSessions = query({
   args: {},
   handler: async (ctx) => {
-    // Get authenticated user - return empty if not authenticated
-    const userId = await getCurrentUserIdOptional(ctx);
-    if (!userId) {
-      return [];
-    }
-    
-    // Get all deleted sessions for this user
-    const deletedSessions = await ctx.db
-      .query("chatSessions")
-      .withIndex("by_user_not_deleted", (q) => 
-        q.eq("userId", userId).eq("isDeleted", true)
-      )
-      .collect();
-    
-    const deletedSessionIds = new Set(deletedSessions.map(s => s.sessionId));
-    
-    // Get all active chatSessions records for this user (these have token tracking)
-    const chatSessions = await ctx.db
-      .query("chatSessions")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .filter((q) => q.neq(q.field("isDeleted"), true)) // Exclude deleted sessions
-      .collect();
-    
-    // Get all messages for this user
-    const messages = await ctx.db
-      .query("chatMessages")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
+    try {
+      // Get authenticated user - return empty if not authenticated
+      const userId = await getCurrentUserIdOptional(ctx);
+      if (!userId) {
+        return [];
+      }
+      
+      // Get all deleted sessions for this user
+      const deletedSessions = await ctx.db
+        .query("chatSessions")
+        .withIndex("by_user_not_deleted", (q) => 
+          q.eq("userId", userId).eq("isDeleted", true)
+        )
+        .collect();
+      
+      const deletedSessionIds = new Set(deletedSessions.map(s => s.sessionId));
+      
+      // Get all active chatSessions records for this user (these have token tracking)
+      const chatSessions = await ctx.db
+        .query("chatSessions")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .filter((q) => q.neq(q.field("isDeleted"), true)) // Exclude deleted sessions
+        .collect();
+      
+      // Get all messages for this user
+      const messages = await ctx.db
+        .query("chatMessages")
+        .withIndex("by_user", (q) => q.eq("userId", userId))
+        .collect();
     
     // Create session map starting with chatSessions records (these have token data)
     const sessionMap = new Map<string, {
@@ -212,43 +213,91 @@ export const getUserSessions = query({
       preview: string;
     }>();
     
+    // Helper function to safely create preview text
+    const createSafePreview = (content: string): string => {
+      try {
+        if (!content || typeof content !== 'string') {
+          return 'No preview available';
+        }
+        
+        // Remove or replace problematic characters that might break JSON parsing
+        const sanitized = content
+          .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove control characters
+          .replace(/\\(?![\\"/bfnrt]|u[0-9a-fA-F]{4})/g, '') // Remove invalid escape sequences
+          .replace(/\\/g, '') // Remove all backslashes to be safe
+          .replace(/"/g, "'") // Replace quotes with single quotes
+          .replace(/\n/g, ' ') // Replace newlines with spaces
+          .replace(/\r/g, ' ') // Replace carriage returns with spaces
+          .replace(/\t/g, ' ') // Replace tabs with spaces
+          .replace(/\s+/g, ' ') // Collapse multiple spaces
+          .trim();
+        
+        // Additional safety: only use ASCII printable characters
+        const asciiOnly = sanitized.replace(/[^\x20-\x7E]/g, '');
+        
+        if (!asciiOnly) {
+          return 'No readable content';
+        }
+        
+        return asciiOnly.substring(0, 50) + (asciiOnly.length > 50 ? '...' : '');
+      } catch (error) {
+        console.error('Error creating preview:', error);
+        return 'Preview unavailable';
+      }
+    };
+
     // First, add sessions from chatSessions table (these have proper token tracking)
     chatSessions.forEach(session => {
       if (!deletedSessionIds.has(session.sessionId)) {
+        const safePreview = session.preview ? createSafePreview(session.preview) : 
+                           session.title ? createSafePreview(session.title) : 
+                           'No messages yet';
+        
         sessionMap.set(session.sessionId, {
           sessionId: session.sessionId,
           lastActivity: session.lastActivity,
           messageCount: session.messageCount,
-          preview: session.preview || session.title || 'No messages yet',
+          preview: safePreview,
         });
       }
     });
     
     // Then, update with message data and add message-only sessions (for backwards compatibility)
     messages.forEach(message => {
-      if (message.sessionId && !deletedSessionIds.has(message.sessionId)) {
-        const existing = sessionMap.get(message.sessionId);
-        if (!existing) {
-          // This is a session with messages but no chatSessions record (legacy data)
-          sessionMap.set(message.sessionId, {
-            sessionId: message.sessionId,
-            lastActivity: message.createdAt,
-            messageCount: 1,
-            preview: message.content.substring(0, 50) + (message.content.length > 50 ? '...' : ''),
-          });
-        } else {
-          // Update existing session with latest message data
-          if (message.createdAt > existing.lastActivity) {
-            existing.lastActivity = message.createdAt;
-            existing.preview = message.content.substring(0, 50) + (message.content.length > 50 ? '...' : '');
+      try {
+        if (message.sessionId && !deletedSessionIds.has(message.sessionId)) {
+          const existing = sessionMap.get(message.sessionId);
+          if (!existing) {
+            // This is a session with messages but no chatSessions record (legacy data)
+            sessionMap.set(message.sessionId, {
+              sessionId: message.sessionId,
+              lastActivity: message.createdAt,
+              messageCount: 1,
+              preview: createSafePreview(message.content || ''),
+            });
+          } else {
+            // Update existing session with latest message data
+            if (message.createdAt > existing.lastActivity) {
+              existing.lastActivity = message.createdAt;
+              existing.preview = createSafePreview(message.content || '');
+            }
           }
         }
+      } catch (messageError) {
+        console.error('Error processing message for session:', message.sessionId, messageError);
+        // Skip this message but continue processing others
       }
     });
     
     // Convert to array and sort by last activity
     return Array.from(sessionMap.values())
       .sort((a, b) => b.lastActivity - a.lastActivity);
+      
+    } catch (error) {
+      console.error('Error in getUserSessions:', error);
+      // Return empty array if there's any error to prevent crashes
+      return [];
+    }
   },
 });
 

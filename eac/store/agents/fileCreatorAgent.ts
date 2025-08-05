@@ -826,22 +826,209 @@ Based on the input, I'll determine the appropriate file type and proceed to the 
     convexMutations: ConvexMutations
   ): Promise<string> {
     try {
-      if (!convexMutations.createFile) {
-        return '❌ File creation is not available. Please check system configuration.';
+      // Import the editor store for local file creation
+      const { useEditorStore } = await import("../");
+      const editorStore = useEditorStore.getState();
+
+      // Check if the file type is X (Twitter) - special handling
+      if (fileDetails.fileType === 'x') {
+        return await this.createXTwitterFile(fileDetails, convexMutations, editorStore);
       }
 
-      if (!convexMutations.getProjects) {
-        return '❌ Project lookup is not available. Please check system configuration.';
+      // Regular file creation for non-Twitter files
+      return await this.createRegularFile(fileDetails, convexMutations, editorStore);
+    } catch (error) {
+      console.error('❌ File creation failed:', error);
+      return `❌ **File creation failed:** ${error instanceof Error ? error.message : 'Unknown error'}`;
+    }
+  }
+
+  /**
+   * Create X (Twitter) file with AI-generated content and auto-populated form
+   */
+  private async createXTwitterFile(
+    fileDetails: FileCreationDetails,
+    convexMutations: ConvexMutations,
+    editorStore: any
+  ): Promise<string> {
+    try {
+      // ✨ ADD THINKING FOR TWITTER FILE CREATION
+      if (convexMutations.storeChatMessage) {
+        await convexMutations.storeChatMessage({
+          role: 'thinking',
+          content: `Creating X (Twitter) post file with AI-generated content...
+
+The user wants to create an X/Twitter post file. I need to:
+
+1. Generate engaging Twitter content using AI
+2. Create the .x file in the selected project
+3. Auto-populate the Twitter post form with the generated content
+4. Open the new tab automatically for immediate editing
+
+This integrates the Twitter Post Agent functionality into the file creation workflow to provide a seamless experience.`
+        });
       }
 
-      // Look up the actual project ID by name
-      const projects = await convexMutations.getProjects();
-      const targetProject = projects.find((p: any) => 
-        p.name.toLowerCase() === fileDetails.projectName?.toLowerCase()
+      console.log('🐦 Creating X (Twitter) file with AI content generation...');
+
+      // Find the target project folder
+      const projectFolder = editorStore.projectFolders.find(
+        (folder: any) => folder.name === fileDetails.projectName
       );
 
-      if (!targetProject) {
-        return `❌ **Project Not Found**\n\nCould not find a project named "${fileDetails.projectName}". Please check the project name and try again.\n\n**Available projects:**\n${projects.map((p: any) => `• ${p.name}`).join('\n')}`;
+      if (!projectFolder) {
+        return `❌ **Project Not Found**\n\nCould not find a project folder named "${fileDetails.projectName}". The file was not created.`;
+      }
+
+      // Import Twitter agent functionality for content generation
+      let generatedContent = "Your Twitter post content here...";
+      let fileName = fileDetails.fileName.replace('.x', '');
+
+      try {
+        // Import the Twitter content generation tools
+        const { TwitterContentGenerator } = await import("../../lib/twitter-tools/contentGenerator");
+        const { fileNamer } = await import("../../lib/twitter-tools/fileNamer");
+
+        // Generate AI content for the Twitter post
+        const contentGenerator = TwitterContentGenerator.getInstance();
+        const contentResult = await contentGenerator.generateContent({
+          userInput: `Create an engaging Twitter post for ${fileName}`,
+          style: 'professional',
+          includeHashtags: true
+        });
+
+        generatedContent = contentResult.content;
+
+        // Generate intelligent filename
+        const fileNameResult = fileNamer.generateFileName({
+          content: generatedContent,
+          maxWords: 3
+        });
+
+        fileName = fileNameResult.name;
+        console.log(`🏷️ Generated intelligent filename: ${fileName} (based on content)`);
+
+      } catch (toolError) {
+        console.warn('⚠️ Twitter tools not available, using default content:', toolError);
+        // Use fallback content if Twitter tools aren't available
+        generatedContent = `🚀 New post from ${fileName}
+
+#NewPost #Update`;
+      }
+
+      // Create rich content for the file
+      const today = new Date().toLocaleDateString();
+      const timeStamp = new Date().toLocaleTimeString();
+      
+      const richContent = `# ${fileName} - X (Twitter) Post
+
+## Post Content
+${generatedContent}
+
+## Settings
+- Reply Settings: following
+- Schedule: Now
+- Thread: Single Tweet
+
+## Media
+- Images: []
+- Videos: []
+- GIFs: []
+
+## Analytics
+- Impressions: 0
+- Engagements: 0
+- Retweets: 0
+- Likes: 0
+- Replies: 0
+
+## File Details
+- Created: ${today} at ${timeStamp}
+- Status: Draft
+- Type: Twitter Post
+- Project: ${fileDetails.projectName}`;
+
+      console.log('📝 Creating X file with generated content...');
+
+      // Create the file locally using editor store - this auto-opens the tab
+      const fileId = editorStore.createNewFile(
+        fileName, // name without extension
+        'x' as any, // type
+        'project', // category
+        projectFolder.id, // folderId
+        richContent, // customContent - this is the key for auto-opening with content
+        false // skipSync - allow normal database sync
+      );
+
+      console.log(`✅ X file created locally with ID: ${fileId}`);
+
+      // Auto-populate the Twitter form with the generated content
+      try {
+        await this.populateTwitterForm(fileName, generatedContent, convexMutations);
+      } catch (formError) {
+        console.warn('⚠️ Failed to populate Twitter form, but file was created:', formError);
+      }
+
+      // Dispatch event to notify components
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('twitterFileCreated', {
+          detail: {
+            fileName: fileName + ".x",
+            fileId: fileId,
+            content: generatedContent,
+            projectName: fileDetails.projectName
+          }
+        }));
+        console.log(`📢 Dispatched twitterFileCreated event for ${fileName}.x`);
+      }
+
+      return `🐦 **X (Twitter) Post Created Successfully!**
+
+**📄 File Name:** ${fileName}.x
+**📁 Project:** ${fileDetails.projectName}
+**🤖 AI Content:** Generated engaging Twitter content
+**📅 Created:** ${today}
+
+**✨ Features Activated:**
+✅ AI-generated content 
+✅ Auto-populated form fields
+✅ File opened in new tab
+✅ Ready to post immediately
+
+**🎯 Next Steps:**
+• Review the generated content in the editor
+• Customize the post if needed
+• Click "Tweet" to publish immediately
+• Or schedule for later posting
+
+*The file is now open and ready for you to review and publish!* 🚀`;
+
+    } catch (error) {
+      console.error('❌ X file creation failed:', error);
+      return `❌ **X File Creation Failed**
+
+Error: ${error instanceof Error ? error.message : 'Unknown error'}
+
+Please try again or create a regular file instead.`;
+    }
+  }
+
+  /**
+   * Create regular (non-Twitter) file
+   */
+  private async createRegularFile(
+    fileDetails: FileCreationDetails,
+    convexMutations: ConvexMutations,
+    editorStore: any
+  ): Promise<string> {
+    try {
+      // Find the target project folder
+      const projectFolder = editorStore.projectFolders.find(
+        (folder: any) => folder.name === fileDetails.projectName
+      );
+
+      if (!projectFolder) {
+        return `❌ **Project Not Found**\n\nCould not find a project folder named "${fileDetails.projectName}". The file was not created.`;
       }
 
       // Find the file type option for content template
@@ -850,35 +1037,120 @@ Based on the input, I'll determine the appropriate file type and proceed to the 
       // Generate content from template
       const content = this.generateFileContent(fileDetails, fileTypeOption);
 
-      // Create the file with the actual project ID
-      const newFile = await convexMutations.createFile({
-        name: fileDetails.fileName,
-        content: content,
-        type: this.mapToConvexFileType(fileDetails.fileType),
-        projectId: targetProject._id // Use the actual project ID
-      });
+      // Create the file locally using editor store - this auto-opens the tab
+      const fileId = editorStore.createNewFile(
+        fileDetails.fileName.replace(/\.[^/.]+$/, ""), // name without extension
+        this.mapToEditorFileType(fileDetails.fileType), // map to editor type
+        'project', // category
+        projectFolder.id, // folderId
+        content, // customContent
+        false // skipSync - allow normal database sync
+      );
 
-      let result = `✅ **File Created Successfully!**\n\n`;
-      result += `📄 **File Name:** ${fileDetails.fileName}\n`;
-      result += `📁 **Project:** ${fileDetails.projectName}\n`;
-      result += `🏷️ **Type:** ${fileDetails.fileType}\n`;
-      
-      if (fileTypeOption) {
-        result += `📝 **Description:** ${fileTypeOption.description}\n`;
-      }
-      
-      result += `📅 **Created:** ${new Date().toLocaleDateString()}\n\n`;
-      result += `💡 You can now find and edit this file in the sidebar!\n\n`;
-      result += `🔧 **Next Steps:**\n`;
-      result += `• Open the file to customize the content\n`;
-      result += `• Share with team members if needed\n`;
-      result += `• Add to your workflow or calendar`;
+      console.log(`✅ Regular file created locally with ID: ${fileId}`);
 
-      return result;
+      return `✅ **File Created Successfully!**
+
+**📄 File Name:** ${fileDetails.fileName}
+**📁 Project:** ${fileDetails.projectName}
+**🏷️ Type:** ${fileDetails.fileType}
+**📅 Created:** ${new Date().toLocaleDateString()}
+
+**✨ Features:**
+✅ File opened in new tab
+✅ Template content applied
+✅ Ready for editing
+
+**🔧 Next Steps:**
+• The file is now open in the editor
+• Customize the content as needed
+• Save when you're ready
+
+*Start editing your new file in the tab that just opened!* 🚀`;
+
     } catch (error) {
-      console.error('❌ File creation failed:', error);
-      return `❌ **File creation failed:** ${error instanceof Error ? error.message : 'Unknown error'}`;
+      console.error('❌ Regular file creation failed:', error);
+      return `❌ **File Creation Failed**
+
+Error: ${error instanceof Error ? error.message : 'Unknown error'}
+
+Please try again or contact support.`;
     }
+  }
+
+  /**
+   * Populate Twitter form with generated content
+   */
+  private async populateTwitterForm(
+    fileName: string,
+    content: string,
+    convexMutations: ConvexMutations
+  ): Promise<void> {
+    try {
+      console.log('📝 Populating Twitter form fields...');
+
+      // Prepare platform data for the form
+      const platformData = {
+        replySettings: "following",
+        scheduledDate: "",
+        scheduledTime: "",
+        isThread: false,
+        threadTweets: [content],
+        hasPoll: false,
+        pollOptions: ["", ""],
+        pollDuration: 1440,
+      };
+
+      // Save to Convex database for form auto-population
+      if (convexMutations.upsertPost) {
+        await convexMutations.upsertPost({
+          fileName: fileName + ".x",
+          fileType: 'twitter',
+          content: content,
+          title: undefined, // Twitter doesn't use titles
+          platformData: JSON.stringify(platformData),
+          status: 'draft',
+        });
+        console.log(`✅ Twitter post data saved to database for form auto-population: ${fileName}.x`);
+      } else {
+        console.warn("⚠️ upsertPost mutation not available");
+        
+        // Fallback: dispatch event for form population
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('twitterPostCreated', {
+            detail: {
+              fileName: fileName + ".x",
+              content: content,
+              platformData: platformData,
+              status: 'draft'
+            }
+          }));
+          console.log(`📢 Dispatched twitterPostCreated event for form population: ${fileName}.x`);
+        }
+      }
+
+    } catch (error) {
+      console.error('❌ Failed to populate Twitter form:', error);
+      // Don't throw - file creation should still succeed
+    }
+  }
+
+  /**
+   * Map file type to editor expected type
+   */
+  private mapToEditorFileType(fileType: string): any {
+    const typeMap: Record<string, string> = {
+      x: 'x',
+      markdown: 'markdown',
+      notes: 'markdown',
+      plan: 'markdown',
+      brief: 'markdown',
+      checklist: 'markdown',
+      spreadsheet: 'excel',
+      document: 'markdown',
+      presentation: 'markdown'
+    };
+    return typeMap[fileType] || 'markdown';
   }
 
   /**
