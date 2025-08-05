@@ -666,13 +666,30 @@ export const useEditorStore = create<EditorState>()(
           });
         },
 
-        updateFileStatus: (fileId: string, status: 'draft' | 'scheduled' | 'complete') => {
+        updateFileStatus: (fileId: string, status: 'draft' | 'scheduled' | 'posting' | 'posted' | 'failed' | 'complete') => {
           const { projectFiles, financialFiles } = get();
+
+          console.log('🔄 updateFileStatus called:', {
+            fileId,
+            status,
+            projectFilesCount: projectFiles.length,
+            allProjectFileIds: projectFiles.map(f => ({ id: f.id, name: f.name, currentStatus: f.status }))
+          });
 
           // Update in project files
           const updatedProjectFiles = projectFiles.map(file =>
             file.id === fileId ? { ...file, status, modifiedAt: new Date() } : file
           );
+
+          // Check if any file was actually updated
+          const updatedFile = updatedProjectFiles.find(f => f.id === fileId);
+          console.log('📝 File status update result:', {
+            fileId,
+            newStatus: status,
+            foundFile: !!updatedFile,
+            updatedFileStatus: updatedFile?.status,
+            wasChanged: updatedFile?.status === status
+          });
 
           // Update in financial files
           const updatedFinancialFiles = financialFiles.map(file =>

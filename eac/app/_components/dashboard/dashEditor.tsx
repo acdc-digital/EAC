@@ -124,7 +124,8 @@ export function DashEditor() {
     unpinTab,
     updateFileContent,
     createNewFile,
-    projectFolders
+    projectFolders,
+    projectFiles
   } = useEditorStore();
 
   const { isCollapsed: isTerminalCollapsed } = useTerminalStore();
@@ -303,6 +304,22 @@ export function DashEditor() {
     [openTabs, activeTab]
   );
 
+  // Get file status for the current tab
+  const getCurrentFileStatus = () => {
+    if (!currentTab) return undefined;
+    const file = projectFiles.find(f => f.id === currentTab.id);
+    console.log('📊 getCurrentFileStatus DEBUG:', {
+      currentTabId: currentTab?.id,
+      currentTabName: currentTab?.name,
+      foundFile: !!file,
+      fileStatus: file?.status,
+      allProjectFiles: projectFiles.map(f => ({ id: f.id, name: f.name, status: f.status }))
+    });
+    return file?.status;
+  };
+
+  const currentFileStatus = getCurrentFileStatus();
+
   // Calculate line count based on active tab's content - dynamic based on content type
   const getLineCount = () => {
     if (!currentTab) return 1;
@@ -323,9 +340,23 @@ export function DashEditor() {
   
   const lineCount = getLineCount();
 
-  const isEditable = currentTab ? ['typescript', 'javascript', 'json', 'markdown', 'x', 'facebook', 'instagram', 'reddit'].includes(currentTab.type) : false;
-  const isMarkdownFile = currentTab?.type === 'markdown';
   const isSocialMediaFile = currentTab ? ['x', 'facebook', 'instagram', 'reddit'].includes(currentTab.type) : false;
+  const isEditable = currentTab ? 
+    ['typescript', 'javascript', 'json', 'markdown', 'x', 'facebook', 'instagram', 'reddit'].includes(currentTab.type) &&
+    // For social media files, disable editing if status is 'posted'
+    !(isSocialMediaFile && currentFileStatus === 'posted')
+    : false;
+    
+  // Debug isEditable calculation
+  console.log('🔍 isEditable calculation:', {
+    currentTabType: currentTab?.type,
+    isSocialMediaFile,
+    currentFileStatus,
+    isTypeEditable: currentTab ? ['typescript', 'javascript', 'json', 'markdown', 'x', 'facebook', 'instagram', 'reddit'].includes(currentTab.type) : false,
+    shouldDisableForPosted: isSocialMediaFile && currentFileStatus === 'posted',
+    finalIsEditable: isEditable
+  });
+  const isMarkdownFile = currentTab?.type === 'markdown';
   const isGeneralsModule = currentTab?.type === 'generals';
   const isPercentCompleteModule = currentTab?.type === 'percent-complete';
   const isScheduleModule = currentTab?.type === 'schedule';

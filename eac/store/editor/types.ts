@@ -43,7 +43,7 @@ export interface ProjectFile {
   createdAt: Date;
   modifiedAt: Date;
   folderId?: string; // Optional folder reference
-  status?: 'draft' | 'scheduled' | 'complete'; // Post status for social media files
+  status?: 'draft' | 'scheduled' | 'posting' | 'posted' | 'failed' | 'complete'; // Post status for social media files
   convexId?: string; // Database file ID for syncing with Convex
 }
 
@@ -73,7 +73,7 @@ export interface EditorState {
   updateTabContent: (tabId: string, content: string) => void;
   updateFileContent: (tabId: string, content: string) => void;
   updateFileContentInStore: (fileId: string, content: string) => void;
-  updateFileStatus: (fileId: string, status: 'draft' | 'scheduled' | 'complete') => void;
+  updateFileStatus: (fileId: string, status: 'draft' | 'scheduled' | 'posting' | 'posted' | 'failed' | 'complete') => void;
   updateFileConvexId: (fileId: string, convexId: string) => void;
   updateFolderConvexId: (folderId: string, convexId: string) => void;
   createNewFile: (name: string, type: ProjectFile['type'], category?: ProjectFile['category'], folderId?: string, customContent?: string, skipSync?: boolean) => string;

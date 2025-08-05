@@ -123,6 +123,61 @@ export const createTweet = action({
         const errorMessage = responseData.detail || responseData.title || responseData.error || `HTTP ${response.status}`;
         console.error("❌ X API Error:", { status: response.status, error: errorMessage, responseData });
         
+        // If it's a 401 Unauthorized, try to refresh the token and retry once
+        if (response.status === 401) {
+          console.log("🔄 Attempting to refresh expired token...");
+          
+          try {
+            const refreshResult = await ctx.runAction(internal.xApi.refreshXToken, {
+              connectionId: args.connectionId,
+            });
+
+            if (refreshResult.success) {
+              console.log("✅ Token refreshed successfully, retrying post...");
+              
+              // Get the updated connection with new token
+              const updatedConnection = await ctx.runQuery(internal.socialConnections.getConnectionById, {
+                connectionId: args.connectionId,
+              });
+
+              if (updatedConnection?.twitterAccessToken) {
+                // Retry the API call with new token
+                const retryResponse = await fetch("https://api.twitter.com/2/tweets", {
+                  method: "POST",
+                  headers: {
+                    Authorization: `Bearer ${updatedConnection.twitterAccessToken}`,
+                    "Content-Type": "application/json",
+                    "User-Agent": "EACDashboard/1.0",
+                  },
+                  body: JSON.stringify(tweetPayload),
+                });
+
+                const retryData = await retryResponse.json();
+                console.log("🔄 Retry response:", { status: retryResponse.status, data: retryData });
+
+                if (retryResponse.ok) {
+                  console.log("✅ Post successful after token refresh!");
+                  return {
+                    success: true,
+                    data: retryData.data,
+                  };
+                } else {
+                  const retryError = retryData.detail || retryData.title || retryData.error || `HTTP ${retryResponse.status}`;
+                  console.error("❌ Retry also failed:", retryError);
+                  return {
+                    success: false,
+                    error: `Failed after token refresh: ${retryError}`,
+                  };
+                }
+              }
+            } else {
+              console.error("❌ Token refresh failed:", refreshResult.error);
+            }
+          } catch (refreshError) {
+            console.error("❌ Error during token refresh:", refreshError);
+          }
+        }
+        
         return {
           success: false,
           error: errorMessage,

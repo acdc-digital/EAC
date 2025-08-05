@@ -4,7 +4,7 @@
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { Doc } from "./_generated/dataModel";
-import { action } from "./_generated/server";
+import { action, internalAction } from "./_generated/server";
 
 // Type definitions for API responses
 interface TwitterTokenResponse {
@@ -179,6 +179,109 @@ export const authenticateX = action({
       });
       
       throw new Error(`X authentication failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  },
+});
+
+// Refresh expired Twitter access tokens
+export const refreshXToken = internalAction({
+  args: {
+    connectionId: v.id("socialConnections"),
+  },
+  handler: async (ctx, args): Promise<{ success: boolean; error?: string }> => {
+    console.log("🔄 refreshXToken: Starting token refresh", { connectionId: args.connectionId });
+    
+    try {
+      // Get the connection
+      const connection = await ctx.runQuery(internal.socialConnections.getConnectionById, {
+        connectionId: args.connectionId,
+      });
+
+      if (!connection?.twitterRefreshToken) {
+        console.error("❌ No refresh token available", { connectionId: args.connectionId });
+        return {
+          success: false,
+          error: "No refresh token available"
+        };
+      }
+
+      // Check if token is actually expired
+      if (connection.tokenExpiry && Date.now() < connection.tokenExpiry) {
+        console.log("✅ Token is still valid", { 
+          connectionId: args.connectionId,
+          expiresAt: new Date(connection.tokenExpiry).toISOString()
+        });
+        return { success: true };
+      }
+
+      const clientId = process.env.TWITTER_CLIENT_ID;
+      const clientSecret = process.env.TWITTER_CLIENT_SECRET;
+
+      if (!clientId || !clientSecret) {
+        console.error("❌ Missing Twitter OAuth credentials");
+        return {
+          success: false,
+          error: "Missing Twitter OAuth credentials"
+        };
+      }
+
+      // Refresh the token
+      const tokenResponse = await fetch("https://api.twitter.com/2/oauth2/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
+        },
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: connection.twitterRefreshToken,
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        const errorData = await tokenResponse.json();
+        console.error("❌ Token refresh failed", { 
+          status: tokenResponse.status,
+          error: errorData 
+        });
+        return {
+          success: false,
+          error: errorData.error_description || "Token refresh failed"
+        };
+      }
+
+      const tokenData: TwitterTokenResponse = await tokenResponse.json();
+      console.log("✅ Token refreshed successfully", { 
+        hasAccessToken: !!tokenData.access_token,
+        hasNewRefreshToken: !!tokenData.refresh_token,
+        expiresIn: tokenData.expires_in 
+      });
+
+      // Calculate new expiry time
+      const tokenExpiry = tokenData.expires_in 
+        ? Date.now() + (tokenData.expires_in * 1000)
+        : undefined;
+
+      // Update the connection with new tokens
+      await ctx.runMutation(internal.x.updateXConnectionTokens, {
+        connectionId: args.connectionId,
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token || connection.twitterRefreshToken, // Keep old refresh token if new one not provided
+        tokenExpiry,
+      });
+
+      return { success: true };
+
+    } catch (error) {
+      console.error("❌ refreshXToken: Error during token refresh", {
+        connectionId: args.connectionId,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error during token refresh"
+      };
     }
   },
 });

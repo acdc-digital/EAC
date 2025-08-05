@@ -184,6 +184,9 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
   // Editor store access
   const { openTabs, updateFileContent, updateFileStatus } = useEditorStore();
 
+  // Get current file status
+  const currentTab = openTabs.find(tab => tab.name === fileName);
+
   // Convex mutations
   const upsertPost = useMutation(api.socialPosts.upsertPost);
   const schedulePost = useMutation(api.socialPosts.schedulePost);
@@ -194,6 +197,9 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
   // Fetch scheduling data from Convex database
   const agentPosts = useQuery(api.socialPosts.getAllPosts);
   const currentPost = agentPosts?.find((post: any) => post.fileName === fileName);
+  
+  // Get file status - use Convex as primary source
+  const fileStatus = currentPost?.status || 'draft';
 
   // Debug: Log every render
   console.log('🎨 SocialMediaFormEditor render:', {
@@ -341,12 +347,22 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
         }
         
         console.log('✅ Post scheduled successfully for:', scheduledDateTime);
+        
+        // Show success message for scheduled posts
+        const formattedDate = scheduledDateTime.toLocaleString();
+        alert(`📅 Successfully scheduled for ${formattedDate}!`);
       } else {
         // Publish immediately to actual platform
         if (normalizedPlatform === 'twitter') {
           // Check if we have a Twitter connection
           if (!hasConnection) {
             throw new Error('No X/Twitter connection found. Please connect your X account in Settings → Social Connections.');
+          }
+
+          // Update file status to 'posting' while in progress
+          const currentTab = openTabs.find(tab => tab.name === fileName || tab.filePath.includes(fileName));
+          if (currentTab) {
+            updateFileStatus(currentTab.id, 'posting');
           }
 
           // First update database status to 'posting'
@@ -359,9 +375,39 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
           });
 
           // Actually post to Twitter using the API
+          console.log('🐦 About to call postTweet with:', {
+            text: formData.content,
+            replySettings: formData.settings.replySettings,
+            replySettingsType: typeof formData.settings.replySettings,
+            allFormDataSettings: formData.settings
+          });
+          
+          // Map reply settings to valid values for X API
+          const mapReplySettings = (setting: string | undefined): 'following' | 'mentionedUsers' | 'subscribers' | 'verified' => {
+            switch (setting) {
+              case 'following':
+              case 'mentionedUsers':
+              case 'subscribers':
+              case 'verified':
+                return setting;
+              case 'everyone':
+              case 'public':
+              case undefined:
+              case null:
+              default:
+                return 'following'; // Default fallback
+            }
+          };
+          
+          const validReplySettings = mapReplySettings(formData.settings.replySettings);
+          console.log('🔄 Mapped reply settings:', {
+            original: formData.settings.replySettings,
+            mapped: validReplySettings
+          });
+          
           const tweetResult = await postTweet({
             text: formData.content,
-            reply_settings: formData.settings.replySettings as any || 'following'
+            reply_settings: validReplySettings
           });
 
           if (tweetResult.success) {
@@ -374,7 +420,17 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
               platformData: JSON.stringify(formData.settings)
             });
             console.log('✅ Post published successfully to Twitter:', tweetResult.data);
+            
+            // Show success message
+            const tweetId = tweetResult.data?.id || 'N/A';
+            alert(`🎉 Successfully posted to X/Twitter!\n\nTweet ID: ${tweetId}`);
           } else {
+            // Update file status to 'failed'
+            const currentTab = openTabs.find(tab => tab.name === fileName || tab.filePath.includes(fileName));
+            if (currentTab) {
+              updateFileStatus(currentTab.id, 'failed');
+            }
+
             // Update database with failed status
             await upsertPost({
               content: formData.content,
@@ -395,17 +451,27 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
             platformData: JSON.stringify(formData.settings)
           });
           console.log('✅ Post published successfully to Reddit');
+          
+          // Show success message for Reddit
+          alert('🎉 Successfully posted to Reddit!');
         }
       }
       
       // Update file status in editor
       const currentTab = openTabs.find(tab => tab.name === fileName || tab.filePath.includes(fileName));
       if (currentTab) {
-        updateFileStatus(currentTab.id, isScheduled ? 'scheduled' : 'complete');
+        updateFileStatus(currentTab.id, isScheduled ? 'scheduled' : 'posted');
       }
       
     } catch (error) {
       console.error('❌ Failed to publish post:', error);
+      
+      // Update file status to 'failed' on error
+      const currentTab = openTabs.find(tab => tab.name === fileName || tab.filePath.includes(fileName));
+      if (currentTab) {
+        updateFileStatus(currentTab.id, 'failed');
+      }
+      
       // Show user-friendly error message
       alert(`❌ Failed to publish post:\n\n${error instanceof Error ? error.message : 'Unknown error occurred'}`);
     } finally {
@@ -571,12 +637,43 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
                 {/* Post Content */}
                 <Card className="bg-[#2d2d2d] border-[#454545]">
                   <CardHeader>
-                    <CardTitle className="text-[#cccccc] flex items-center gap-2">
-                      <MessageCircle className="w-4 h-4" />
-                      Post Content
+                    <CardTitle className="text-[#cccccc] flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <MessageCircle className="w-4 h-4" />
+                        Post Content
+                      </div>
+                      {fileStatus === 'posted' && (
+                        <Badge className="bg-green-600 text-white">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Posted
+                        </Badge>
+                      )}
+                      {fileStatus === 'posting' && (
+                        <Badge className="bg-blue-600 text-white">
+                          Publishing...
+                        </Badge>
+                      )}
+                      {fileStatus === 'scheduled' && (
+                        <Badge className="bg-yellow-600 text-white">
+                          Scheduled
+                        </Badge>
+                      )}
+                      {fileStatus === 'failed' && (
+                        <Badge className="bg-red-600 text-white">
+                          Failed
+                        </Badge>
+                      )}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    {fileStatus === 'posted' && (
+                      <div className="bg-green-900/20 border border-green-600/30 rounded-md p-3 mb-4">
+                        <div className="flex items-center gap-2 text-green-400 text-sm">
+                          <CheckCircle className="w-4 h-4" />
+                          This post has been successfully published and is now read-only.
+                        </div>
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <Label className="text-[#cccccc]">
                         {platform === 'x' || platform === 'twitter' 
@@ -610,6 +707,7 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
                             onChange={(e) => handleFormChange({ 
                               settings: { hashtags: e.target.value }
                             })}
+                            disabled={!editable}
                             placeholder="#hashtag1 #hashtag2"
                             className="bg-[#1e1e1e] border-[#454545] text-[#cccccc] placeholder-[#858585]"
                           />
@@ -621,6 +719,7 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
                             onChange={(e) => handleFormChange({ 
                               settings: { location: e.target.value }
                             })}
+                            disabled={!editable}
                             placeholder="Add location"
                             className="bg-[#1e1e1e] border-[#454545] text-[#cccccc] placeholder-[#858585]"
                           />
@@ -636,6 +735,7 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
                         onChange={(e) => handleFormChange({ 
                           settings: { taggedUsers: e.target.value }
                         })}
+                        disabled={!editable}
                         placeholder="@username1, @username2"
                         className="bg-[#1e1e1e] border-[#454545] text-[#cccccc] placeholder-[#858585]"
                       />
@@ -677,6 +777,7 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
                           onChange={(e) => handleFormChange({ 
                             settings: { scheduledDate: e.target.value }
                           })}
+                          disabled={!editable}
                           className="bg-[#1e1e1e] border-[#454545] text-[#cccccc]"
                         />
                       </div>
@@ -688,6 +789,7 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
                           onChange={(e) => handleFormChange({ 
                             settings: { scheduledTime: e.target.value }
                           })}
+                          disabled={!editable}
                           className="bg-[#1e1e1e] border-[#454545] text-[#cccccc]"
                         />
                       </div>
@@ -715,6 +817,7 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
                         onValueChange={(value) => handleFormChange({ 
                           settings: { replySettings: value }
                         })}
+                        disabled={!editable}
                       >
                         <SelectTrigger className="bg-[#1e1e1e] border-[#454545] text-[#cccccc]">
                           <SelectValue />
@@ -786,7 +889,7 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
             <div className="flex gap-3 pt-4 border-t border-[#454545]">
               <Button 
                 onClick={handlePublish}
-                disabled={isPublishing || isSaving || !formData.content.trim()}
+                disabled={!editable || isPublishing || isSaving || !formData.content.trim()}
                 className={cn(
                   "flex-1",
                   platform === 'x' || platform === 'twitter' ? "bg-[#1DA1F2] hover:bg-[#1a8cd8]" :
@@ -800,7 +903,7 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
               </Button>
               <Button 
                 onClick={handleSaveDraft}
-                disabled={isSaving || isPublishing || !formData.content.trim()}
+                disabled={!editable || isSaving || isPublishing || !formData.content.trim()}
                 variant="outline" 
                 className="border-[#454545] text-[#cccccc] hover:bg-[#2d2d2d]"
               >

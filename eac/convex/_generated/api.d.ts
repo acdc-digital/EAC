@@ -17,6 +17,7 @@ import type * as activityLogs from "../activityLogs.js";
 import type * as auth from "../auth.js";
 import type * as chat from "../chat.js";
 import type * as chatActions from "../chatActions.js";
+import type * as cleanup from "../cleanup.js";
 import type * as cron from "../cron.js";
 import type * as crons from "../crons.js";
 import type * as debug from "../debug.js";
@@ -55,6 +56,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   chat: typeof chat;
   chatActions: typeof chatActions;
+  cleanup: typeof cleanup;
   cron: typeof cron;
   crons: typeof crons;
   debug: typeof debug;
