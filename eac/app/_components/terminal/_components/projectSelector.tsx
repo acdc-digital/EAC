@@ -18,13 +18,17 @@ interface ProjectSelectorProps {
     description?: string;
   };
   className?: string;
+  disabled?: boolean;
+  selectedProject?: Project;
 }
 
 export function ProjectSelector({ 
   onProjectSelected, 
   onCancel, 
   fileDetails, 
-  className = "" 
+  className = "",
+  disabled = false,
+  selectedProject: initialSelectedProject
 }: ProjectSelectorProps) {
   const allProjects = useQuery(api.projects.getProjects, {}) || [];
   // Filter out system folders - only show user-created projects
@@ -32,12 +36,14 @@ export function ProjectSelector({
     project.name.toLowerCase() !== 'instructions' && 
     project.name.toLowerCase() !== 'content creation'
   );
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [isProjectsExpanded, setIsProjectsExpanded] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(initialSelectedProject || null);
+  const [isProjectsExpanded, setIsProjectsExpanded] = useState(disabled ? false : false); // Don't auto-expand when disabled
   const isLoading = allProjects === undefined;
 
   const handleProjectSelect = (project: Project) => {
-    setSelectedProject(project);
+    if (!disabled) {
+      setSelectedProject(project);
+    }
   };
 
   const handleConfirm = () => {
@@ -94,8 +100,11 @@ export function ProjectSelector({
       {/* Projects List Drawer */}
       <div className="bg-[#1e1e1e] border border-[#2d2d2d] rounded">
         <button
-          onClick={() => setIsProjectsExpanded(!isProjectsExpanded)}
-          className="w-full flex items-center gap-2 p-2 hover:bg-[#2d2d2d]/30 transition-colors"
+          onClick={() => !disabled && setIsProjectsExpanded(!isProjectsExpanded)}
+          disabled={disabled}
+          className={`w-full flex items-center gap-2 p-2 transition-colors ${
+            disabled ? 'cursor-default opacity-70' : 'hover:bg-[#2d2d2d]/30'
+          }`}
         >
           {isProjectsExpanded ? 
             <ChevronDown className="w-3.5 h-3.5 text-[#858585]" /> : 
@@ -122,7 +131,12 @@ export function ProjectSelector({
                   <button
                     key={project._id}
                     onClick={() => handleProjectSelect(project)}
-                    className={`w-full flex items-center justify-between px-1 hover:bg-[#2d2d2d]/30 py-1 text-left ${
+                    disabled={disabled}
+                    className={`w-full flex items-center justify-between px-1 py-1 text-left transition-colors ${
+                      disabled 
+                        ? 'cursor-default opacity-70' 
+                        : 'hover:bg-[#2d2d2d]/30'
+                    } ${
                       selectedProject?._id === project._id
                         ? 'bg-[#007acc]/20'
                         : ''
@@ -163,18 +177,22 @@ export function ProjectSelector({
 
       {/* Action Buttons */}
       <div className="space-y-1">
-        <div className="text-xs text-[#858585]">Add file to project</div>
+        <div className="text-xs text-[#858585]">
+          {disabled ? "✅ Selected project:" : "Add file to project"}
+        </div>
         <div>
           <button
             onClick={handleConfirm}
-            disabled={!selectedProject}
+            disabled={!selectedProject || disabled}
             className={`text-xs px-3 py-1 rounded border transition-colors ${
-              selectedProject 
+              selectedProject && !disabled
                 ? 'bg-[#007acc] text-white border-[#007acc] hover:bg-[#1e90ff] hover:border-[#1e90ff]' 
+                : disabled && selectedProject
+                ? 'bg-[#1e4a5a] text-[#007acc] border-[#007acc] cursor-default'
                 : 'bg-transparent text-[#454545] border-[#454545] cursor-not-allowed'
             }`}
           >
-            Confirm
+            {disabled ? "Confirmed" : "Confirm"}
           </button>
         </div>
         

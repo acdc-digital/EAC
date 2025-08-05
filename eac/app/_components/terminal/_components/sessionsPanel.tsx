@@ -202,17 +202,15 @@ export function SessionsPanel({ className }: SessionsPanelProps) {
               {sessions.map((session, index) => (
               <div
                 key={session.sessionId}
+                onClick={() => handleSessionClick(session.sessionId)}
                 className={cn(
-                  "w-full flex items-center px-3 py-1.5 transition-all duration-200 hover:bg-[#2a2a2a] border-b border-[#333] bg-[#1a1a1a] group",
+                  "w-full flex items-center px-3 py-1.5 transition-all duration-200 hover:bg-[#2a2a2a] border-b border-[#333] bg-[#1a1a1a] group cursor-pointer",
                   session.sessionId === activeSessionId
                     ? "border-l-2 border-l-[#0078d4]"
                     : ""
                 )}
               >
-                <button
-                  onClick={() => handleSessionClick(session.sessionId)}
-                  className="flex items-center flex-1 text-left min-w-0"
-                >
+                <div className="flex items-center flex-1 text-left min-w-0">
                   <div className="flex-shrink-0 w-20 text-xs text-[#cccccc] font-medium">
                     #{index + 1}
                   </div>
@@ -227,7 +225,7 @@ export function SessionsPanel({ className }: SessionsPanelProps) {
                   <div className="flex-shrink-0 w-24 pl-2 text-right text-xs text-[#858585]">
                     {formatTime(session.lastActivity)}
                   </div>
-                </button>
+                </div>
                 
                 {/* Delete Button */}
                 <div className="flex-shrink-0 w-12 flex justify-center">

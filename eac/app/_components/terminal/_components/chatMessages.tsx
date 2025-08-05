@@ -13,6 +13,9 @@ import { useSessionStore } from "@/store/terminal/session";
 import { useUser } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
 import React, { useEffect, useRef, useState } from "react";
+import { FileNameInput } from "./fileNameInput";
+import { FileTypeSelector } from "./fileTypeSelector";
+import { ProjectNameInput } from "./projectNameInput";
 import { ProjectSelector } from "./projectSelector";
 
 export function ChatMessages() {
@@ -371,10 +374,12 @@ Please start a new session to continue chatting.`,
     
     if (message.trim() && !isLoading) {
       const messageContent = message.trim();
+      console.log('💬 User submitting message:', messageContent);
       setMessage("");
       
       // Check if this is an agent command when an agent is active
       if (activeAgentId && !messageContent.startsWith('/')) {
+        console.log('🤖 Routing to active agent:', activeAgentId);
         try {
           console.log(`🤖 Executing agent ${activeAgentId} with message: ${messageContent}`);
           
@@ -401,6 +406,18 @@ Please start a new session to continue chatting.`,
           if (activeAgent && activeAgent.tools.length > 0) {
             const defaultTool = activeAgent.tools[0]; // Use the first tool as default
             
+            // ✅ FIX #1: Always store the user message first, regardless of agent result
+            await storeChatMessage({
+              role: "user",
+              content: messageContent,
+              sessionId,
+              processIndicator: isFollowUpToWaitingAgent ? {
+                type: 'continuing',
+                processType: 'file-creation',
+                color: 'blue'
+              } : undefined,
+            });
+            
             // Execute the agent tool
             const result = await executeAgentTool(
               activeAgentId,
@@ -412,7 +429,7 @@ Please start a new session to continue chatting.`,
             // Handle empty results from interactive components
             if (!result || result.trim() === "") {
               console.log('Agent returned empty result - this is expected for interactive components');
-              // Don't store a message for empty results - the interactive component handles the UI
+              // User message was already stored above - interactive component handles the UI
               return;
             }
             
@@ -455,18 +472,7 @@ Please start a new session to continue chatting.`,
               setActiveAgentProcess(null);
             }
             
-            // Store both user message and agent result with process indicators
-            await storeChatMessage({
-              role: "user",
-              content: messageContent,
-              sessionId,
-              processIndicator: (isFollowUpToWaitingAgent || isWaitingForInput) ? {
-                type: 'continuing',
-                processType: 'file-creation',
-                color: 'blue'
-              } : undefined,
-            });
-            
+            // Store agent result with process indicators (user message already stored above)
             await storeChatMessage({
               role: "assistant",
               content: `🤖 **${activeAgent.name} Agent Result:**\n\n${result}`,
@@ -588,7 +594,7 @@ Please start a new session to continue chatting.`,
           </div>
 
           {/* Messages */}
-          {messages.map((msg, index) => {
+          {messages?.map((msg, index) => {
             // Use the stored processIndicator for visual continuity
             const hasProcessIndicator = msg.processIndicator;
             const isUserProcessMessage = hasProcessIndicator && msg.role === 'user' && hasProcessIndicator.type === 'continuing';
@@ -613,11 +619,13 @@ Please start a new session to continue chatting.`,
                     <div className="ml-1 text-[#cccccc] whitespace-pre-wrap">{msg.content}</div>
                     
                     {/* Interactive Component */}
-                    {msg.interactiveComponent && msg.interactiveComponent.status === 'pending' && (
+                    {msg.interactiveComponent && (msg.interactiveComponent.status === 'pending' || msg.interactiveComponent.status === 'completed') && (
                       <div className="mt-3 ml-1">
-                        {msg.interactiveComponent.type === 'project_selector' && (
+                        {msg.interactiveComponent.type === 'project_selector' && !msg.interactiveComponent.data?.projectNameInput && (
                           <ProjectSelector
                             fileDetails={msg.interactiveComponent.data?.fileDetails}
+                            disabled={msg.interactiveComponent.status === 'completed'}
+                            selectedProject={msg.interactiveComponent.status === 'completed' ? msg.interactiveComponent.result?.selectedProject : undefined}
                             onProjectSelected={async (project) => {
                               try {
                                 // Update the component status to completed
@@ -638,6 +646,7 @@ Please start a new session to continue chatting.`,
                                   await storeChatMessage({
                                     role: 'user',
                                     content: `Selected project: ${project.name}`,
+                                    sessionId: sessionId,
                                     processIndicator: {
                                       type: 'continuing',
                                       processType: 'project_selection',
@@ -732,12 +741,288 @@ Please start a new session to continue chatting.`,
                             className="mb-2"
                           />
                         )}
+                        {msg.interactiveComponent.type === 'project_selector' && msg.interactiveComponent.data?.projectNameInput && (
+                          <ProjectNameInput
+                            placeholder={msg.interactiveComponent.data?.placeholder}
+                            defaultValue={msg.interactiveComponent.data?.defaultValue}
+                            onProjectNameSubmitted={async (projectName) => {
+                              try {
+                                // Update the component status to completed
+                                await updateInteractiveComponent({
+                                  messageId: msg._id,
+                                  status: 'completed',
+                                  result: { projectName },
+                                });
+
+                                // Continue the project creation process
+                                const convexMutations = createConvexMutations();
+                                const projectCreatorAgent = agents.find(a => a.id === 'project-creator');
+                                if (projectCreatorAgent) {
+                                  // Send user message showing the project name
+                                  await storeChatMessage({
+                                    role: 'user',
+                                    content: `Project name: ${projectName}`,
+                                    processIndicator: {
+                                      type: 'continuing',
+                                      processType: 'project_name_input',
+                                      color: 'blue',
+                                    },
+                                  });
+
+                                  // Execute the agent with the project name
+                                  console.log('🚀 Executing agent with project name:', projectName);
+                                  
+                                  const result = await executeAgentTool(
+                                    projectCreatorAgent.id,
+                                    projectCreatorAgent.tools[0].id,
+                                    projectName,
+                                    convexMutations
+                                  );
+                                  
+                                  console.log('📥 Agent execution result:', result);
+
+                                  // Only store non-empty results
+                                  if (result && result.trim() !== "") {
+                                    console.log('✅ Storing project creation success message...');
+                                    
+                                    // Store the agent's response
+                                    await storeChatMessage({
+                                      role: 'assistant',
+                                      content: result,
+                                      sessionId: sessionId,
+                                      processIndicator: {
+                                        type: 'waiting',
+                                        processType: 'project_creation_complete',
+                                        color: 'green',
+                                      },
+                                    });
+                                    
+                                    console.log('✅ Project creation success message stored!');
+                                  } else {
+                                    console.log('⚠️ Agent returned empty result after project name input');
+                                  }
+                                }
+                              } catch (error) {
+                                console.error('Error handling project name input:', error);
+                                await storeChatMessage({
+                                  role: 'assistant',
+                                  content: '❌ Error processing project name. Please try again.',
+                                });
+                              }
+                            }}
+                            onCancel={async () => {
+                              try {
+                                await updateInteractiveComponent({
+                                  messageId: msg._id,
+                                  status: 'cancelled',
+                                });
+                                await storeChatMessage({
+                                  role: 'assistant',
+                                  content: '❌ Project creation cancelled. You can start a new project creation request anytime.',
+                                });
+                              } catch (error) {
+                                console.error('Error cancelling project name input:', error);
+                              }
+                            }}
+                            className="mb-2"
+                          />
+                        )}
+                        {(msg.interactiveComponent.type as string) === 'file_type_selector' && (
+                          <FileTypeSelector
+                            onFileTypeSelected={async (fileType) => {
+                              try {
+                                // Create a serializable version of the fileType without React components
+                                const serializableFileType = {
+                                  type: fileType.type,
+                                  extension: fileType.extension,
+                                  description: fileType.description,
+                                  platform: fileType.platform,
+                                  available: fileType.available
+                                };
+
+                                // Update the component status to completed
+                                await updateInteractiveComponent({
+                                  messageId: msg._id,
+                                  status: 'completed',
+                                  result: { fileType: serializableFileType },
+                                });
+
+                                // Continue the file creation process
+                                const convexMutations = createConvexMutations();
+                                const fileCreatorAgent = agents.find(a => a.id === 'file-creator');
+                                if (fileCreatorAgent) {
+                                  // Send user message showing the file type selection
+                                  await storeChatMessage({
+                                    role: 'user',
+                                    content: `Selected file type: ${fileType.description}`,
+                                    sessionId: sessionId,
+                                    processIndicator: {
+                                      type: 'continuing',
+                                      processType: 'file_type_selection',
+                                      color: 'blue',
+                                    },
+                                  });
+
+                                  // Execute the agent with the file type selection
+                                  console.log('🚀 Executing file creator agent with file type:', fileType);
+                                  
+                                  const result = await executeAgentTool(
+                                    fileCreatorAgent.id,
+                                    fileCreatorAgent.tools[0].id,
+                                    `File type: ${fileType.type}`,
+                                    convexMutations
+                                  );
+                                  
+                                  console.log('📥 File creator agent result:', result);
+
+                                  // Only store non-empty results
+                                  if (result && result.trim() !== "") {
+                                    console.log('✅ Storing file type continuation message...');
+                                    
+                                    // Store the agent's response
+                                    await storeChatMessage({
+                                      role: 'assistant',
+                                      content: result,
+                                      sessionId: sessionId,
+                                      processIndicator: {
+                                        type: 'waiting',
+                                        processType: 'file_type_continue',
+                                        color: 'green',
+                                      },
+                                    });
+                                    
+                                    console.log('✅ File type continuation message stored!');
+                                  } else {
+                                    console.log('⚠️ Agent returned empty result after file type selection');
+                                  }
+                                }
+                              } catch (error) {
+                                console.error('Error handling file type selection:', error);
+                                await storeChatMessage({
+                                  role: 'assistant',
+                                  content: '❌ Error processing file type selection. Please try again.',
+                                  sessionId: sessionId,
+                                });
+                              }
+                            }}
+                            onCancel={async () => {
+                              try {
+                                await updateInteractiveComponent({
+                                  messageId: msg._id,
+                                  status: 'cancelled',
+                                });
+                                await storeChatMessage({
+                                  role: 'assistant',
+                                  content: '❌ File creation cancelled. You can start a new file creation request anytime.',
+                                  sessionId,
+                                });
+                              } catch (error) {
+                                console.error('Error cancelling file type selection:', error);
+                              }
+                            }}
+                            disabled={msg.interactiveComponent.status === 'completed'}
+                            selectedFileType={msg.interactiveComponent.status === 'completed' ? msg.interactiveComponent.result?.fileType : undefined}
+                            className="mb-2"
+                          />
+                        )}
+                        {(msg.interactiveComponent.type as string) === 'file_name_input' && (
+                          <FileNameInput
+                            placeholder={msg.interactiveComponent.data?.placeholder}
+                            defaultValue={msg.interactiveComponent.data?.defaultValue}
+                            fileType={msg.interactiveComponent.data?.fileType}
+                            onFileNameSubmitted={async (fileName) => {
+                              try {
+                                // Update the component status to completed
+                                await updateInteractiveComponent({
+                                  messageId: msg._id,
+                                  status: 'completed',
+                                  result: { fileName },
+                                });
+
+                                // Continue the file creation process
+                                const convexMutations = createConvexMutations();
+                                const fileCreatorAgent = agents.find(a => a.id === 'file-creator');
+                                if (fileCreatorAgent) {
+                                  // Execute the agent with the file name FIRST
+                                  console.log('🚀 Executing file creator agent with file name:', fileName);
+                                  
+                                  const result = await executeAgentTool(
+                                    fileCreatorAgent.id,
+                                    fileCreatorAgent.tools[0].id,
+                                    fileName,
+                                    convexMutations
+                                  );
+
+                                  // THEN send user message showing the file name (after agent processes it)
+                                  await storeChatMessage({
+                                    role: 'user',
+                                    content: fileName,
+                                    sessionId: sessionId,
+                                    processIndicator: {
+                                      type: 'continuing',
+                                      processType: 'file_name_input',
+                                      color: 'blue',
+                                    },
+                                  });
+                                  
+                                  console.log('📥 File creator agent result:', result);
+
+                                  // Only store non-empty results
+                                  if (result && result.trim() !== "") {
+                                    console.log('✅ Storing file creation continuation message...');
+                                    
+                                    // Store the agent's response
+                                    await storeChatMessage({
+                                      role: 'assistant',
+                                      content: result,
+                                      sessionId: sessionId,
+                                      processIndicator: {
+                                        type: 'waiting',
+                                        processType: 'file_creation_continue',
+                                        color: 'green',
+                                      },
+                                    });
+                                    
+                                    console.log('✅ File creation continuation message stored!');
+                                  } else {
+                                    console.log('⚠️ Agent returned empty result after file name input');
+                                  }
+                                }
+                              } catch (error) {
+                                console.error('Error handling file name input:', error);
+                                await storeChatMessage({
+                                  role: 'assistant',
+                                  content: '❌ Error processing file name. Please try again.',
+                                  sessionId: sessionId,
+                                });
+                              }
+                            }}
+                            onCancel={async () => {
+                              try {
+                                await updateInteractiveComponent({
+                                  messageId: msg._id,
+                                  status: 'cancelled',
+                                });
+                                await storeChatMessage({
+                                  role: 'assistant',
+                                  content: '❌ File creation cancelled. You can start a new file creation request anytime.',
+                                  sessionId,
+                                });
+                              } catch (error) {
+                                console.error('Error cancelling file name input:', error);
+                              }
+                            }}
+                            className="mb-2"
+                          />
+                        )}
                       </div>
                     )}
                     
                     {isAgentProcessMessage && (
                       <div className="text-[10px] text-[#4ec9b0] mt-1 opacity-80">
-                        {msg.content.includes("✅ **File Created Successfully!**") 
+                        {(msg.content.includes("✅ **File Created Successfully!**") || 
+                          msg.content.includes("✅ **Project Created Successfully!**") ||
+                          msg.content.includes("✅ **Template Applied Successfully!**")) 
                           ? "↳ Process completed successfully!"
                           : "↳ Agent waiting for your input..."
                         }

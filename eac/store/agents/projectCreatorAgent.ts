@@ -25,6 +25,12 @@ export class ProjectCreatorAgent extends BaseAgent {
   description = 'Creates projects and files on behalf of users using natural language';
   icon = 'FileText';
 
+  // State to track pending project creation
+  private static pendingProjectCreation: {
+    projectDetails: Partial<ProjectDetails>;
+    timestamp: number;
+  } | null = null;
+
   tools: AgentTool[] = [
     {
       id: 'natural-language-creator',
@@ -59,6 +65,32 @@ export class ProjectCreatorAgent extends BaseAgent {
   ): Promise<string> {
     const normalizedInput = input.toLowerCase().trim();
     console.log('🔍 Processing natural language input:', normalizedInput);
+    console.log('🔍 Has pending project creation:', !!ProjectCreatorAgent.pendingProjectCreation);
+
+    // Check for pending project creation (project name input response)
+    if (ProjectCreatorAgent.pendingProjectCreation) {
+      const pendingAge = Date.now() - ProjectCreatorAgent.pendingProjectCreation.timestamp;
+      console.log('⏰ Pending project creation age (ms):', pendingAge);
+      
+      // If pending request is less than 5 minutes old, try to handle as project name input
+      if (pendingAge < 5 * 60 * 1000) {
+        console.log('🔄 Trying to handle as project name input...');
+        const projectNameResult = await this.handleProjectNameInput(input, convexMutations);
+        console.log('📋 Project name input result:', projectNameResult);
+        if (projectNameResult) {
+          console.log('✅ Returning project name input result');
+          return projectNameResult;
+        } else {
+          console.log('❌ Project name input returned null');
+          // Don't continue with normal processing - remind user to use the input
+          return `⚠️ **Please use the project name input above** to specify the project name.\n\nI'm still waiting for you to enter a project name.\n\n_To start a new project creation, wait for the current one to complete or cancel it first._`;
+        }
+      } else {
+        // Clear expired pending request
+        console.log('⏰ Clearing expired pending request');
+        ProjectCreatorAgent.pendingProjectCreation = null;
+      }
+    }
 
     // Detect if this is a project creation request
     if (this.isProjectCreationRequest(normalizedInput)) {
@@ -135,6 +167,11 @@ export class ProjectCreatorAgent extends BaseAgent {
       
       console.log('📊 Extracted project details:', projectDetails);
 
+      // If no specific project name was extracted or it's generic, show the input component
+      if (!projectDetails.name || projectDetails.name === '' || projectDetails.name === 'New Project' || projectDetails.name.length < 3) {
+        return await this.getProjectNameInputPrompt(projectDetails, convexMutations);
+      }
+
       if (!convexMutations.createProject) {
         return '❌ Project creation is not available. Please check system configuration.';
       }
@@ -158,10 +195,6 @@ export class ProjectCreatorAgent extends BaseAgent {
         result += `📝 **Description:** ${projectDetails.description}\n`;
       }
       
-      if (projectDetails.budget) {
-        result += `💰 **Budget:** $${projectDetails.budget.toLocaleString()}\n`;
-      }
-      
       result += `📅 **Created:** ${new Date().toLocaleDateString()}\n`;
       result += `📊 **Status:** Active\n\n`;
 
@@ -173,6 +206,81 @@ export class ProjectCreatorAgent extends BaseAgent {
 
       result += `\n🎉 Your project is ready! You can now start adding files and managing your project.`;
       
+      return result;
+    } catch (error) {
+      console.error('❌ Project creation failed:', error);
+      return `❌ **Project creation failed:** ${error instanceof Error ? error.message : 'Unknown error'}`;
+    }
+  }
+
+  /**
+   * Handle project name input response
+   */
+  private async handleProjectNameInput(input: string, convexMutations: ConvexMutations): Promise<string | null> {
+    console.log('🎯 Handling project name input with input:', input);
+    console.log('📁 Pending project creation:', ProjectCreatorAgent.pendingProjectCreation);
+    
+    if (!ProjectCreatorAgent.pendingProjectCreation) {
+      console.log('❌ No pending project creation found');
+      return null;
+    }
+
+    const { projectDetails } = ProjectCreatorAgent.pendingProjectCreation;
+    const projectName = input.trim();
+    console.log('🔍 Project name input:', projectName);
+
+    if (!projectName || projectName.length < 2) {
+      return `❌ **Please enter a valid project name**\n\nProject names should be at least 2 characters long.\n\n**Examples:**\n• "Marketing Campaign"\n• "Website Redesign"\n• "Q1 Budget Planning"`;
+    }
+
+    // Clear pending state
+    ProjectCreatorAgent.pendingProjectCreation = null;
+    console.log('✅ Cleared pending project creation');
+
+    // Create the project with the provided name
+    const updatedProjectDetails = {
+      ...projectDetails,
+      name: projectName
+    };
+
+    console.log('📄 Creating project with details:', updatedProjectDetails);
+    
+    if (!convexMutations.createProject) {
+      return '❌ Project creation is not available. Please check system configuration.';
+    }
+
+    try {
+      // Create the project
+      const newProject = await convexMutations.createProject({
+        name: updatedProjectDetails.name,
+        description: updatedProjectDetails.description,
+        status: 'active' as const,
+        budget: updatedProjectDetails.budget,
+      });
+
+      let result = `✅ **Project Created Successfully!**\n\n`;
+      result += `📁 **Project Name:** ${(newProject as any)?.name || updatedProjectDetails.name}\n`;
+      
+      if ((newProject as any)?.projectNumber) {
+        result += `🔢 **Project Number:** #${(newProject as any).projectNumber}\n`;
+      }
+      
+      if (updatedProjectDetails.description) {
+        result += `📝 **Description:** ${updatedProjectDetails.description}\n`;
+      }
+      
+      result += `📅 **Created:** ${new Date().toLocaleDateString()}\n`;
+      result += `📊 **Status:** Active\n\n`;
+
+      // Create initial files if requested
+      if (updatedProjectDetails.createFiles && convexMutations.createFile) {
+        const fileResults = await this.createInitialFiles(newProject, convexMutations);
+        result += `\n📄 **Initial Files Created:**\n${fileResults}`;
+      }
+
+      result += `\n🎉 Your project is ready! You can now start adding files and managing your project.`;
+      
+      console.log('📝 Create project result:', result);
       return result;
     } catch (error) {
       console.error('❌ Project creation failed:', error);
@@ -262,10 +370,10 @@ export class ProjectCreatorAgent extends BaseAgent {
         result += `🔢 **Project Number:** #${(newProject as any).projectNumber}\n`;
       }
       
-      result += `💰 **Budget:** $${this.getTemplateBudget(templateDetails.type).toLocaleString()}\n\n`;
-      
       if (templateFiles) {
-        result += `📄 **Template Files:**\n${templateFiles}\n`;
+        result += `\n📄 **Template Files:**\n${templateFiles}\n`;
+      } else {
+        result += `\n`;
       }
       
       result += `🎉 Your template project is ready to use!`;
@@ -283,24 +391,33 @@ export class ProjectCreatorAgent extends BaseAgent {
   private extractProjectDetails(input: string): ProjectDetails {
     const normalizedInput = input.toLowerCase();
     
-    // Extract project name (words after "create", "new", "make", etc.)
+    // Extract project name - more specific patterns that capture actual project names
     const namePatterns = [
-      /(?:create|new|make|start|build|setup)\s+(?:a\s+)?(?:project\s+)?(?:called\s+)?[\"\']?([^\"\']+?)[\"\']?(?:\s+for|\s+with|$)/i,
-      /(?:project\s+)?[\"\']([^\"\']+)[\"\']?/i
+      // Pattern for "create project called [name]" or "create project named [name]"
+      /(?:create|new|make|start|build|setup)\s+(?:a\s+)?project\s+(?:called|named)\s+[\"\']?([^\"\']+?)[\"\']?(?:\s+for|\s+with|$)/i,
+      // Pattern for quoted names: "project name" or 'project name'
+      /[\"\']([^\"\']{2,})[\"\']/, 
+      // Pattern for specific project names after "create" (but not generic words)
+      /(?:create|new|make|start|build|setup)\s+(?:a\s+)?(?:project\s+)?[\"\']?([a-zA-Z][a-zA-Z0-9\s\-_]{2,})[\"\']?(?:\s+for|\s+with|$)/i
     ];
 
     let name = '';
     for (const pattern of namePatterns) {
       const match = input.match(pattern);
       if (match && match[1]) {
-        name = match[1].trim();
-        break;
+        const extractedName = match[1].trim();
+        // Reject generic/vague names that should trigger input prompt
+        const genericNames = ['project', 'new project', 'a project', 'new', 'it', 'this', 'that', 'one'];
+        if (!genericNames.includes(extractedName.toLowerCase()) && extractedName.length > 2) {
+          name = extractedName;
+          break;
+        }
       }
     }
 
-    // If no specific name found, use a default based on content
+    // If no specific name found, return empty string to trigger input component
     if (!name) {
-      name = 'New Project';
+      name = '';
     }
 
     // Extract description (words after "for", "about", "to")
@@ -567,6 +684,91 @@ export class ProjectCreatorAgent extends BaseAgent {
       presentation: 'document'
     };
     return typeMap[fileType] || 'note';
+  }
+
+  /**
+   * Get project name input prompt when project name is not specified or generic
+   */
+  private async getProjectNameInputPrompt(projectDetails: Partial<ProjectDetails>, convexMutations: ConvexMutations): Promise<string> {
+    try {
+      // Check if there's already a pending project creation
+      if (ProjectCreatorAgent.pendingProjectCreation) {
+        const pendingAge = Date.now() - ProjectCreatorAgent.pendingProjectCreation.timestamp;
+        
+        // If pending request is less than 5 minutes old, remind user to use existing input
+        if (pendingAge < 5 * 60 * 1000) {
+          return `⚠️ **Please use the project name input above** to complete your previous project creation request.\n\nI'm still waiting for you to enter a project name.\n\n_To start a new project creation, wait for the current one to complete or cancel it first._`;
+        } else {
+          // Clear expired pending request
+          ProjectCreatorAgent.pendingProjectCreation = null;
+        }
+      }
+
+      // Store pending project creation state
+      ProjectCreatorAgent.pendingProjectCreation = {
+        projectDetails,
+        timestamp: Date.now()
+      };
+
+      // Store a message with interactive component for project name input
+      if (convexMutations.storeChatMessage) {
+        await convexMutations.storeChatMessage({
+          role: 'assistant' as const,
+          content: `🤖 **Project Name Required**
+
+I'm ready to create your new project! Please enter a name for your project using the input below:`,
+          processIndicator: {
+            type: 'waiting' as const,
+            processType: 'project_name_input',
+            color: 'green' as const,
+          },
+          interactiveComponent: {
+            type: 'project_selector' as const,
+            status: 'pending' as const,
+            data: {
+              projectDetails,
+              projectNameInput: true, // Flag to indicate this is for project name input
+              placeholder: projectDetails.type ? `${projectDetails.type.charAt(0).toUpperCase() + projectDetails.type.slice(1)} Project` : "Enter project name...",
+            },
+          },
+        });
+
+        // Return empty string since the interactive component will handle the response
+        return "";
+      } else {
+        // Fallback to text-based input if storeChatMessage is not available
+        let result = `🤖 **Project Name Required**\n\n`;
+        result += `I'm ready to create your new project!\n\n`;
+        
+        if (projectDetails.type) {
+          result += `**🎯 Project Type:** ${projectDetails.type.charAt(0).toUpperCase() + projectDetails.type.slice(1)}\n`;
+        }
+        
+        if (projectDetails.description) {
+          result += `**📝 Description:** ${projectDetails.description}\n`;
+        }
+        
+        if (projectDetails.budget) {
+          result += `**💰 Budget:** $${projectDetails.budget.toLocaleString()}\n`;
+        }
+        
+        result += `\n**📝 Please provide a project name:**\n`;
+        result += `• Type the project name in your next message\n`;
+        result += `• Examples: "Marketing Campaign", "Website Redesign", "Q1 Budget Planning"\n\n`;
+        result += `💡 **Next message:** Just type your project name!`;
+        
+        return result;
+      }
+
+    } catch (error) {
+      console.error('Error setting up project name input:', error);
+      return `🤖 **Project Name Required**
+
+I'm ready to create your new project! Please provide a project name.
+
+**💡 Tip:** You can say something like:
+"Marketing Campaign" or "Website Redesign Project"`;
+    }
   }
 
   /**

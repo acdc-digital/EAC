@@ -105,7 +105,54 @@ Terminal Chat → Parse → Route → Execute → Store Results → Update UI
 
 ---
 
-### 📅 Content Scheduler Agent
+### � File Creator Agent
+
+**Purpose**: Create files in existing projects using natural language input with interactive project selection
+
+| Property | Details |
+|----------|---------|
+| **ID** | `file-creator` |
+| **Command** | `/create-file` |
+| **Icon** | 📂 FilePlus |
+| **Status** | ✅ Production Ready |
+| **Database** | Full Convex integration |
+
+**Features**:
+- Natural language file creation with intelligent parsing
+- Interactive project selector component with terminal-style UI
+- Support for 8 predefined file types (markdown, spreadsheet, document, presentation, plan, notes, brief, checklist)
+- Content templates with smart variable substitution
+- System folder filtering (excludes Instructions and Content Creation)
+- File type auto-detection from natural language
+- Guided workflow with clear visual feedback
+
+**Usage Examples**:
+```bash
+/create-file new marketing budget spreadsheet
+/create-file meeting notes for client call
+/create-file project plan for website redesign
+/create-file help                                    # Show available file types
+```
+
+**Technical Details**:
+- Integrates with Convex file system and project management
+- Terminal-style project selector with collapsible drawer
+- Supports .md, .xlsx, .docx, .pptx file extensions
+- Smart content templates with date/name substitution
+- Session state management for multi-step workflow
+- Real-time project filtering and selection
+
+**Interactive Workflow**:
+1. User requests file creation in natural language
+2. Agent parses file details (name, type, description)
+3. Project selector component appears in chat
+4. User selects target project from filtered list
+5. File created with appropriate template content
+6. Success confirmation with file location
+
+---
+
+### �📅 Content Scheduler Agent
 
 **Purpose**: Automatically schedule unscheduled content posts based on optimal timing strategies
 

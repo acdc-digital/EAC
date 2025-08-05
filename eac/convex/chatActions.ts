@@ -748,139 +748,18 @@ Project "${newProject.name}" has been created in your database!`;
         return { mcpTriggered: true, tool: mcpIntent.tool };
       }
 
-      // Regular Claude processing for non-MCP messages
-      const recentMessages = await ctx.runQuery(api.chat.getChatMessages, {
+      // ✨ UPDATED: Always use streaming with thinking for regular chat messages
+      console.log("🔄 Routing to streaming chat with thinking enabled");
+      return await ctx.runAction(api.chatActions.sendChatMessageWithStreaming, {
+        content: args.content,
+        originalContent: args.originalContent,
         sessionId: args.sessionId,
-        limit: 20,
+        activeAgentId: args.activeAgentId,
       });
-
-      // Prepare messages for Claude API with MCP awareness
-      const claudeMessages: Anthropic.MessageParam[] = recentMessages
-        .filter((msg: any) => msg.role === "user" || msg.role === "assistant")
-        .map((msg: any) => ({
-          role: msg.role as "user" | "assistant",
-          content: msg.content
-        }));
-
-      const systemPrompt = `You are an AI assistant for the EAC Financial Dashboard project with MCP (Model Context Protocol) integration.
-
-**EAC Project Specifics:**
-- Financial analytics and project tracking
-- Social media management workflows  
-- Project budgeting and cost analysis
-- Dashboard metrics and reporting
-
-**Technical Stack:**
-- Next.js 15 with App Router and TypeScript
-- Convex real-time backend/database
-- Zustand state management with persistence
-- Tailwind CSS v4 with shadcn/ui components
-- Tiptap rich text editing
-- VS Code-inspired interface design
-
-**MCP Integration:**
-When users ask about project analysis, the system automatically triggers MCP server tools:
-- "project structure/analyze" → Deep project analysis
-- "components/dashboard" → Component discovery and analysis
-- "state/store/zustand" → State management analysis
-- "convex/database/schema" → Backend analysis
-- "generate/create/scaffold" → Code generation
-
-**Response Style:**
-- Be concise and terminal-friendly
-- Use markdown formatting for code blocks
-- Focus on EAC-specific patterns and best practices
-- Provide actionable technical guidance
-- Format responses clearly for terminal display
-
-For general questions not requiring MCP analysis, provide helpful guidance about EAC development patterns, React/Next.js best practices, and Convex integration techniques.`;
-
-      // Get response from Claude with extended thinking enabled (always on)
-      const completion = await anthropic.messages.create({
-        model: "claude-3-7-sonnet-20250219",
-        max_tokens: 4000,
-        thinking: {
-          type: "enabled",
-          budget_tokens: 2048
-        },
-        system: systemPrompt,
-        messages: claudeMessages,
-      });
-
-      let thinkingContent = "";
-      let assistantResponse = "";
-
-      // Process all content blocks to extract thinking and text
-      for (const block of completion.content) {
-        if (block.type === "thinking") {
-          thinkingContent = block.thinking;
-        } else if (block.type === "text") {
-          assistantResponse = block.text;
-        }
-      }
-
-      if (!assistantResponse) {
-        throw new Error("No response from Claude");
-      }
-
-      // Track token usage for this conversation
-      if (args.sessionId) {
-        try {
-          const inputTokens = completion.usage?.input_tokens || 0;
-          const outputTokens = completion.usage?.output_tokens || 0;
-          
-          // Calculate cost (Claude 3.7 Sonnet pricing: $3/MTok input, $15/MTok output)
-          const inputCost = (inputTokens / 1000000) * 3.0;
-          const outputCost = (outputTokens / 1000000) * 15.0;
-          const totalCost = inputCost + outputCost;
-
-          // First ensure session exists
-          await ctx.runMutation(api.tokenActions.upsertChatSession, {
-            sessionId: args.sessionId,
-            preview: args.originalContent || args.content,
-          });
-
-          // Update token usage
-          await ctx.runMutation(api.tokenActions.updateSessionTokens, {
-            sessionId: args.sessionId,
-            inputTokens,
-            outputTokens,
-            estimatedCost: totalCost,
-          });
-
-          console.log(`🔢 Token usage - Session: ${args.sessionId}, Input: ${inputTokens}, Output: ${outputTokens}, Cost: $${totalCost.toFixed(4)}`);
-        } catch (tokenError) {
-          console.error("Token tracking error:", tokenError);
-          // Don't fail the whole request if token tracking fails
-        }
-      }
-
-      // Store the thinking content first (if any)
-      if (thinkingContent) {
-        await ctx.runMutation(api.chat.storeChatMessage, {
-          role: "thinking",
-          content: thinkingContent,
-          sessionId: args.sessionId,
-        });
-      }
-
-      // Store the assistant's response
-      const storedResponse = await ctx.runMutation(api.chat.storeChatMessage, {
-        role: "assistant",
-        content: assistantResponse,
-        sessionId: args.sessionId,
-      });
-
-      return {
-        thinking: thinkingContent,
-        response: assistantResponse,
-        storedResponse
-      };
 
     } catch (error) {
       console.error("Chat error:", error);
       
-      // Store error message
       await ctx.runMutation(api.chat.storeChatMessage, {
         role: "system",
         content: `Error: ${error instanceof Error ? error.message : "Failed to get AI response"}`,

@@ -32,56 +32,26 @@ export class FileCreatorAgent extends BaseAgent {
     timestamp: number;
   } | null = null;
 
-  // Predefined file type options
+  // State to track pending file name input
+  private static pendingFileNameInput: {
+    fileDetails: FileCreationDetails;
+    timestamp: number;
+  } | null = null;
+
+  // State to track pending file type selection
+  private static pendingFileTypeInput: {
+    timestamp: number;
+  } | null = null;
+
+  // Predefined file type options - currently only X/Twitter is available
   private fileTypeOptions: FileTypeOption[] = [
     {
-      type: 'markdown',
-      extension: '.md',
-      description: 'Markdown document for notes, documentation, or content',
-      contentTemplate: '# {fileName}\n\nCreated: {date}\n\n## Overview\n\n## Details\n\n## Notes\n'
-    },
-    {
-      type: 'spreadsheet',
-      extension: '.xlsx',
-      description: 'Excel spreadsheet for budgets, calculations, or data',
-      contentTemplate: '# {fileName}\n\n| Item | Value | Notes |\n|------|-------|-------|\n| Example | 0 | Add your data here |\n| Total | 0 | |\n'
-    },
-    {
-      type: 'document',
-      extension: '.docx',
-      description: 'Word document for reports, proposals, or formal documents',
-      contentTemplate: '# {fileName}\n\nDocument created: {date}\n\n## Executive Summary\n\n## Main Content\n\n## Conclusion\n'
-    },
-    {
-      type: 'presentation',
-      extension: '.pptx',
-      description: 'PowerPoint presentation for meetings or proposals',
-      contentTemplate: '# {fileName}\n\nPresentation Outline\n\n## Slide 1: Title\n- {fileName}\n- Date: {date}\n\n## Slide 2: Agenda\n- Topic 1\n- Topic 2\n- Topic 3\n\n## Slide 3: Content\n- Main points\n'
-    },
-    {
-      type: 'plan',
-      extension: '.md',
-      description: 'Project plan or strategy document',
-      contentTemplate: '# {fileName}\n\nProject Plan - {date}\n\n## Objectives\n- Primary goal\n- Secondary goals\n\n## Timeline\n- Phase 1:\n- Phase 2:\n- Phase 3:\n\n## Resources\n- Team members\n- Budget\n- Tools\n\n## Milestones\n- Milestone 1:\n- Milestone 2:\n- Final delivery:\n'
-    },
-    {
-      type: 'notes',
-      extension: '.md',
-      description: 'Meeting notes or general notes',
-      contentTemplate: '# {fileName}\n\nMeeting Notes - {date}\n\n## Attendees\n- \n\n## Agenda\n- \n\n## Discussion Points\n- \n\n## Action Items\n- [ ] \n\n## Next Steps\n- \n'
-    },
-    {
-      type: 'brief',
-      extension: '.md',
-      description: 'Creative brief or project brief',
-      contentTemplate: '# {fileName}\n\nProject Brief - {date}\n\n## Project Overview\n\n## Objectives\n- Primary:\n- Secondary:\n\n## Target Audience\n\n## Key Messages\n\n## Deliverables\n- \n\n## Timeline\n- Start:\n- End:\n\n## Budget\n$\n\n## Success Metrics\n- \n'
-    },
-    {
-      type: 'checklist',
-      extension: '.md',
-      description: 'Task checklist or process checklist',
-      contentTemplate: '# {fileName}\n\nChecklist - {date}\n\n## Pre-Launch\n- [ ] Task 1\n- [ ] Task 2\n- [ ] Task 3\n\n## Launch\n- [ ] Task 1\n- [ ] Task 2\n\n## Post-Launch\n- [ ] Task 1\n- [ ] Task 2\n\n## Notes\n- \n'
+      type: 'x',
+      extension: '.x',
+      description: 'X (Twitter) Social Media Post',
+      contentTemplate: '# {fileName} - X (Twitter) Post\nPlatform: X (Twitter)\nCreated: {date}\n\n## Post Content\n\n\n## Settings\n- Reply Settings: following\n- Schedule: Now\n- Thread: Single Tweet\n\n## Media\n- Images: []\n- Videos: []\n\n## Analytics\n- Impressions: 0\n- Engagements: 0\n- Likes: 0\n- Shares: 0'
     }
+    // Future file types will be added here as they become available
   ];
 
   tools: AgentTool[] = [
@@ -119,6 +89,8 @@ export class FileCreatorAgent extends BaseAgent {
     const normalizedInput = input.toLowerCase().trim();
     console.log('🔍 Processing file creation input:', normalizedInput);
     console.log('🔍 Has pending file creation:', !!FileCreatorAgent.pendingFileCreation);
+    console.log('🔍 Has pending file name input:', !!FileCreatorAgent.pendingFileNameInput);
+    console.log('🔍 Has pending file type input:', !!FileCreatorAgent.pendingFileTypeInput);
 
     // Check for pending file creation (project selection response)
     if (FileCreatorAgent.pendingFileCreation) {
@@ -146,6 +118,52 @@ export class FileCreatorAgent extends BaseAgent {
       }
     }
 
+    // Check for pending file name input
+    if (FileCreatorAgent.pendingFileNameInput) {
+      const pendingAge = Date.now() - FileCreatorAgent.pendingFileNameInput.timestamp;
+      console.log('⏰ Pending file name input age (ms):', pendingAge);
+      
+      // If pending request is less than 5 minutes old, try to handle as file name input
+      if (pendingAge < 5 * 60 * 1000) {
+        console.log('🔄 Trying to handle as file name input...');
+        const fileNameResult = await this.handleFileNameInput(input, convexMutations);
+        if (fileNameResult) {
+          console.log('✅ Returning file name input result');
+          return fileNameResult;
+        } else {
+          console.log('❌ File name input returned null - continuing silently');
+          return "";
+        }
+      } else {
+        // Clear expired pending request
+        console.log('⏰ Clearing expired file name input request');
+        FileCreatorAgent.pendingFileNameInput = null;
+      }
+    }
+
+    // Check for pending file type input
+    if (FileCreatorAgent.pendingFileTypeInput) {
+      const pendingAge = Date.now() - FileCreatorAgent.pendingFileTypeInput.timestamp;
+      console.log('⏰ Pending file type input age (ms):', pendingAge);
+      
+      // If pending request is less than 5 minutes old, try to handle as file type input
+      if (pendingAge < 5 * 60 * 1000) {
+        console.log('🔄 Trying to handle as file type input...');
+        const fileTypeResult = await this.handleFileTypeInput(input, convexMutations);
+        if (fileTypeResult) {
+          console.log('✅ Returning file type input result');
+          return fileTypeResult;
+        } else {
+          console.log('❌ File type input returned null - continuing silently');
+          return "";
+        }
+      } else {
+        // Clear expired pending request
+        console.log('⏰ Clearing expired file type input request');
+        FileCreatorAgent.pendingFileTypeInput = null;
+      }
+    }
+
     // Check if this is a help request
     if (this.isHelpRequest(normalizedInput)) {
       return this.getHelpMessage();
@@ -156,11 +174,56 @@ export class FileCreatorAgent extends BaseAgent {
       return this.getFileTypeOptions();
     }
 
+    // NEW WORKFLOW: Start with file type selection for new file creation requests
+    // Check if this is a new file creation request (no existing workflow state)
+    if (this.isNewFileCreationRequest(normalizedInput)) {
+      console.log('🆕 Detected new file creation request - starting with file type selection');
+      
+      // ✨ ADD THINKING/CHAIN OF THOUGHT STEP
+      if (convexMutations.storeChatMessage) {
+        await convexMutations.storeChatMessage({
+          role: 'thinking',
+          content: `Analyzing file creation request: "${input}"
+
+I need to help the user create a new file. Let me think through this:
+
+1. The user wants to create a new file
+2. I should first determine what type of file they want to create
+3. Available file types include:
+   - X (Twitter) posts (.x extension)
+   - Markdown files (.md extension)  
+   - Other social media formats (coming soon)
+
+4. After file type selection, I'll need to:
+   - Get the project/folder location
+   - Get the file name
+   - Create the file with appropriate content
+
+Starting with file type selection to guide the user through the process systematically.`
+        });
+      }
+      
+      return await this.getFileTypeSelectionPrompt(convexMutations);
+    }
+
+    // LEGACY WORKFLOW: Continue with old logic for compatibility (only for non-new-file requests)
     // Extract file creation details
     const fileDetails = this.extractFileDetails(input);
+    console.log('🔍 File Creator Debug - Extracted details:', {
+      fileName: fileDetails.fileName,
+      fileType: fileDetails.fileType,
+      isGeneric: this.isGenericFileName(fileDetails.fileName || ''),
+      input: input.substring(0, 50)
+    });
+    
+    // If no specific file name was extracted or it's generic, show the input component
+    if (!fileDetails.fileName || this.isGenericFileName(fileDetails.fileName)) {
+      console.log('📝 Triggering file name input prompt');
+      return await this.getFileNameInputPrompt(fileDetails, convexMutations);
+    }
     
     // If we couldn't extract enough details, provide guidance
-    if (!fileDetails.fileName && !fileDetails.fileType) {
+    if (!fileDetails.fileType) {
       return this.getCreationGuidance();
     }
 
@@ -189,6 +252,28 @@ export class FileCreatorAgent extends BaseAgent {
     const normalizedInput = input.toLowerCase().trim();
     console.log('📂 Available projects:', projects.map((p: any) => p.name));
     console.log('🔍 Normalized input:', normalizedInput);
+
+    // ✨ ADD THINKING FOR PROJECT SELECTION PROCESSING
+    if (convexMutations.storeChatMessage) {
+      await convexMutations.storeChatMessage({
+        role: 'thinking',
+        content: `Processing project selection: "${input}"
+
+The user is selecting which project to add their file to. Let me analyze:
+
+1. User input: "${input}"
+2. Normalized input: "${normalizedInput}"
+3. Available projects: ${projects.map((p: any) => `"${p.name}"`).join(', ')}
+4. File details: ${fileDetails.fileName} (${fileDetails.fileType})
+
+I'll try to match their input in these ways:
+- Check if it's a number (1, 2, 3...) referring to project position
+- Check if it contains a project name or partial match
+- Use fuzzy matching to find the best project match
+
+This will help me determine which project they want to add their file to.`
+      });
+    }
 
     let selectedProject: any = null;
 
@@ -272,6 +357,203 @@ export class FileCreatorAgent extends BaseAgent {
   }
 
   /**
+   * Handle file name input response
+   */
+  private async handleFileNameInput(input: string, convexMutations: ConvexMutations): Promise<string | null> {
+    console.log('🎯 Handling file name input with input:', input);
+    console.log('📁 Pending file name input:', FileCreatorAgent.pendingFileNameInput);
+    
+    if (!FileCreatorAgent.pendingFileNameInput) {
+      console.log('❌ No pending file name input found');
+      return null;
+    }
+
+    const { fileDetails } = FileCreatorAgent.pendingFileNameInput;
+    const fileName = input.trim();
+    console.log('🔍 File name input:', fileName);
+
+    // ✨ ADD THINKING FOR FILE NAME PROCESSING
+    if (convexMutations.storeChatMessage) {
+      await convexMutations.storeChatMessage({
+        role: 'thinking',
+        content: `Processing file name input: "${input}"
+
+The user has provided a file name. Let me validate and process it:
+
+1. Raw input: "${input}"
+2. Trimmed input: "${fileName}"
+3. Length validation: ${fileName.length} characters
+4. Minimum required: 2 characters
+5. Current file type: ${fileDetails.fileType || 'unspecified'}
+6. Extension: ${fileDetails.extension || 'unspecified'}
+
+Validation status: ${fileName.length >= 2 ? 'VALID' : 'INVALID - too short'}
+
+Next steps after validation:
+- If valid: proceed to project selection
+- If invalid: request a better file name
+- Then: create the file in the selected project`
+      });
+    }
+
+    if (!fileName || fileName.length < 2) {
+      return `❌ **Please enter a valid file name**\n\nFile names should be at least 2 characters long.\n\n**Examples:**\n• "Budget Report"\n• "Meeting Notes"\n• "Project Plan"`;
+    }
+
+    // Clear pending state
+    FileCreatorAgent.pendingFileNameInput = null;
+    console.log('✅ Cleared pending file name input');
+
+    // Update the file details with the provided name
+    const updatedFileDetails = {
+      ...fileDetails,
+      fileName: fileName
+    };
+
+    console.log('📄 Updated file details with name:', updatedFileDetails);
+
+    // Now check if we need project selection
+    if (!updatedFileDetails.projectName) {
+      return await this.getProjectSelectionPrompt(updatedFileDetails, convexMutations);
+    }
+
+    // If we have both file name and project, create the file
+    return await this.createFile(updatedFileDetails, convexMutations);
+  }
+
+  /**
+   * Handle file type input response
+   */
+  private async handleFileTypeInput(input: string, convexMutations: ConvexMutations): Promise<string | null> {
+    console.log('🎯 Handling file type input with input:', input);
+    console.log('📁 Pending file type input:', FileCreatorAgent.pendingFileTypeInput);
+    
+    if (!FileCreatorAgent.pendingFileTypeInput) {
+      console.log('❌ No pending file type input found');
+      return null;
+    }
+
+    const normalizedInput = input.toLowerCase().trim();
+    console.log('🔍 File type input:', normalizedInput);
+
+    // ✨ ADD THINKING FOR FILE TYPE PROCESSING
+    if (convexMutations.storeChatMessage) {
+      await convexMutations.storeChatMessage({
+        role: 'thinking',
+        content: `Processing file type selection: "${input}"
+
+The user has indicated their file type preference. Let me analyze:
+
+1. Input received: "${input}"
+2. Normalized input: "${normalizedInput}"
+3. Checking against supported file types:
+   - X/Twitter posts (keywords: x, twitter) → .x extension
+   - Markdown files → .md extension
+   - Other formats (coming soon)
+
+Based on the input, I'll determine the appropriate file type and proceed to the next step of the creation process.`
+      });
+    }
+
+    // For now, only support x/twitter type
+    if (normalizedInput.includes('x') || normalizedInput.includes('twitter')) {
+      // Clear pending state
+      FileCreatorAgent.pendingFileTypeInput = null;
+      console.log('✅ Cleared pending file type input');
+
+      // Create file details with the selected type
+      const fileDetails: FileCreationDetails = {
+        fileName: '',
+        fileType: 'x',
+        extension: '.x'
+      };
+
+      console.log('📄 Created file details with type:', fileDetails);
+
+      // Now proceed to file name input
+      return await this.getFileNameInputPrompt(fileDetails, convexMutations);
+    } else {
+      return `❌ **Please select a valid file type**\n\nCurrently available:\n• **X (Twitter)** - for social media posts\n\nMore file types coming soon!`;
+    }
+  }
+
+  /**
+   * Check if input is a new file creation request
+   */
+  private isNewFileCreationRequest(input: string): boolean {
+    const normalizedInput = input.toLowerCase().trim();
+    const newFilePatterns = [
+      /^create.*new.*file$/,
+      /^create.*file$/,
+      /^new.*file$/,
+      /^make.*new.*file$/,
+      /^add.*new.*file$/,
+      /^generate.*new.*file$/,
+      /^start.*new.*file$/
+    ];
+    
+    return newFilePatterns.some(pattern => pattern.test(normalizedInput));
+  }
+
+  /**
+   * Get file type selection prompt for new file creation
+   */
+  private async getFileTypeSelectionPrompt(convexMutations: ConvexMutations): Promise<string> {
+    try {
+      // Check if there's already a pending file type input
+      if (FileCreatorAgent.pendingFileTypeInput) {
+        const pendingAge = Date.now() - FileCreatorAgent.pendingFileTypeInput.timestamp;
+        // If pending request is less than 5 minutes old, return empty (don't create duplicate inputs)
+        if (pendingAge < 5 * 60 * 1000) {
+          return "";
+        } else {
+          // Clear expired pending request
+          FileCreatorAgent.pendingFileTypeInput = null;
+        }
+      }
+
+      // Store pending file type input state
+      FileCreatorAgent.pendingFileTypeInput = {
+        timestamp: Date.now()
+      };
+
+      // Store a message with interactive component for file type selection
+      if (convexMutations.storeChatMessage) {
+        await convexMutations.storeChatMessage({
+          role: 'assistant',
+          content: `🤖 **File Type Selection**\n\nPlease select the type of file you want to create:`,
+          processIndicator: {
+            type: 'waiting',
+            processType: 'file_type_selection',
+            color: 'green'
+          },
+          interactiveComponent: {
+            type: 'file_type_selector',
+            status: 'pending',
+            data: {}
+          }
+        });
+        
+        // Return empty string since the interactive component will handle the response
+        return "";
+      } else {
+        // Fallback to text-based input if storeChatMessage is not available
+        let result = `🤖 **File Type Selection**\n\n`;
+        result += `Please select the type of file you want to create:\n\n`;
+        result += `**📁 Available File Types:**\n`;
+        this.fileTypeOptions.forEach((option, index) => {
+          result += `${index + 1}. **${option.description}** (${option.extension})\n`;
+        });
+        result += `\n**💡 Next message:** Just type the file type you want!`;
+        return result;
+      }
+    } catch (error) {
+      console.error('Error setting up file type selection:', error);
+      return `🤖 **File Type Selection**\n\nLet's create a new file! Please specify what type of file you want to create.\n\n**💡 Currently available:** X (Twitter) posts`;
+    }
+  }
+
+  /**
    * Check if input is requesting help
    */
   private isHelpRequest(input: string): boolean {
@@ -300,6 +582,103 @@ export class FileCreatorAgent extends BaseAgent {
   }
 
   /**
+   * Check if a file name is generic and should trigger input prompt
+   */
+  private isGenericFileName(fileName: string): boolean {
+    const normalizedName = fileName.toLowerCase().trim();
+    
+    // Remove common extensions to check the base name
+    const baseName = normalizedName.replace(/\.(md|docx?|xlsx?|pptx?|txt|pdf)$/i, '');
+    
+    const genericNames = [
+      'file', 'new file', 'a file', 'new', 'document', 'new document', 
+      'notes', 'new notes', 'plan', 'new plan', 'spreadsheet', 
+      'new spreadsheet', 'presentation', 'new presentation'
+    ];
+    
+    // Check for auto-generated generic patterns like "new-markdown", "new-document", etc.
+    const autoGeneratedPatterns = [
+      /^new-[a-z]+$/,           // new-markdown, new-document, etc.
+      /^untitled-?\d*$/,        // untitled, untitled-1, etc.
+      /^document-?\d*$/,        // document, document-1, etc.
+      /^file-?\d*$/,            // file, file-1, etc.
+    ];
+    
+    const isAutoGenerated = autoGeneratedPatterns.some(pattern => pattern.test(baseName));
+    const isInGenericList = genericNames.includes(baseName);
+    
+    return isInGenericList || isAutoGenerated || fileName.length < 2;
+  }
+
+  /**
+   * Get file name input prompt when file name is not specified or generic
+   */
+  private async getFileNameInputPrompt(
+    fileDetails: FileCreationDetails, 
+    convexMutations: ConvexMutations
+  ): Promise<string> {
+    try {
+      // Check if there's already a pending file name input
+      if (FileCreatorAgent.pendingFileNameInput) {
+        const pendingAge = Date.now() - FileCreatorAgent.pendingFileNameInput.timestamp;
+        // If pending request is less than 5 minutes old, return empty (don't create duplicate inputs)
+        if (pendingAge < 5 * 60 * 1000) {
+          return "";
+        } else {
+          // Clear expired pending request
+          FileCreatorAgent.pendingFileNameInput = null;
+        }
+      }
+
+      // Store pending file name input state
+      FileCreatorAgent.pendingFileNameInput = {
+        fileDetails,
+        timestamp: Date.now()
+      };
+
+      // Store a message with interactive component for file name input
+      if (convexMutations.storeChatMessage) {
+        await convexMutations.storeChatMessage({
+          role: 'assistant',
+          content: `🤖 **File Name Required**\n\nI'm ready to create your new ${fileDetails.fileType || 'file'}! Please enter a name for your file using the input below:`,
+          processIndicator: {
+            type: 'waiting',
+            processType: 'file_name_input',
+            color: 'green'
+          },
+          interactiveComponent: {
+            type: 'file_name_input',
+            status: 'pending',
+            data: {
+              fileType: fileDetails.fileType || 'file',
+              placeholder: fileDetails.fileType ? `Enter ${fileDetails.fileType} name...` : "Enter file name...",
+              fileDetails
+            }
+          }
+        });
+        
+        // Return empty string since the interactive component will handle the response
+        return "";
+      } else {
+        // Fallback to text-based input if storeChatMessage is not available
+        let result = `🤖 **File Name Required**\n\n`;
+        result += `I'm ready to create your new ${fileDetails.fileType || 'file'}!\n\n`;
+        if (fileDetails.fileType) {
+          result += `**📁 File Type:** ${fileDetails.fileType}\n`;
+        }
+        result += `\n**📝 Please provide a file name:**\n`;
+        result += `• Type the file name in your next message\n`;
+        result += `• Examples: "Budget Report", "Meeting Notes", "Project Plan"\n\n`;
+        result += `💡 **Next message:** Just type your file name!`;
+        return result;
+      }
+    } catch (error) {
+      console.error('Error setting up file name input:', error);
+      return `🤖 **File Name Required**\n\nI'm ready to create your new file! Please provide a file name.\n\n**💡 Tip:** You can say something like:\n"Budget Report" or "Meeting Notes"`;
+    }
+  }
+
+  /**
    * Extract file creation details from natural language input
    */
   private extractFileDetails(input: string): FileCreationDetails {
@@ -310,22 +689,51 @@ export class FileCreatorAgent extends BaseAgent {
     let extension = '.md'; // default
     let projectName = '';
 
-    // Extract file name patterns
+    // Extract file name patterns - more specific patterns that capture actual file names
     const fileNamePatterns = [
-      /(?:create|make|add|generate)\s+(?:a\s+)?(?:new\s+)?(?:file\s+)?(?:called\s+)?[\"\']?([^\"\']+?)[\"\']?(?:\s+(?:for|in|to|as)|\s*$)/i,
-      /(?:file\s+)?[\"\']([^\"\']+)[\"\']?/i
+      // Pattern for "create file called [name]" or "create file named [name]"
+      /(?:create|make|add|generate)\s+(?:a\s+)?(?:new\s+)?(?:file|document)\s+(?:called|named)\s+[\"\']?([^\"\']+?)[\"\']?(?:\s+(?:for|in|to|as)|\s*$)/i,
+      // Pattern for quoted names: "file name" or 'file name'
+      /[\"\']([^\"\']{2,})[\"\']/, 
+      // Pattern for specific file names (must be at least 4 chars and not start with generic words)
+      /(?:create|make|add|generate)\s+(?:a\s+)?[\"\']?([a-zA-Z][a-zA-Z0-9\s\-_]{3,})[\"\']?(?:\s+(?:file|document|for|in|to|as)|\s*$)/i
     ];
 
     for (const pattern of fileNamePatterns) {
       const match = input.match(pattern);
       if (match && match[1]) {
-        fileName = match[1].trim();
-        break;
+        const extractedName = match[1].trim();
+        
+        // Reject generic/vague names that should trigger input prompt
+        const genericNames = ['file', 'new file', 'a file', 'new', 'document', 'new document', 'notes', 'new notes', 'plan', 'new plan', 'spreadsheet', 'new spreadsheet', 'presentation', 'new presentation'];
+        const genericStarters = ['new', 'file', 'document', 'a', 'an', 'the'];
+        
+        // Check if name is in generic list or starts with generic words
+        const startsWithGeneric = genericStarters.some(starter => 
+          extractedName.toLowerCase().startsWith(starter.toLowerCase() + ' ') || 
+          extractedName.toLowerCase() === starter.toLowerCase()
+        );
+        
+        const isInGenericList = genericNames.includes(extractedName.toLowerCase());
+        
+        if (!isInGenericList && 
+            !startsWithGeneric && 
+            extractedName.length > 2) {
+          fileName = extractedName;
+          break;
+        }
       }
     }
 
-    // Clean up fileName by removing file type words
-    fileName = fileName.replace(/\b(file|document|spreadsheet|presentation|notes?|plan|brief|checklist)\b/gi, '').trim();
+    // Clean up fileName by removing file type words ONLY if we have a fileName
+    if (fileName) {
+      fileName = fileName.replace(/\b(file|document|spreadsheet|presentation|notes?|plan|brief|checklist)\b/gi, '').trim();
+      
+      // If cleanup removed everything, reset fileName to empty
+      if (!fileName || fileName.length < 2) {
+        fileName = '';
+      }
+    }
 
     // Detect file type from input
     for (const option of this.fileTypeOptions) {
@@ -495,6 +903,7 @@ export class FileCreatorAgent extends BaseAgent {
    */
   private mapToConvexFileType(fileType: string): 'post' | 'campaign' | 'note' | 'document' | 'image' | 'video' | 'other' {
     const typeMap: Record<string, 'post' | 'campaign' | 'note' | 'document' | 'image' | 'video' | 'other'> = {
+      x: 'post', // X/Twitter posts
       markdown: 'note',
       notes: 'note',
       plan: 'note',

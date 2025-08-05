@@ -37,9 +37,9 @@ export default defineSchema({
       processType: v.string(),
       color: v.union(v.literal("blue"), v.literal("green")),
     })),
-    // Interactive component for user input collection
+    // Interactive component for user input collection (updated for file type and name input) - schema refresh v2
     interactiveComponent: v.optional(v.object({
-      type: v.union(v.literal("project_selector")),
+      type: v.union(v.literal("project_selector"), v.literal("file_name_input"), v.literal("file_type_selector")),
       data: v.optional(v.any()),
       status: v.union(v.literal("pending"), v.literal("completed"), v.literal("cancelled")),
       result: v.optional(v.any()), // Result data from component interaction

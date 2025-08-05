@@ -106,16 +106,18 @@ export function useChat() {
           detail: { 
             content: trimmedContent,
             sessionId: currentSessionId,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            streaming: true // Indicate streaming is enabled
           } 
         }));
       }
       
-      await sendChatMessage({
+      // ✨ UPDATED: Always use streaming with thinking
+      await sendChatMessageWithStreaming({
         content: trimmedContent,
         originalContent: originalTrimmedContent,
         sessionId: currentSessionId,
-        activeAgentId: activeAgentId || undefined, // Pass the active agent ID, convert null to undefined
+        activeAgentId: activeAgentId || undefined,
       });
     } catch (error) {
       console.error("Error sending message:", error);
@@ -123,7 +125,7 @@ export function useChat() {
     } finally {
       setLoading(false);
     }
-  }, [sendChatMessage, storeChatMessage, clearChatHistory, currentSessionId, isLoading, setLoading, activeAgentId]);
+  }, [sendChatMessageWithStreaming, storeChatMessage, clearChatHistory, currentSessionId, isLoading, setLoading, activeAgentId]);
 
   // Send message with streaming thinking
   const sendMessageWithStreaming = useCallback(async (content: string, originalContent?: string) => {
@@ -264,6 +266,8 @@ export function useChat() {
     // Streaming thinking state
     streamingThinking,
     isStreamingThinking,
+    setStreamingThinking,
+    clearStreamingThinking,
     // Session limit functionality
     messageCount,
     isNearSessionLimit,
