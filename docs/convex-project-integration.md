@@ -1,5 +1,7 @@
 # Convex Project Management Integration
 
+_Last Updated: 2025-08-07_
+
 This documentation explains how to integrate the new Convex-based project management system with your EAC dashboard.
 
 ## Overview
@@ -20,14 +22,14 @@ The system consists of:
 
 ## Database Schema
 
-The `projects` table includes:
+The `projects` table (excerpt) includes:
 
 - `name` (string, required) - Project name
 - `description` (optional string) - Project description
 - `status` (string) - "active", "completed", "on-hold"
 - `budget` (optional number) - Project budget
-- `projectNo` (optional string) - Auto-generated project number (PRJ-001, PRJ-002, etc.)
-- `userId` (optional string) - User who owns the project
+- `projectNo` (optional string) - Sequential project number (stringified)
+- `userId` (optional string | Id<"users">) - Owner (server-derived)
 - `createdAt` (number) - Creation timestamp
 - `updatedAt` (number) - Last update timestamp
 
@@ -95,7 +97,7 @@ const newProject = await createProject({
   description: "Project description",
   status: "active",
   budget: 10000,
-  userId: "user-id",
+  // userId is NOT passed; derived from authenticated context
 });
 ```
 
@@ -118,7 +120,7 @@ await deleteProject(project._id);
 #### Get Project Stats
 
 ```tsx
-const stats = projectStats; // { total, active, completed, onHold, totalBudget }
+const stats = projectStats; // { total, active, completed, onHold }
 ```
 
 ## Usage Examples
@@ -217,11 +219,12 @@ import {
 
 ## Next Steps
 
-1. **User Authentication**: Pass the actual user ID to the `ProjectCreator`
-2. **Project Navigation**: Implement navigation to project detail pages
-3. **Project Folders**: Integrate with your existing folder system
-4. **Project Files**: Link project files to database projects
-5. **Search & Filtering**: Add project search and filtering capabilities
+1. **System Projects**: Use `ensureInstructionsProject` & `ensureContentCreationProject` to auto-create base folders
+2. **Navigation**: Implement project detail / overview panels
+3. **Folder Sync**: Ensure sidebar folder sync via `useProjectSync`
+4. **File Linking**: Attach created files with `projectId` for queries (`files` table index by project)
+5. **Search & Filter**: Status & name filtering; potential index for text search in future
+6. **Soft Delete Flow**: Implement restore UI using `deletedProjects` table (retention policy window)
 
 ## Convex Development
 
@@ -231,4 +234,10 @@ To make changes to the backend:
 2. The Convex dev server will automatically sync changes
 3. TypeScript definitions are auto-generated in `convex/_generated/`
 
-The system is ready to use! You can start creating projects that will be saved to your Convex database and integrated with your EAC dashboard.
+Additional Notes:
+
+- Soft deletion: `deleteProject` mutation archives into `deletedProjects` with metadata (including original timestamps) prior to removal.
+- Auth leniency: Unauthenticated project queries return an empty array (not an error) to keep UI stable pre-sign-in.
+- Sequential numbering: The `generateProjectNumber` query returns a count-based sequence per user (add 1 to current total).
+
+The system is ready to use; integrate creation UI with folder sync for best UX.

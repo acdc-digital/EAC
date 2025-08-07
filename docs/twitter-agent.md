@@ -2,54 +2,56 @@
 
 ## Overview
 
+The Twitter Post Agent is an intelligent automation tool that creates, schedules, and manages Twitter/X posts with full workflow integration. It combines AI content generation, enforced system folder organization, and form field auto-population to streamline social media workflows.
 The Twitter Post Agent is an intelligent automation tool that creates, schedules, and manages Twitter/X posts with full workflow integration. It combines AI content generation, project organization, and form field auto-population to streamline social media workflows.
 
 ## Features
 
-- **AI Content Generation**: Automatically generates engaging Twitter content based on user prompts
+**Project Organization**: Always routes posts into the `Content Creation` system folder (auto-created & pinned)
+
 - **Project Organization**: Intelligently selects or creates project folders for post management
 - **Form Auto-Population**: Saves data to Convex database for automatic form field population in XPostEditor
 - **Scheduling Support**: Handles post scheduling with date/time parsing
-- **Settings Management**: Configures reply settings and post visibility
+  The agent now **always** targets the `Content Creation` pinned system folder to prevent fragmentation and ensure consistent retrieval. Any user-specified `project:` parameter is ignored for storage location (may be used in future tagging logic).
 - **File Management**: Creates `.x` files with proper JSON structure for editor integration
 
 ## Usage
-
-### Basic Command Structure
 
 ```
 /twitter <content> [parameters]
 ```
 
-### Parameters
-
 - **`project: <name>`** - Specify which project folder to use
 - **`schedule: <datetime>`** - Schedule the post for later
-- **`settings: <option>`** - Configure post visibility and reply settings
-
-### Examples
 
 #### Basic Post Creation
+
 ```
 /twitter Check out our new dashboard feature! 🚀
 ```
 
 #### Content Generation Request
+
 ```
 /twitter Create a motivational post about productivity
 ```
 
 #### Scheduled Post
+
 ```
 /twitter Great news coming tomorrow! schedule: tomorrow 2pm
 ```
 
+User Input → Parameter Parse & Content Generation → Ensure System Folder → File Creation (.x) → Database Save → Automatic Form Population
+
 #### Project-Specific Post
+
 ```
 /twitter Product update announcement project: marketing
 ```
 
 #### Full Configuration
+
 ```
 /twitter Launch day is here! project: product schedule: Dec 25 9am settings: everyone
 ```
@@ -58,14 +60,23 @@ The Twitter Post Agent is an intelligent automation tool that creates, schedules
 
 ### Seamless Workflow Integration
 
-The Twitter agent **automatically populates** the XPostEditor form fields as part of every `/twitter` command. There's no need for separate commands or manual form filling.
+Never blocks file creation due to database issues
+Provides clear error messages with suggested actions
+Maintains workflow continuity even with partial failures
+Prevents instruction file creation by removing stale mutation references
 
 ### What Gets Auto-Populated
 
 ✅ **Tweet Content** - The AI-generated or user-provided content  
+ Strips the `/twitter` command token before parameter parsing
+Cleans extraneous legacy mutation functions (`createInstructionFile`) to avoid misrouting
+Multiple dynamic import attempts: `index.mjs` → `index.js` → bare directory
+Enforces single target folder; no cross-project scattering
 ✅ **Reply Settings** - Based on the `settings` parameter  
 ✅ **Scheduling Data** - Date and time if `schedule` parameter is used  
 ✅ **File Metadata** - Proper file name and project association  
+ Scheduling Agent (`/schedule`) can later batch assign timestamps to unscheduled `.x` posts created here
+File Creator Agent can eventually output `.x` skeletons which the Twitter Agent may enrich (future enhancement)
 ✅ **Platform Data** - All Twitter-specific form configurations
 
 ## Project Selection Logic
@@ -73,15 +84,18 @@ The Twitter agent **automatically populates** the XPostEditor form fields as par
 The agent uses a hierarchical decision process to determine where to place the Twitter post:
 
 ### 1. User-Specified Project (Highest Priority)
+
 - If `project: <name>` is included, searches for matching project folders
 - Uses case-insensitive partial matching
 - Excludes the Instructions folder from consideration
 
 ### 2. Automatic Selection
+
 - **First Available Project**: Uses the first regular (non-pinned) project folder
 - **Auto-Create Folder**: If no projects exist, creates a "Social Media" folder
 
 ### 3. Folder Filtering Rules
+
 - Excludes pinned system folders
 - Excludes Instructions folder (by name and ID)
 - Only considers regular project folders
@@ -91,6 +105,7 @@ The agent uses a hierarchical decision process to determine where to place the T
 ### AI-Powered Content Creation
 
 The agent detects content generation requests using keywords:
+
 - `create`, `generate`, `write`, `make`
 - `post about`, `tweet about`
 - `motivational`, `inspirational`, `funny`
@@ -99,6 +114,7 @@ The agent detects content generation requests using keywords:
 ### Topic-Specific Templates
 
 The agent includes pre-built templates for popular topics:
+
 - **Travel/Japan**: Cultural and tourism content
 - **Technology**: Innovation and future-focused posts
 - **Business/Finance**: Strategy and growth insights
@@ -109,6 +125,7 @@ The agent includes pre-built templates for popular topics:
 ### Dynamic Content Generation
 
 For any topic not covered by templates, the agent:
+
 1. Extracts key topics from the user request
 2. Generates engaging content with relevant hashtags
 3. Maintains consistent voice and style
@@ -118,6 +135,7 @@ For any topic not covered by templates, the agent:
 ### Convex Database Integration
 
 The agent directly saves post data to the Convex database using:
+
 - **ConvexHttpClient**: Browser client for mutation calls
 - **socialPosts.upsertPost**: Primary mutation for saving posts
 - **Proper Data Structure**: Matches XPostEditor expectations
@@ -189,7 +207,9 @@ User Input → Content Generation → Project Selection → File Creation → Da
 The agent determines the file name **after** content generation using the `generateTwitterFileName()` function:
 
 #### 1. Content Processing
+
 The agent takes the **generated content** and processes it:
+
 - Converts to lowercase
 - Removes special characters, URLs, and hashtags
 - Splits into individual words
@@ -197,7 +217,9 @@ The agent takes the **generated content** and processes it:
 - Keeps only words longer than 2 characters
 
 #### 2. Word Selection
+
 From the filtered words, it takes up to 3 meaningful words:
+
 ```javascript
 // Example: "🚀 Technology is reshaping our world at lightning speed..."
 // Processed words: ["technology", "reshaping", "world", "lightning", "speed"]
@@ -205,11 +227,13 @@ From the filtered words, it takes up to 3 meaningful words:
 ```
 
 #### 3. File Name Construction
+
 - **2+ words**: `word1-word2-post.x` (e.g., `technology-reshaping-post.x`)
-- **1 word**: `word-post.x` (e.g., `productivity-post.x`)  
+- **1 word**: `word-post.x` (e.g., `productivity-post.x`)
 - **0 words**: Falls back to timestamp: `twitter-post-20250731T143052.x`
 
 #### 4. Timing in Workflow
+
 ```
 User Input → Content Generation → File Name Creation → File Creation → Form Population
 ```
@@ -225,7 +249,9 @@ The key insight is that the file name is based on the **AI-generated content**, 
   "fileType": "twitter",
   "content": "main tweet content",
   "title": null,
-  "platformData": { /* platform-specific settings */ },
+  "platformData": {
+    /* platform-specific settings */
+  },
   "status": "draft|scheduled",
   "timestamp": "ISO string",
   "userId": "user-identifier"
@@ -250,16 +276,19 @@ The key insight is that the file name is based on the **AI-generated content**, 
 ## Integration Points
 
 ### XPostEditor Component
+
 - Loads data via `useSocialPost` hook
 - Auto-populates all form fields
 - Provides manual editing capabilities
 
 ### Convex Backend
+
 - Uses `socialPosts.upsertPost` mutation
 - Maintains data consistency
 - Supports real-time updates
 
 ### Editor Store
+
 - Creates project files and folders
 - Manages file content and metadata
 - Handles project organization
@@ -302,21 +331,25 @@ The key insight is that the file name is based on the **AI-generated content**, 
 ### Common Issues
 
 **Form Fields Not Auto-Populating**
+
 - Check Convex connection status
 - Verify mutation data structure
 - Ensure XPostEditor is using latest data
 
 **Posts Going to Wrong Project**
+
 - Use explicit `project: <name>` parameter
 - Check project folder names for typos
 - Verify non-Instructions folders exist
 
 **Scheduling Not Working**
+
 - Use clear date/time formats
 - Check timezone considerations
 - Verify future date selection
 
 **Content Generation Issues**
+
 - Use specific, descriptive prompts
 - Check for keyword detection
 - Fallback to manual content entry
@@ -357,4 +390,4 @@ interface TwitterParams {
 
 ---
 
-*This documentation is part of the EAC Financial Dashboard project. For more information, see the main project documentation.*
+_This documentation is part of the EAC Financial Dashboard project. For more information, see the main project documentation._

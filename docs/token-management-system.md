@@ -1,10 +1,13 @@
 # Token Management System
 
+_Last Updated: 2025-08-07_
+
 A comprehensive token tracking and conversation limit management system for AI chat applications using Claude API.
 
 ## Overview
 
 This system provides:
+
 - **Token Counting**: Accurate token counting using Anthropic's API with fallback estimation
 - **Session Management**: Track token usage across chat sessions with configurable limits
 - **Cost Calculation**: Real-time cost estimation based on Claude pricing
@@ -14,23 +17,27 @@ This system provides:
 ## Features
 
 ### 🔢 Token Tracking
+
 - Real-time token counting for input and output
 - Integration with Anthropic's official token counting API
 - Fallback estimation when API is unavailable
 - Support for conversation context trimming
 
 ### 💰 Cost Management
+
 - Live cost calculation based on current Claude pricing ($3/MTok input, $15/MTok output)
 - Session-level cost tracking
 - Aggregated usage statistics
 
 ### 🎯 Session Limits
+
 - Configurable token limits per conversation (default: 180K tokens)
 - Warning thresholds at 75% and 85% usage
 - Automatic conversation truncation to stay within limits
 - Session management with active/inactive states
 
 ### 🎨 UI Components
+
 - `TokenUsageDisplay`: Comprehensive token usage dashboard
 - `TokenUsageIndicator`: Compact indicator for headers/status bars
 - Progress bars with status-based coloring
@@ -94,11 +101,13 @@ function ChatInterface() {
 Main hook for token management functionality.
 
 **Returns:**
+
 - `tokenUsage`: Current session token usage and limits
 - `initializeSession(options?)`: Initialize or update session
 - `trackTokenUsage(options)`: Track token usage from API responses
 - `countTokens(input)`: Count tokens for messages
 - `checkTokenLimit(estimatedTokens)`: Check if session can accept more tokens
+- `canSessionAcceptTokens(estimatedTokens)`: Lightweight preflight (returns boolean without trimming)
 - `trimConversationToLimit(messages, maxTokens?)`: Trim conversation to fit limits
 - `endSession()`: Close the current session
 
@@ -107,6 +116,7 @@ Main hook for token management functionality.
 Get overall usage statistics.
 
 **Returns:**
+
 - `stats`: Aggregated usage statistics
 - `activeSessions`: List of active sessions
 - `isLoading`: Loading state
@@ -116,6 +126,7 @@ Get overall usage statistics.
 Token estimation utilities.
 
 **Returns:**
+
 - `estimateTokens(input)`: Estimate tokens for text or conversation
 - `estimateCost(inputTokens, outputTokens)`: Calculate cost estimation
 
@@ -126,6 +137,7 @@ Token estimation utilities.
 Comprehensive token usage dashboard.
 
 **Props:**
+
 - `sessionId: string` - Session identifier
 - `userId?: string` - User identifier
 - `className?: string` - Additional CSS classes
@@ -137,6 +149,7 @@ Comprehensive token usage dashboard.
 Compact token usage indicator for headers.
 
 **Props:**
+
 - Same as `TokenUsageDisplay` but with `compact=true` and `showActions=false`
 
 ### Utility Functions
@@ -147,6 +160,7 @@ Located in `lib/tokenUtils.ts`:
 - `calculateCost()`: Calculate cost based on token usage
 - `checkConversationLimits()`: Check if usage is within limits
 - `truncateConversationHistory()`: Trim conversation to fit limits
+- `canSessionAcceptTokens()`: Internal helper enforcing aggregate invariants
 - `formatTokenCount()` / `formatCost()`: Format numbers for display
 
 ## Configuration
@@ -156,8 +170,8 @@ Located in `lib/tokenUtils.ts`:
 ```typescript
 export const DEFAULT_CONVERSATION_LIMITS = {
   maxTokensPerSession: 180000, // 90% of 200K context window
-  warningThreshold: 150000,    // 75% - show warning
-  criticalThreshold: 170000,   // 85% - show critical warning
+  warningThreshold: 150000, // 75% - show warning
+  criticalThreshold: 170000, // 85% - show critical warning
 } as const;
 ```
 
@@ -165,11 +179,11 @@ export const DEFAULT_CONVERSATION_LIMITS = {
 
 ```typescript
 export const CLAUDE_3_7_SONNET_SPECS = {
-  model: 'claude-3-7-sonnet-20250219',
-  contextWindow: 200000,        // 200K tokens
-  maxOutput: 64000,            // 64K tokens
-  inputCostPerMToken: 3,       // $3 per million input tokens
-  outputCostPerMToken: 15,     // $15 per million output tokens
+  model: "claude-3-7-sonnet-20250219",
+  contextWindow: 200000, // 200K tokens
+  maxOutput: 64000, // 64K tokens
+  inputCostPerMToken: 3, // $3 per million input tokens
+  outputCostPerMToken: 15, // $15 per million output tokens
 } as const;
 ```
 
@@ -178,11 +192,13 @@ export const CLAUDE_3_7_SONNET_SPECS = {
 The system uses Convex with these tables:
 
 ### `chatSessions`
+
 - Session metadata and token tracking
 - Total usage, costs, and limits
 - Active/inactive status
 
 ### `chatMessages`
+
 - Individual message token counts
 - Input/output token tracking per message
 - Cost attribution per API call
@@ -190,6 +206,7 @@ The system uses Convex with these tables:
 ## Demo
 
 Visit `/token-demo` to see the token management system in action with:
+
 - Live token usage displays
 - Token estimation examples
 - Usage statistics
@@ -200,6 +217,9 @@ Visit `/token-demo` to see the token management system in action with:
 1. **Initialize Early**: Call `initializeSession()` when starting a new chat
 2. **Track Consistently**: Always call `trackTokenUsage()` after API responses
 3. **Check Limits**: Use `checkTokenLimit()` before making expensive API calls
+
+- For a fast boolean gate (no trimming), use `canSessionAcceptTokens()`
+
 4. **Handle Limits**: Implement conversation trimming when approaching limits
 5. **Monitor Costs**: Display token usage to users for transparency
 
@@ -213,3 +233,13 @@ Visit `/token-demo` to see the token management system in action with:
 ## License
 
 Part of the EAC (Enhanced Agent Chat) project.
+
+## Internal Accounting Invariants
+
+All mutation paths that append a message update aggregates transactionally:
+
+- `chatSessions.totalInputTokens` = Σ message.inputTokens (same session)
+- `chatSessions.totalOutputTokens` = Σ message.outputTokens
+- `chatSessions.totalCost` = Σ message.cost
+
+If a partial failure occurs, a recovery job (future enhancement) will rescan `chatMessages` to restore consistency. Reads treat missing aggregates as zero.

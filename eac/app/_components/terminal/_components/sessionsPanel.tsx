@@ -166,40 +166,38 @@ export function SessionsPanel({ className }: SessionsPanelProps) {
 
   return (
     <div className={cn("flex-1 bg-[#0e0e0e] flex flex-col min-h-0", className)}>
-      {/* Sessions List */}
-      <div className="flex-1 overflow-y-auto min-h-0">
-        {sessions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-            <MessageSquare className="w-12 h-12 text-[#858585] mb-4" />
-            <div className="text-sm text-[#cccccc] mb-2">No chat sessions yet</div>
-            <div className="text-xs text-[#858585] mb-4">Start a new conversation to create your first session</div>
-            <button
-              onClick={handleNewSession}
-              className="flex items-center gap-2 px-3 py-2 bg-[#0078d4] hover:bg-[#106ebe] text-white rounded text-sm transition-colors"
+      {sessions.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+          <MessageSquare className="w-12 h-12 text-[#858585] mb-4" />
+          <div className="text-sm text-[#cccccc] mb-2">No chat sessions yet</div>
+          <div className="text-xs text-[#858585] mb-4">Start a new conversation to create your first session</div>
+          <button
+            onClick={handleNewSession}
+            className="flex items-center gap-2 px-3 py-2 bg-[#0078d4] hover:bg-[#106ebe] text-white rounded text-sm transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Start New Session
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* Table Header - Fixed */}
+          <div className="flex items-center px-3 py-1.5 bg-[#2d2d30] border-b border-[#454545] text-xs text-[#858585] font-medium flex-shrink-0">
+            <div className="flex-shrink-0 w-20">Session</div>
+            <div className="flex-1 px-2">Preview</div>
+            <div 
+              className="flex-shrink-0 w-20 pl-2 text-center" 
+              title="Total tokens used in this session out of 180K limit"
             >
-              <Plus className="w-4 h-4" />
-              Start New Session
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col h-full">
-            {/* Table Header - Fixed */}
-            <div className="flex items-center px-3 py-1.5 bg-[#2d2d30] border-b border-[#454545] text-xs text-[#858585] font-medium flex-shrink-0">
-              <div className="flex-shrink-0 w-20">Session</div>
-              <div className="flex-1 px-2">Preview</div>
-              <div 
-                className="flex-shrink-0 w-20 pl-2 text-center" 
-                title="Total tokens used in this session out of 180K limit"
-              >
-                Tokens/180k
-              </div>
-              <div className="flex-shrink-0 w-24 pl-2 text-right">Time</div>
-              <div className="flex-shrink-0 w-12"></div>
+              Tokens/180k
             </div>
-            
-            {/* Session Rows - Scrollable */}
-            <div className="flex-1 overflow-y-auto min-h-0">
-              {sessions.map((session, index) => (
+            <div className="flex-shrink-0 w-24 pl-2 text-right">Time</div>
+            <div className="flex-shrink-0 w-12"></div>
+          </div>
+          
+          {/* Session Rows - Scrollable */}
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {sessions.map((session, index) => (
               <div
                 key={session.sessionId}
                 onClick={() => handleSessionClick(session.sessionId)}
@@ -239,10 +237,9 @@ export function SessionsPanel({ className }: SessionsPanelProps) {
                 </div>
               </div>
             ))}
-            </div>
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 }

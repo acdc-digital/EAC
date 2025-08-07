@@ -58,7 +58,7 @@ export class FileCreatorAgent extends BaseAgent {
     {
       id: 'natural-language-file-creator',
       name: 'Natural Language File Creator',
-      command: 'create-file',
+  command: '/create-file',
       description: 'Create files in existing projects using natural language with guided project selection',
       parameters: []
     }

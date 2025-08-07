@@ -13,6 +13,12 @@ import { twitterAgent } from './twitterAgent';
  */
 export class AgentRegistry {
   private agents: Map<string, BaseAgent> = new Map();
+  // Legacy command aliases (to be removed after deprecation window)
+  private legacyCommandAliases: Record<string, string> = {
+    'create': '/create-project',
+    'create-project': '/create-project', // normalize if already partially migrated
+    'create-file': '/create-file'
+  };
 
   constructor() {
     console.log('🤖 Agent Registry: Initializing...');
@@ -28,6 +34,7 @@ export class AgentRegistry {
     console.log('🤖 Registered:', fileCreatorAgent.id, fileCreatorAgent.name);
     console.log('🤖 Total agents registered:', this.agents.size);
   }
+  
 
   /**
    * Register a new agent
@@ -69,11 +76,11 @@ export class AgentRegistry {
    * Find agent by tool command
    */
   findAgentByCommand(command: string): { agent: BaseAgent; tool: any } | undefined {
+    // Normalize legacy aliases first
+    const normalized = this.legacyCommandAliases[command] || command;
     for (const agent of this.agents.values()) {
-      const tool = agent.tools.find(t => t.command === command);
-      if (tool) {
-        return { agent, tool };
-      }
+      const tool = agent.tools.find(t => t.command === normalized);
+      if (tool) return { agent, tool };
     }
     return undefined;
   }

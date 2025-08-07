@@ -58,12 +58,49 @@ AI Chat ← Instruction Context ← Database Retrieval ← Agent Tool Execution
 
 #### Instructions Agent
 
-- **Purpose**: Generate and maintain project documentation with persistent storage
+### Current Agents (Registry)
+
+| ID                | Primary Command   | Purpose                                                     | Status        |
+| ----------------- | ----------------- | ----------------------------------------------------------- | ------------- |
+| `instructions`    | `/instructions`   | Structured instruction markdown generation & persistence    | ✅ Production |
+| `twitter-post`    | `/twitter`        | Create & manage Twitter/X post files (content + scheduling) | ✅ Production |
+| `scheduling`      | `/schedule`       | Batch schedule unscheduled social content                   | ✅ Production |
+| `project-creator` | `/create-project` | Natural language multi‑file project bootstrap               | ✅ Production |
+| `file-creator`    | `/create-file`    | Guided multi‑step file creation (type → name → project)     | ✅ Production |
+
+> All commands are slash-prefixed in terminal autocomplete. Legacy non‑slash forms are deprecated.
+
+#### Instructions Agent (Overview)
+
 - **Command**: `/instructions`
-- **Functionality**: Creates instruction documents in the Instructions project folder AND Convex database
-- **Target Audiences**: Developers, users, administrators, general
-- **Database Integration**: ✅ Full Convex persistence
-- **AI Context**: ✅ Automatically injected into all chat conversations
+- **Scopes**: Audience targeting (`audience:developers` etc.)
+- **Output**: `.md` files in auto-created Instructions system project
+- **Context**: Injected into AI sessions for enriched responses
+
+#### Twitter Post Agent (Overview)
+
+- **Command**: `/twitter`
+- **Workflow**: Parse params → ensure Content Creation folder → generate/create `.x` file → store platform metadata → populate editor form
+- **Scheduling**: Inline via `--schedule "tomorrow 2pm"`
+- **Safety**: Prevents accidental instruction file creation
+
+#### Scheduling Agent (Overview)
+
+- **Command**: `/schedule`
+- **Function**: Assign timestamps to unscheduled posts (strategy aware)
+- **Extensibility**: Strategy plug points for future analytics‑based optimization
+
+#### Project Creator Agent (Overview)
+
+- **Command**: `/create-project` (user types natural language; internal tool id `create` normalized in UI)
+- **Workflow**: Intent detect → pending project name input (if generic) → Convex project create → optional file scaffolding
+
+#### File Creator Agent (Overview)
+
+- **Command**: `/create-file`
+- **Multi‑Step Flow**: Detect request → THINKING message persisted → file type selection → file name capture → project selector → template creation
+- **Interactive Components**: Project selector, file name input, type picker
+- **State Handling**: Static, time‑bound pending states (5‑minute expiry)
 
 ### Database Schema Integration
 
@@ -130,49 +167,28 @@ interface AgentTool {
 
 ### Visual Elements
 
-- **Colors**: Uses VS Code-inspired color scheme
-  - Primary: `#007acc` (blue)
-  - Success: `#4ec9b0` (green)
-  - Text: `#cccccc` (light gray)
-  - Muted: `#858585` (medium gray)
+- Primary: `#007acc` (blue)
+- Success: `#4ec9b0` (green)
+- Text: `#cccccc` (light gray)
+- Muted: `#858585` (medium gray)
 
-- **Typography**: Consistent with existing terminal styling
-  - Monospace fonts for commands
-  - Clear hierarchy with font sizes
-  - Appropriate contrast ratios
+- Monospace fonts for commands
+- Clear hierarchy with font sizes
+- Appropriate contrast ratios
 
-- **Layout**: Follows existing panel patterns
-  - Header with title
-  - Scrollable content area
-  - Action controls at bottom
+- Header with title
+- Scrollable content area
+- Action controls at bottom
 
 ### Component Patterns
-
-- Reuses existing UI components (buttons, icons, layouts)
-- Maintains hover and focus states
-- Implements proper accessibility features
-- Consistent spacing and margins
 
 ## Technical Implementation
 
 ### State Management
 
-- **Zustand Store**: Manages agent state with persistence
-- **Type Safety**: Full TypeScript support with interfaces
-- **Performance**: Efficient updates and selective subscriptions
-
 ### Integration Points
 
-- **Activity Bar**: Seamless integration with existing panels
-- **Sidebar**: Agent panel follows established patterns
-- **Terminal**: Enhanced with tool toggle and agent support
-- **File System**: Agent outputs integrate with EAC Explorer
-
 ### Error Handling
-
-- Graceful failure when agents are unavailable
-- User feedback for execution errors
-- Fallback to regular chat when agent tools fail
 
 ## Future Enhancements
 
@@ -200,33 +216,13 @@ interface AgentTool {
 
 The agent system is designed for easy extension:
 
-- Add new agents by updating the store
-- Create new tools with defined interfaces
-- Implement custom execution logic
-- Integrate with external services
-
 ## Benefits
 
 ### For Users
 
-- **Specialized Tools**: Access to purpose-built functionality
-- **Context Awareness**: Agents understand the EAC project
-- **Consistent Interface**: Familiar chat-based interaction
-- **Documentation**: Automated instruction generation
-
 ### For Developers
 
-- **Modular Design**: Easy to extend and maintain
-- **Type Safety**: Full TypeScript support
-- **State Management**: Predictable state updates
-- **Testing**: Clear interfaces for unit testing
-
 ### For the Project
-
-- **Documentation**: Improved project documentation
-- **Consistency**: Standardized patterns and practices
-- **Efficiency**: Automated routine tasks
-- **Knowledge Sharing**: Centralized expertise
 
 ## Troubleshooting
 
@@ -249,33 +245,12 @@ The agent system is designed for easy extension:
 
 ### Debug Information
 
-- Agent state is visible in browser DevTools
-- Execution history stored in agent store
-- Console logs provide detailed error information
-
 ## Architecture Decisions
 
 ### Why Agents vs Direct Functions?
 
-- **Modularity**: Agents encapsulate related functionality
-- **User Experience**: Clear mental model of specialized assistants
-- **Extensibility**: Easy to add new capabilities
-- **Context**: Agents can maintain conversation state
-
 ### Why Terminal Integration?
 
-- **Familiar Interface**: Users already use terminal for MCP tools
-- **Unified Experience**: Single interface for all tool types
-- **Command Paradigm**: Natural for developer workflows
-- **Discoverability**: Easy to explore available tools
-
 ### Why Zustand Store?
-
-- **Consistency**: Matches existing state management
-- **Performance**: Efficient re-renders and updates
-- **Developer Experience**: Great TypeScript support
-- **Persistence**: Maintains state across sessions
-
----
 
 This agent system enhances the EAC Financial Dashboard with intelligent, specialized tools while maintaining the project's design principles and user experience standards.

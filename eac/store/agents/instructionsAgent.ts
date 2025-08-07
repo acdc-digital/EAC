@@ -75,13 +75,15 @@ export class InstructionsAgent extends BaseAgent {
       // Create the instruction file in Convex
       try {
         // First ensure the Instructions project exists
-        await ensureInstructionsProject();
+        const instructionsProject = await ensureInstructionsProject();
         
         const file = await createFile({
           name: fileName,
           content: instructionContent,
-          topic: cleanInput,
-          audience: "developers", // Default audience
+          type: "document",
+          projectId: instructionsProject._id,
+          extension: "md",
+          mimeType: "text/markdown",
         });
 
         console.log(`✅ Created instruction file: ${fileName}`);

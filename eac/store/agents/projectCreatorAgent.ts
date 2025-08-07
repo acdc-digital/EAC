@@ -35,7 +35,7 @@ export class ProjectCreatorAgent extends BaseAgent {
     {
       id: 'natural-language-creator',
       name: 'Natural Language Creator',
-      command: 'create',
+  command: '/create-project',
       description: 'Create projects and files using natural language instructions',
       parameters: []
     }
@@ -312,12 +312,9 @@ export class ProjectCreatorAgent extends BaseAgent {
 
       const content = this.generateFileContent(fileDetails.fileType, fileDetails.fileName);
 
-      const newFile = await convexMutations.createFile({
-        name: fileDetails.fileName,
-        content: content,
-        type: this.mapToConvexFileType(fileDetails.fileType),
-        projectId: 'project-lookup-needed' // Would need project lookup in real implementation
-      });
+      // TODO: Need to look up project by name to get the projectId
+      // For now, this functionality is incomplete without project lookup
+      throw new Error(`File creation requires a valid project. Project "${fileDetails.projectName}" lookup not implemented yet.`);
 
       let result = `✅ **File Created Successfully!**\n\n`;
       result += `📄 **File Name:** ${fileDetails.fileName}\n`;
@@ -590,7 +587,7 @@ export class ProjectCreatorAgent extends BaseAgent {
             name: file.name,
             content: file.content,
             type: file.type as any,
-            projectId: (project as any)?.id
+            projectId: (project as any)?._id
           });
           results.push(`✅ ${file.name}`);
         }
@@ -616,7 +613,7 @@ export class ProjectCreatorAgent extends BaseAgent {
             name: file.name,
             content: file.content,
             type: file.type as any,
-            projectId: (project as any)?.id
+            projectId: (project as any)?._id
           });
           results.push(`✅ ${file.name}`);
         }

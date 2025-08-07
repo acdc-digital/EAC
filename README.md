@@ -10,7 +10,7 @@
 |_____/_/   \_\____|___/
 ```
 
-**Version:** `1.0.0` | **License:** MIT | **Status:** Active Development
+**Version:** `1.0.0` | **Last Updated:** 2025-02-21 | **License:** MIT | **Status:** Active Development
 
 ---
 
@@ -20,16 +20,28 @@
 
 ## Features
 
-| Feature                        | Description                                                                                     |
-| ------------------------------ | ----------------------------------------------------------------------------------------------- |
-| **AI Agent Management**        | Claude-powered agents for content creation, scheduling, and engagement optimization             |
-| **Multi-Platform Integration** | Seamless posting and analytics across Reddit, X (Twitter), Instagram, LinkedIn, and TikTok      |
-| **Content Generation**         | AI-driven content creation with brand voice consistency and audience targeting                  |
-| **Social Analytics Dashboard** | Real-time engagement metrics, audience insights, and performance tracking across all platforms  |
-| **Automated Scheduling**       | Intelligent post scheduling with optimal timing recommendations and cross-platform coordination |
-| **Campaign Management**        | Project-based campaign organization with budget tracking, ROI analysis, and performance reports |
-| **Real-Time Collaboration**    | Team workspace with role-based permissions, shared campaigns, and live editing capabilities     |
-| **MCP Server Integration**     | Model Context Protocol for enhanced AI assistance and custom tool integration                   |
+Current implemented feature set (kept realistic and aligned with the Convex schema + agent layer):
+
+| Feature                        | Description                                                                                        |
+| ------------------------------ | -------------------------------------------------------------------------------------------------- |
+| **AI Agent Terminal**          | Unified terminal with slash commands powering multi-step AI-driven workflows                       |
+| **Slash Command Agents**       | `/instructions`, `/twitter`, `/create-project`, `/create-file`, `/schedule` (with legacy aliasing) |
+| **Multi-Step Agents**          | Interactive project & file creation with pending state, guided inputs, and feedback loops          |
+| **Project Management**         | Create and organize projects; soft-delete & recovery pipeline (30‑day retention)                   |
+| **File Creation (.x posts)**   | AI-assisted generation of social post files with metadata & future scheduling hooks                |
+| **Twitter/X Post Agent**       | Structured content parsing, parameter extraction, backend routing, and safety guards               |
+| **Interactive Components**     | Dynamic UI prompts (project selector, file name/type inputs) rendered from chat message schema     |
+| **Token Accounting**           | Per-message + per-session token, cost, and input/output tallies with running aggregates            |
+| **Soft Delete System**         | `deletedProjects` / `deletedFiles` tables with metadata snapshot & restore window                  |
+| **Activity Log**               | Persistent audit trail for file/project/social operations with typed categories                    |
+| **Social Connections (Auth)**  | Secure storage of Reddit + X credentials (multi-tier API support, rate/limit metadata)             |
+| **Reddit Post Pipeline (WIP)** | Draft + schedule + publish lifecycle with status indices & analytics fields                        |
+| **MCP Server Integration**     | Model Context Protocol entry point for external tool augmentation (extensible)                     |
+| **Thinking Role Messages**     | Internal reasoning channel (`role: thinking`) excluded from user token billable flow               |
+| **Process Indicators**         | In-flight agent step visualization (continuing / waiting) embedded in chat messages                |
+| **Schema-Driven UI**           | Frontend derives UX affordances (selectors, inputs) from `chatMessages.interactiveComponent`       |
+
+Planned / Not Yet Implemented (excluded from active claims): Instagram, LinkedIn, Facebook, TikTok full posting, cross-platform scheduling optimization, collaborative multi-user editing.
 
 ## Project Structure
 
@@ -37,28 +49,28 @@
 EAC/
 ├── eac/                          # Main application
 │   ├── app/                      # Next.js app directory
-│   │   ├── _components/          # Application components
-│   │   │   ├── dashboard/        # Social media dashboard module
-│   │   │   │   ├── _components/  # Dashboard-specific components
-│   │   │   │   │   └── agentCreationDropdown.tsx
-│   │   │   │   ├── dashSidebar.tsx      # Campaign & platform navigator
-│   │   │   │   ├── dashEditor.tsx       # Content creation interface
-│   │   │   │   ├── dashOverview.tsx     # Analytics dashboard
-│   │   │   │   └── dashActivityBar.tsx  # Platform switching navigation
-│   │   │   ├── editor/           # Content creation module
-│   │   │   │   ├── _components/  # Editor-specific components
-│   │   │   │   │   ├── ContentEditor.tsx       # AI-powered content editor
-│   │   │   │   │   ├── engagementTracker.tsx   # Real-time engagement metrics
-│   │   │   │   │   └── campaignAnalytics.tsx   # Campaign performance reports
-│   │   │   │   ├── postScheduler.tsx           # Multi-platform scheduling
-│   │   │   │   ├── audienceTargeting.tsx       # Audience insights & targeting
-│   │   │   │   ├── campaignSettings.tsx        # Campaign configuration
-│   │   │   │   └── contentLibrary.tsx          # Media asset management
-│   │   │   ├── agents/           # AI agent management
-│   │   │   │   ├── agentTerminal.tsx            # Agent command interface
-│   │   │   │   ├── agentWorkflows.tsx           # Automated workflow manager
-│   │   │   │   └── agentAnalytics.tsx           # Agent performance tracking
-│   │   │   └── navbar.tsx        # Navigation bar
+│   │   ├── _components/          # Modular UI feature areas
+│   │   │   ├── dashboard/        # Dashboard panels & data surfaces
+│   │   │   │   ├── dashSidebar.tsx         # Project / file / connection navigator
+│   │   │   │   ├── dashEditor.tsx          # Active file editing surface (integrates agents)
+│   │   │   │   ├── dashAgents.tsx          # Agent list & activation panel
+│   │   │   │   ├── dashOverview.tsx        # High‑level overview panel
+│   │   │   │   ├── dashSocialConnections.tsx # Platform credential management
+│   │   │   │   ├── dashTrash.tsx           # Soft-deleted entities management
+│   │   │   │   └── dashActivityBar.tsx     # Activity navigation / panel switching
+│   │   │   ├── editor/             # Granular edit panels (project/file attributes)
+│   │   │   │   ├── editGenerals.tsx        # General project metadata editor
+│   │   │   │   ├── editMaterials.tsx       # Materials/resources linkage
+│   │   │   │   ├── editPercentComplete.tsx # Progress adjustment
+│   │   │   │   └── editSchedule.tsx        # Schedule configuration
+│   │   │   ├── terminal/           # Agent terminal UI
+│   │   │   │   ├── terminal.tsx           # Main terminal frame
+│   │   │   │   ├── historyTab.tsx         # Historical session/messages view
+│   │   │   │   └── _components/           # Terminal-specific UI components
+│   │   │   ├── calendar/           # Calendar integration (in progress)
+│   │   │   ├── debug/              # Debug & diagnostics panels
+│   │   │   ├── user-profile/       # User account/profile surfaces
+│   │   │   ├── navbar.tsx          # Top navigation / command affordances
 │   │   ├── layout.tsx            # Root layout
 │   │   └── page.tsx              # Main dashboard page
 │   ├── components/               # Shared UI components
@@ -109,40 +121,79 @@ EAC/
 
 ## Convex Backend
 
-The EAC project uses Convex for its backend database and API layer, providing real-time data synchronization and serverless functions for social media management.
+The application uses Convex for real‑time data, agent interaction persistence, token accounting, and soft deletion workflows.
 
-### Database Schema
+### Active Schema (Authoritative Excerpt)
 
-| Table               | Purpose                 | Key Fields                                         |
-| ------------------- | ----------------------- | -------------------------------------------------- |
-| `campaigns`         | Social media campaigns  | `name`, `platforms`, `status`, `budget`, `metrics` |
-| `posts`             | Content and scheduling  | `content`, `platform`, `scheduledAt`, `status`     |
-| `analytics`         | Engagement metrics      | `platform`, `postId`, `likes`, `shares`, `reach`   |
-| `agents`            | AI agent configurations | `name`, `type`, `settings`, `isActive`             |
-| `socialConnections` | Platform integrations   | `platform`, `accessToken`, `userId`, `isActive`    |
+| Table               | Purpose / Notes                                                                                 |
+| ------------------- | ----------------------------------------------------------------------------------------------- |
+| `chatMessages`      | All terminal + agent + system + thinking messages; includes interactiveComponent + token fields |
+| `chatSessions`      | Aggregated token & cost accounting per session; soft delete via `isDeleted`                     |
+| `projects`          | Core project records with status & user association                                             |
+| `files`             | Project-scoped files (posts, notes, docs) + social metadata + scheduling fields                 |
+| `deletedProjects`   | Soft-deleted project snapshot + associated file references (30‑day retention)                   |
+| `deletedFiles`      | Soft-deleted file snapshot with original metadata (30‑day retention)                            |
+| `socialConnections` | Stored platform credentials (Reddit + Twitter/X) with OAuth & tier metadata                     |
+| `redditPosts`       | Reddit posting lifecycle (draft → scheduled → publishing → published / failed)                  |
+| `agentPosts`        | Unified agent-generated post tracking (reddit/twitter) with status transitions                  |
+| `activityLogs`      | Audit trail of user/system actions with type+category indices                                   |
+| `users`             | Authentication + profile (Clerk integration / legacy fields)                                    |
+
+Additional helper indices support efficient filtering (session activity, non-deleted files, status transitions, platform queries).
+
+### Token Accounting Model
+
+| Level        | Fields                                                              | Purpose                               |
+| ------------ | ------------------------------------------------------------------- | ------------------------------------- |
+| Message      | `tokenCount`, `inputTokens`, `outputTokens`, `estimatedCost`        | Fine-grained usage + cost estimation  |
+| Session      | `totalTokens`, `totalInputTokens`, `totalOutputTokens`, `totalCost` | Running aggregate for UX + limits     |
+| Thinking Msg | Excluded from billable accumulation                                 | Internal reasoning / progress markers |
+
+Invariants:
+
+- Session totals = sum of billable assistant + user message token components
+- Soft-deleted sessions excluded from active lists (flag only; data retained)
+- Cost derived via deterministic per-1K token rate map (see backend utilities)
+- Interactive steps (waiting state) never finalize token/cost fields until completion
 
 #### AI Agent Terminal
 
-The dashboard includes an integrated AI agent terminal powered by Anthropic Claude with MCP server integration:
+Integrated Anthropic Claude powered terminal with structured slash commands and interactive, multi-step workflows.
 
-- **Access**: Click the terminal tab at the bottom of the interface
-- **Agents**: Create and manage specialized AI agents for content creation, scheduling, and analytics
-- **MCP Commands**: Execute Model Context Protocol commands for enhanced automation
-- **Context Awareness**: Agents understand your campaigns, audience data, and platform performance
-- **Natural Language**: Communicate with agents using natural language for complex social media tasks
+Core slash commands (normalized):
 
-**Agent Commands:**
-
-```bash
-$ user: Create a Twitter thread about our new product launch
-$ agent: I'll create a 5-tweet thread optimized for engagement with your brand voice...
-
-$ user: Analyze the performance of last week's Instagram posts
-$ agent: Analyzing 12 posts from last week. Best performer: carousel post with 1.2K likes...
-
-$ user: Schedule posts across all platforms for next week
-$ agent: Planning optimal posting schedule based on audience activity patterns...
 ```
+/instructions      Generate or refine structured instruction files
+/twitter           Create and (future) schedule X/Twitter posts with param parsing
+/create-project    Natural language project bootstrap (multi-step with name confirmation)
+/create-file       Guided file creation inside existing projects (.x social post files)
+/schedule          (Scaffolding) Scheduling & timeline agent (early)
+```
+
+Legacy aliases (accepted but not documented in UI) are normalized internally.
+
+Multi-step interaction model:
+
+- Agents emit `role: thinking` messages for internal reasoning (not counted toward billing aggregates)
+- Pending user input states rendered via `interactiveComponent` (project selector, file name, file type)
+- Process continuity surfaced with `processIndicator` (continuing / waiting)
+- Terminal UI listens to message stream and dynamically mounts ephemeral components
+
+Example flow (/create-project):
+
+```
+> /create-project Create a project for a March launch campaign with a $5k budget and 3 teaser posts
+thinking… parsing requirements
+Agent: I can create a project. Please confirm or edit the project name below.
+[ Project Name Input Field ]
+User supplies name via component → agent resumes → project + optional files created
+```
+
+Safety / correctness guards:
+
+- Twitter agent strips disallowed mutation helpers to prevent instruction file creation
+- File creation waits for explicit user-provided names (prevents accidental duplicates)
+- All operations logged to `activityLogs` with typed categories
 
 ### AI Agent & MCP Integration
 

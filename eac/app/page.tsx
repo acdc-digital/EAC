@@ -78,7 +78,7 @@ export default function HomePage() {
           {/* Title */}
           <div className="flex-1 flex justify-start ml-2">
             <span className="text-xs text-[#858585]">
-              EAC Financial Dashboard & Project Management Editor
+              EAC Social Media Management Platform
             </span>
           </div>
         </header>

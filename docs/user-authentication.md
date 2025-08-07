@@ -210,6 +210,35 @@ export default defineSchema({
     // ... other fields
   }).index("by_user", ["userId"]),
 
+  chatSessions: defineTable({
+    userId: v.optional(v.union(v.string(), v.id("users"))),
+    title: v.optional(v.string()),
+    active: v.optional(v.boolean()),
+    totalInputTokens: v.optional(v.number()),
+    totalOutputTokens: v.optional(v.number()),
+    totalCost: v.optional(v.number()),
+    maxTokensAllowed: v.optional(v.number()),
+    createdAt: v.optional(v.number()),
+    updatedAt: v.optional(v.number()),
+  })
+    .index("by_user", ["userId"])
+    .index("by_active", ["userId", "active"]),
+
+  chatMessages: defineTable({
+    userId: v.optional(v.union(v.string(), v.id("users"))),
+    sessionId: v.optional(v.union(v.string(), v.id("chatSessions"))),
+    role: v.string(), // "user" | "assistant" | "system" | "thinking"
+    content: v.any(), // structured content blocks
+    model: v.optional(v.string()),
+    inputTokens: v.optional(v.number()),
+    outputTokens: v.optional(v.number()),
+    cost: v.optional(v.number()),
+    createdAt: v.optional(v.number()),
+    updatedAt: v.optional(v.number()),
+  })
+    .index("by_session", ["sessionId"])
+    .index("by_user", ["userId"]),
+
   // All tables include userId field for data isolation
 });
 ```
@@ -239,48 +268,64 @@ export async function getAuthenticatedUser(ctx: QueryCtx | MutationCtx) {
 }
 ```
 
-### 9. User-Scoped Query Implementation
+### 9. User-Scoped Query Patterns
 
-```typescript
-// convex/projects.ts
-export const getUserProjects = query({
+Two patterns are used in the codebase:
+
+1. **Strict auth** – throws if unauthenticated (for protected data)
+2. **Lenient auth** – returns an empty collection to keep UI stable pre-login
+
+Lenient example (current `projects.ts` style):
+
+```ts
+export const getProjects = query({
   args: {},
   handler: async (ctx) => {
-    const { user } = await getAuthenticatedUser(ctx);
-
-    return await ctx.db
+    const auth = await getAuthContext(ctx);
+    if (!auth.isAuthenticated) return [];
+    const userId = auth.requireAuth();
+    return ctx.db
       .query("projects")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
   },
 });
 ```
 
+The lenient pattern (returning `[]`) keeps UI components (explorer lists, selectors) stable prior to sign-in while still enforcing isolation.
+
 ### 10. User-Scoped Mutation Implementation
 
-```typescript
-// convex/projects.ts
+Current `createProject` adds optional `projectNo`, `budget` and derives user server-side:
+
+```ts
 export const createProject = mutation({
   args: {
     name: v.string(),
-    description: v.optional(v.string()),
-    status: v.union(
-      v.literal("active"),
-      v.literal("completed"),
-      v.literal("on-hold"),
+    status: v.optional(
+      v.union(
+        v.literal("active"),
+        v.literal("completed"),
+        v.literal("on-hold"),
+      ),
     ),
+    projectNo: v.optional(v.union(v.string(), v.number())),
+    description: v.optional(v.string()),
+    budget: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const { user } = await getAuthenticatedUser(ctx);
-
-    const project = {
-      ...args,
-      userId: user._id,
+    const userId = await getCurrentUserId(ctx);
+    const id = await ctx.db.insert("projects", {
+      name: args.name,
+      status: args.status || "active",
+      projectNo: args.projectNo ? String(args.projectNo) : undefined,
+      description: args.description,
+      budget: args.budget,
+      userId,
       createdAt: Date.now(),
       updatedAt: Date.now(),
-    };
-
-    return await ctx.db.insert("projects", project);
+    });
+    return ctx.db.get(id);
   },
 });
 ```
@@ -417,6 +462,15 @@ const profileItem = activityItems.find(item => item.name === 'Profile');
 2. Convex validates token on each query/mutation
 3. Invalid tokens trigger re-authentication
 4. Clerk handles session persistence across page reloads
+5. Token accounting tables (`chatSessions`, `chatMessages`) update atomically inside mutations to prevent drift
+
+Token & Cost Invariant:
+
+- `totalInputTokens` = sum(chatMessages.inputTokens) for session
+- `totalOutputTokens` = sum(chatMessages.outputTokens) for session
+- `totalCost` = sum(chatMessages.cost) for session
+
+Reconciliation task (future) can recompute aggregates if a mutation fails mid-way.
 
 ## Implementation Outcomes
 

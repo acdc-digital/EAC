@@ -158,7 +158,64 @@ Before testing the agent system, ensure the following:
 - If content incorrect: Check agent implementation logic
 - If permission errors: Check file system access
 
-### Test 6: Error Handling
+### Test 6: File Creator Multi‑Step Flow
+
+**Objective**: Validate multi-stage file creation (type → name → project)
+
+**Steps**:
+
+1. Activate File Creator agent
+2. Enter `/create-file marketing launch tweet draft`
+3. Observe THINKING message followed by file type selection prompt (if types ambiguous)
+4. Provide file type if requested or proceed to file name input component
+5. Provide file name when prompted
+6. Use project selector component to choose target project
+7. Confirm success message and file creation in explorer
+
+**Expected Results**:
+
+- ✅ THINKING role message stored
+- ✅ Intermediate UI components rendered
+- ✅ Pending state expires if idle > 5 min
+- ✅ `.x` or `.md` file appears with template content
+
+**Troubleshooting**:
+
+- If no selector: Verify agent pending state flags in console
+- If file not created: Check convex mutation logs for errors
+
+### Test 7: Project Creator Flow
+
+**Objective**: Validate project creation with optional files
+
+**Steps**:
+
+1. Activate Project Creator agent
+2. Enter `/create-project new marketing initiative with budget 5000`
+3. If prompted for name (generic), supply a descriptive name
+4. Confirm project appears with number assignment
+
+**Expected Results**:
+
+- ✅ Project inserted in Convex (check via dev tools / logs)
+- ✅ Optional initial files created when requested
+
+### Test 8: Scheduling Agent Batch
+
+**Objective**: Schedule unscheduled posts
+
+**Steps**:
+
+1. Ensure several `.x` posts exist without schedule
+2. Run `/schedule --strategy optimal`
+3. Verify timestamps set and status updated to scheduled
+
+**Expected Results**:
+
+- ✅ All eligible posts updated
+- ✅ Already scheduled posts skipped
+
+### Test 9: Error Handling
 
 **Objective**: Verify graceful error handling
 
@@ -177,7 +234,7 @@ Before testing the agent system, ensure the following:
 - ✅ No console errors or crashes
 - ✅ User can continue working after errors
 
-### Test 7: State Persistence
+### Test 10: State Persistence
 
 **Objective**: Verify agent state persists across sessions
 
@@ -199,7 +256,7 @@ Before testing the agent system, ensure the following:
 
 ## Performance Testing
 
-### Test 8: Large Agent Lists
+### Test 11: Large Agent Lists
 
 **Objective**: Verify performance with multiple agents
 
@@ -217,7 +274,7 @@ Before testing the agent system, ensure the following:
 - ✅ Memory usage remains stable
 - ✅ No UI lag or freezing
 
-### Test 9: Concurrent Tool Execution
+### Test 12: Concurrent Tool Execution
 
 **Objective**: Verify handling of multiple tool executions
 

@@ -1,5 +1,7 @@
 # Trash Management System
 
+_Last Updated: 2025-08-07_
+
 ## Overview
 
 The EAC Financial Dashboard implements a sophisticated trash management system that provides a seamless workflow for file and project deletion with proper safety measures and database synchronization.
@@ -39,60 +41,71 @@ The system distinguishes between two types of items:
 ### Key Components
 
 #### Editor Store (`store/editor/index.ts`)
+
 - **`moveToTrash(id: string)`**: Moves items to trash with proper categorization
 - **`permanentlyDelete(id: string)`**: Removes items permanently from local state
 - **Database Integration**: Handles Convex sync for database items
 
 #### Trash Component (`app/_components/dashboard/dashTrash.tsx`)
+
 - **Restore Functionality**: Returns items to active state
 - **Permanent Delete**: Two-step process with confirmation
 - **Visual Feedback**: Loading states and proper styling
 
 #### Sidebar Component (`app/_components/dashboard/dashSidebar.tsx`)
+
 - **Quick Delete**: Streamlined deletion without confirmation
 - **Context Menu**: Right-click delete option
 - **Immediate Feedback**: Items disappear instantly
 
 ### Database Schema
 
-#### Convex Tables
-```typescript
-// deletedFiles table
-{
-  originalId: string,
-  name: string,
-  type: string,
-  content: string,
-  deletedAt: number,
-  userId?: string
-}
+#### Convex Tables (excerpt from `schema.ts`)
 
-// deletedProjects table  
-{
-  originalId: string,
-  name: string,
-  description?: string,
-  status: string,
-  budget?: number,
-  deletedAt: number,
-  userId?: string
-}
+```ts
+deletedFiles: defineTable({
+   originalId: v.string(),
+   name: v.string(),
+   type: v.string(),
+   content: v.optional(v.string()),
+   deletedAt: v.number(),
+   userId: v.optional(v.union(v.string(), v.id("users"))),
+   createdAt: v.optional(v.number()), // original create
+   updatedAt: v.optional(v.number()), // original update
+}).index("by_user", ["userId"]).index("by_deleted_at", ["deletedAt"]),
+
+deletedProjects: defineTable({
+   originalId: v.string(),
+   name: v.string(),
+   description: v.optional(v.string()),
+   status: v.optional(v.string()),
+   budget: v.optional(v.number()),
+   deletedAt: v.number(),
+   userId: v.optional(v.union(v.string(), v.id("users"))),
+   createdAt: v.optional(v.number()),
+   updatedAt: v.optional(v.number()),
+}).index("by_user", ["userId"]).index("by_deleted_at", ["deletedAt"]),
 ```
+
+Indices enable fast per-user trash listing and future retention sweeps.
 
 ## User Experience Features
 
 ### Streamlined Workflow
+
 - **No Friction Deletions**: Explorer deletions happen immediately
 - **Safety Net**: Trash provides recovery option
 - **Confirmation Gate**: Modal prevents accidental permanent deletion
 
 ### Visual Feedback
+
 - **Instant Removal**: Items disappear from explorer immediately
 - **Trash Visibility**: Deleted items clearly shown in trash panel
 - **Loading States**: Visual feedback during operations
 - **Error Handling**: Graceful degradation on failures
 
 ### Keyboard Support
+
 - **Delete Key**: Works in explorer for quick deletion
 - **Context Menus**: Right-click delete options
 - **Accessibility**: Proper ARIA labels and navigation
@@ -100,11 +113,13 @@ The system distinguishes between two types of items:
 ## Error Handling
 
 ### Database Failures
+
 - **Graceful Degradation**: Local operations continue if database fails
 - **Retry Logic**: Automatic retry for transient failures
 - **User Feedback**: Clear error messages when operations fail
 
 ### Data Consistency
+
 - **ID Validation**: Proper detection of database vs local items
 - **Sync Recovery**: Handles database sync failures gracefully
 - **State Integrity**: Maintains consistent state across operations
@@ -112,6 +127,7 @@ The system distinguishes between two types of items:
 ## Testing Workflow
 
 ### Test Case 1: Local File Deletion
+
 1. Create test file (e.g., `deleteTest2.x`)
 2. Delete from EAC explorer (no modal should appear)
 3. Verify file moves to trash panel
@@ -120,6 +136,7 @@ The system distinguishes between two types of items:
 6. Confirm deletion - file permanently removed
 
 ### Test Case 2: Database Project Deletion
+
 1. Create project synced to database
 2. Delete from explorer (immediate removal)
 3. Verify entry appears in Convex `deletedProjects` table
@@ -129,6 +146,7 @@ The system distinguishes between two types of items:
 ## Configuration
 
 ### Store Settings
+
 ```typescript
 // Trash retention (can be configured)
 const TRASH_RETENTION_DAYS = 30;
@@ -138,6 +156,7 @@ const AUTO_CLEANUP_ENABLED = false;
 ```
 
 ### Convex Mutations
+
 - **`deleteProject`**: Moves project to deletedProjects table
 - **`deleteFile`**: Moves file to deletedFiles table
 - **`restoreProject`**: Restores project from trash
@@ -145,27 +164,35 @@ const AUTO_CLEANUP_ENABLED = false;
 - **`permanentlyDeleteProject`**: Removes from deletedProjects
 - **`permanentlyDeleteFile`**: Removes from deletedFiles
 
+Restore operations re-insert original records (generating new Convex IDs) and remove trash entries in a single mutation to avoid race conditions.
+
 ## Future Enhancements
 
 ### Planned Features
+
 - **Auto-cleanup**: Automatic permanent deletion after retention period
+  - Scheduled job scans `deleted*` tables by `deletedAt` using `by_deleted_at` index
 - **Bulk Operations**: Select multiple items for batch operations
 - **Trash Statistics**: Show trash usage and cleanup suggestions
 - **Recovery History**: Track and display restoration activities
 
 ### Performance Optimizations
+
 - **Lazy Loading**: Load trash contents on-demand
 - **Pagination**: Handle large trash collections efficiently
 - **Caching**: Smart caching for frequently accessed items
+  - Consider on-demand pagination when trash exceeds threshold (e.g., > 200 items)
 
 ## Security Considerations
 
 ### Access Control
+
 - **User Isolation**: Users can only access their own trash
 - **Authentication**: Requires valid user session for database operations
 - **Validation**: Proper input validation on all operations
 
 ### Data Protection
+
 - **Soft Deletion**: Database items preserved in deleted tables
 - **Audit Trail**: Track deletion and restoration activities
 - **Privacy**: Secure handling of deleted content
@@ -173,17 +200,20 @@ const AUTO_CLEANUP_ENABLED = false;
 ## Maintenance
 
 ### Monitoring
+
 - Monitor trash table sizes for cleanup needs
 - Track deletion patterns for UX improvements
 - Alert on database sync failures
 
 ### Cleanup Procedures
+
 - Regular cleanup of old trash items
 - Database maintenance for deleted tables
+  - Periodic migration to add auditing fields if needed (actorId)
 - Performance monitoring and optimization
 
 ---
 
-*Last Updated: August 1, 2025*
-*Version: 1.0*
-*Status: Production Ready*
+_Last Updated: August 1, 2025_
+_Version: 1.0_
+_Status: Production Ready_
