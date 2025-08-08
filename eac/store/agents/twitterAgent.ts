@@ -49,7 +49,8 @@ export class TwitterAgent extends BaseAgent {
   async execute(
     tool: AgentTool,
     input: string,
-    convexMutations: ConvexMutations
+    convexMutations: ConvexMutations,
+    sessionId?: string
   ): Promise<string> {
     if (tool.id === "create-twitter-post") {
       return await this.createTwitterPost(input, convexMutations);

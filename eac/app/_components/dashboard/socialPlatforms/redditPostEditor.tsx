@@ -13,9 +13,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/convex/_generated/api";
 import { useDebounce } from "@/lib/hooks/useDebounce";
+import { useSocialConnectionSync } from "@/lib/hooks/useSocialConnectionSync";
 import { useSocialPost } from "@/lib/hooks/useSocialPost";
 import { cn } from "@/lib/utils";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAuth } from "@clerk/nextjs";
+import { useAction, useMutation } from "convex/react";
 import { AlertCircle, Calendar, CheckCircle, Clock, Eye, FileText, Hash, Loader2, Send } from "lucide-react";
 import { useEffect, useRef, useState } from 'react';
 
@@ -58,13 +60,9 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
     });
   }, [fileName, status, isPosted, canPost, post]);
 
-  // Get Reddit connection from Convex
-  const redditConnections = useQuery(api.reddit.getSocialConnections, {
-    userId: 'temp-user-id', // TODO: Replace with actual user ID
-    platform: 'reddit'
-  });
-
-  const redditConnection = redditConnections?.[0]; // Get the first Reddit connection
+  // Get Reddit connection via centralized hook
+  const { userId: authUserId } = useAuth();
+  const { redditConnection, isPlatformConnected } = useSocialConnectionSync();
   const createRedditPost = useMutation(api.reddit.createRedditPost);
   const submitRedditPost = useAction(api.redditApi.submitRedditPost);
 
@@ -198,8 +196,9 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
     try {
       // Step 1: Create the post in the database
       console.log("📝 Creating post in database...");
+      if (!authUserId) throw new Error('Sign in required to post.');
       const postId = await createRedditPost({
-        userId: 'temp-user-id',
+        userId: authUserId,
         connectionId: redditConnection._id,
         subreddit: formData.subreddit,
         title: formData.title,
@@ -424,6 +423,7 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
                 <input
                   type="checkbox"
                   id="nsfw"
+                  aria-label="Mark post as NSFW"
                   checked={formData.nsfw}
                   onChange={(e) => setFormData(prev => ({ ...prev, nsfw: e.target.checked }))}
                   className="w-4 h-4 text-[#007acc] bg-[#2d2d30] border-[#454545] rounded focus:ring-[#007acc]"
@@ -435,6 +435,7 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
                 <input
                   type="checkbox"
                   id="spoiler"
+                  aria-label="Mark post as spoiler"
                   checked={formData.spoiler}
                   onChange={(e) => setFormData(prev => ({ ...prev, spoiler: e.target.checked }))}
                   className="w-4 h-4 text-[#007acc] bg-[#2d2d30] border-[#454545] rounded focus:ring-[#007acc]"
@@ -446,6 +447,7 @@ export function RedditPostEditor({ fileName, onChange }: RedditPostEditorProps) 
                 <input
                   type="checkbox"
                   id="sendReplies"
+                  aria-label="Enable send replies notifications"
                   checked={formData.sendReplies}
                   onChange={(e) => setFormData(prev => ({ ...prev, sendReplies: e.target.checked }))}
                   className="w-4 h-4 text-[#007acc] bg-[#2d2d30] border-[#454545] rounded focus:ring-[#007acc]"

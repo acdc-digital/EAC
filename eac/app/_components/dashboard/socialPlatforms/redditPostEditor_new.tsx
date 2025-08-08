@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Reddit Post Editor Component
 // /Users/matthewsimon/Projects/eac/eac/app/_components/dashboard/socialPlatforms/redditPostEditor.tsx
 

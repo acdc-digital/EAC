@@ -4,14 +4,14 @@
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 import {
-  agentRegistry,
-  getAvailableAgents
+    agentRegistry,
+    getAvailableAgents
 } from "./registry";
 import {
-  Agent,
-  AgentExecution,
-  AgentState,
-  ConvexMutations
+    Agent,
+    AgentExecution,
+    AgentState,
+    ConvexMutations
 } from "./types";
 
 // Get initial agents from the registry
@@ -66,6 +66,7 @@ export const useAgentStore = create<AgentState>()(
           toolId: string,
           input: string,
           convexMutations?: ConvexMutations,
+          sessionId?: string
         ) => {
           try {
             set({ isLoading: true, error: null });
@@ -89,6 +90,7 @@ export const useAgentStore = create<AgentState>()(
                 toolId,
                 input,
                 convexMutations || {},
+                sessionId
               );
             } catch (error) {
               console.error("❌ Agent execution failed:", error);
@@ -200,8 +202,8 @@ export { useEditorStore } from "../editor";
 
 // Legacy exports for backward compatibility
 export {
-  agentRegistry, executeInstructionsAgent,
-  executeTwitterPostAgent, getAvailableAgents,
-  getAvailableCommands
+    agentRegistry, executeInstructionsAgent,
+    executeTwitterPostAgent, getAvailableAgents,
+    getAvailableCommands
 } from "./registry";
 

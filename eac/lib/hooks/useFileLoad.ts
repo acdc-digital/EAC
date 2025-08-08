@@ -190,8 +190,11 @@ export function useFileLoad() {
         const fileExtension = getFileExtension(editorFileType);
         const fileName = convexFile.name.includes('.') ? convexFile.name : `${convexFile.name}${fileExtension}`;
         
+        // Try to find existing local file with same convex ID to preserve local ID
+        const existingFile = currentState.projectFiles.find(f => f.convexId === convexFile._id);
+        
         const localFile: ProjectFile = {
-          id: convexFile._id, // Use Convex ID as local ID for consistency
+          id: existingFile ? existingFile.id : convexFile._id, // Preserve existing local ID if found
           name: fileName,
           icon: getFileIcon(editorFileType),
           type: editorFileType,

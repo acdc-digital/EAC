@@ -6,10 +6,10 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  useAddScheduledPost,
-  useGetPostsByDate,
-  useScheduledPostsFromConvex,
-  useSetSelectedDate
+    useAddScheduledPost,
+    useGetPostsByDate,
+    useScheduledPostsFromConvex,
+    useSetSelectedDate
 } from "@/store";
 import { useUser } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
@@ -75,7 +75,7 @@ export default function CalendarPage({ className }: CalendarProps) {
   // Load scheduled posts from Convex with actual user ID
   // Toggle between all posts and user-specific posts
   const { posts: convexPosts, isLoading } = useScheduledPostsFromConvex(
-    showAllPosts ? undefined : (user?.id || 'current-user'),
+    showAllPosts ? undefined : user?.id,
     queryStartDate,
     queryEndDate
   );
@@ -84,7 +84,7 @@ export default function CalendarPage({ className }: CalendarProps) {
   useEffect(() => {
     console.log('📅 Calendar Debug:', {
       userExists: !!user,
-      userId: user?.id || 'current-user',
+  userId: user?.id,
       showAllPosts,
       convexPosts: convexPosts?.length || 0,
       convexPostsData: convexPosts,
@@ -194,7 +194,7 @@ export default function CalendarPage({ className }: CalendarProps) {
     try {
       const targetDate = selectedDate || new Date();
       const samplePost = {
-        userId: 'current-user',
+        userId: user?.id || 'unknown-user',
         platform: 'reddit' as const,
         title: 'Sample Scheduled Post',
         content: 'This is a sample post created from the calendar.',

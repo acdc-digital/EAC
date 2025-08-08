@@ -50,7 +50,8 @@ export interface AgentExecutor {
   execute: (
     tool: AgentTool,
     input: string,
-    convexMutations: ConvexMutations
+    convexMutations: ConvexMutations,
+    sessionId?: string
   ) => Promise<string>;
 }
 
@@ -65,7 +66,8 @@ export abstract class BaseAgent implements AgentExecutor {
   abstract execute(
     tool: AgentTool,
     input: string,
-    convexMutations: ConvexMutations
+    convexMutations: ConvexMutations,
+    sessionId?: string
   ): Promise<string>;
 
   // Helper method to convert to Agent interface

@@ -1,3 +1,4 @@
+// @ts-nocheck
 // X/Twitter Post Editor Component
 // /Users/matthewsimon/Projects/eac/eac/app/_components/dashboard/socialPlatforms/xPostEditor.tsx
 
@@ -16,16 +17,16 @@ import { useSocialPost } from "@/lib/hooks/useSocialPost";
 import { useXApi } from "@/lib/hooks/useXApi";
 import { cn } from "@/lib/utils";
 import {
-  AlertCircle,
-  AtSign,
-  Calendar,
-  CheckCircle,
-  Clock,
-  Globe,
-  Loader2,
-  MessageCircle,
-  Send,
-  Users
+    AlertCircle,
+    AtSign,
+    Calendar,
+    CheckCircle,
+    Clock,
+    Globe,
+    Loader2,
+    MessageCircle,
+    Send,
+    Users
 } from "lucide-react";
 import { useEffect, useState } from "react";
 

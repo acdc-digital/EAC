@@ -20,7 +20,8 @@ export function Terminal() {
     toggleCollapse, 
     setSize,
     activeTab,
-    setActiveTab
+    setActiveTab,
+    alerts
   } = useTerminalStore();
   const { isAuthenticated } = useConvexAuth();
   const { isSessionsPanelOpen, isAgentsPanelOpen } = useSessionStore();
@@ -105,11 +106,30 @@ export function Terminal() {
                 History
               </button>
               <button
-                className="rounded-none text-xs h-[25px] bg-transparent text-white opacity-60 px-3 min-w-[70px] flex items-center justify-center"
-                disabled
+                className={`rounded-none text-xs h-[25px] ${!isCollapsed && activeTab === 'alerts' ? 'bg-[#094771] text-white' : 'bg-transparent text-white'} ${isAuthenticated && !isCollapsed ? 'hover:bg-[#ffffff20] cursor-pointer' : 'opacity-60 cursor-default'} px-3 min-w-[70px] flex items-center justify-center`}
+                onClick={() => {
+                  if (!isAuthenticated) return;
+                  if (!isCollapsed) {
+                    if (activeTab === 'alerts') {
+                      toggleCollapse();
+                    } else {
+                      setActiveTab('alerts');
+                    }
+                  }
+                }}
+                disabled={!isAuthenticated || isCollapsed}
+                title={isAuthenticated ? 'Alerts' : ''}
               >
                 <Bell className="w-3 h-3 mr-1" />
                 Alerts
+                {alerts && alerts.length > 0 && (
+                  <span
+                    className="ml-2 inline-flex items-center justify-center min-w-[14px] h-[14px] px-1 rounded-full text-[10px] leading-none bg-[#f2f2f2] text-[#d83b01]"
+                    title={`${alerts.length} alert${alerts.length === 1 ? '' : 's'}`}
+                  >
+                    {alerts.length > 9 ? '9+' : alerts.length}
+                  </span>
+                )}
               </button>
               <button
                 className="rounded-none text-xs h-[25px] bg-transparent text-white opacity-60 px-3 min-w-[70px] flex items-center justify-center"
@@ -143,9 +163,36 @@ export function Terminal() {
             )}
             {activeTab === "history" && <HistoryTab />}
             {activeTab === "alerts" && (
-              <div className="flex-1 bg-[#0e0e0e] p-2 min-h-0">
-                <div className="text-xs text-[#858585]">
-                  No alerts at this time.
+              <div className="flex-1 bg-[#0e0e0e] min-h-0 flex flex-col">
+                <div className="flex items-center justify-between px-2 py-1 border-b border-[#1f1f1f] flex-shrink-0">
+                  <div className="text-xs text-[#cccccc]">Alerts</div>
+                  <button
+                    className={`text-[10px] px-2 py-1 rounded border border-[#2d2d2d] ${alerts.length ? 'text-[#cccccc] hover:bg-[#2a2a2a]' : 'text-[#6a6a6a] opacity-60 cursor-not-allowed'}`}
+                    onClick={() => alerts.length && useTerminalStore.getState().clearAlerts()}
+                    disabled={alerts.length === 0}
+                    title={alerts.length ? 'Clear all alerts' : ''}
+                  >
+                    Clear All
+                  </button>
+                </div>
+                <div className="flex-1 p-2 overflow-auto">
+                  {alerts.length === 0 ? (
+                    <div className="text-xs text-[#858585]">No alerts at this time.</div>
+                  ) : (
+                    <ul className="space-y-2">
+                      {alerts.map(a => (
+                        <li key={a.id} className="p-2 rounded border border-[#2d2d2d] bg-[#121212]">
+                          <div className="flex items-center justify-between">
+                            <span className={`text-xs font-semibold ${a.level === 'error' ? 'text-[#f28b82]' : a.level === 'warning' ? 'text-[#fbbc04]' : 'text-[#8ab4f8]'}`}>
+                              {a.title}
+                            </span>
+                            <span className="text-[10px] text-[#6a6a6a]">{new Date(a.timestamp).toLocaleString()}</span>
+                          </div>
+                          <div className="text-xs text-[#cccccc] mt-1 whitespace-pre-wrap">{a.message}</div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </div>
             )}

@@ -10,10 +10,11 @@ interface MarkdownEditorProps {
   content: string
   onChange?: (content: string) => void
   editable?: boolean
+  initialMode?: 'edit' | 'preview'
 }
 
-const MarkdownEditor = ({ content, onChange, editable = true }: MarkdownEditorProps) => {
-  const [mode, setMode] = useState<'edit' | 'preview'>('edit')
+const MarkdownEditor = ({ content, onChange, editable = true, initialMode }: MarkdownEditorProps) => {
+  const [mode, setMode] = useState<'edit' | 'preview'>(initialMode ?? 'edit')
   const [markdownContent, setMarkdownContent] = useState(content)
 
   // Debug: Only log if content actually changes (reduce spam)
@@ -46,6 +47,14 @@ const MarkdownEditor = ({ content, onChange, editable = true }: MarkdownEditorPr
   const handleModeChange = (newMode: 'edit' | 'preview') => {
     setMode(newMode)
   }
+
+  // Update mode if initialMode changes (e.g., switching to an instructions file)
+  useEffect(() => {
+    if (initialMode && initialMode !== mode) {
+      setMode(initialMode)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialMode])
 
   const renderPreview = () => {
     if (!markdownContent.trim()) {

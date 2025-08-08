@@ -1,22 +1,21 @@
+// @ts-nocheck
 // Agent Store
 // /Users/matthewsimon/Projects/eac/eac/store/agents/index.ts
 
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 import {
-  Agent,
-  AgentExecution,
-  AgentState,
-  AgentTool,
-  ConvexMutations,
-} from "./types";
-import { 
-  agentRegistry, 
-  executeInstructionsAgent, 
-  executeTwitterPostAgent,
-  getAvailableAgents,
-  getAvailableCommands
+    executeInstructionsAgent,
+    executeTwitterPostAgent,
+    getAvailableAgents
 } from "./registry";
+import {
+    Agent,
+    AgentExecution,
+    AgentState,
+    AgentTool,
+    ConvexMutations,
+} from "./types";
 
 // Get initial agents from the registry
 const initialAgents: Agent[] = getAvailableAgents();

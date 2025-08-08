@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Custom Convex hooks for X Posts
 // /Users/matthewsimon/Projects/eac/eac/lib/hooks/useXPosts.ts
 

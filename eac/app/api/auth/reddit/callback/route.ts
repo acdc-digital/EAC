@@ -37,8 +37,9 @@ export async function GET(request: NextRequest) {
       throw new Error('Missing connection ID in state parameter');
     }
 
-    // Exchange authorization code for access token
-    const redirectUri = 'http://localhost:3000/api/auth/reddit/callback'; // Match the actual dev server port
+  // Exchange authorization code for access token
+  // Build redirect URI dynamically to exactly match what was used in the authorize step
+  const redirectUri = `${request.nextUrl.origin}/api/auth/reddit/callback`;
     
     console.log('🔗 OAuth callback using redirect URI:', redirectUri);
     

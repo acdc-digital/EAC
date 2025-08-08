@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/convex/_generated/api";
 import { useSocialConnectionSync } from "@/lib/hooks/useSocialConnectionSync";
+import { useAuth } from "@clerk/nextjs";
 import { useMutation } from "convex/react";
 import { AlertCircle, CheckCircle, Facebook, Instagram, Linkedin, MessageSquare, Music, Twitter } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -46,6 +47,7 @@ type SocialFormData = {
 export function SocialConnectors() {
   // Use the centralized social connection sync hook
   const { connections, isLoading } = useSocialConnectionSync();
+  const { userId: authUserId } = useAuth();
   
   // Convex mutations
   const createSocialConnection = useMutation(api.reddit.createSocialConnection);
@@ -125,7 +127,7 @@ export function SocialConnectors() {
         
         // Call Convex mutation directly
         const connectionId = await createSocialConnection({
-          userId: 'temp-user-id', // TODO: Replace with actual user ID
+          userId: authUserId || 'unknown-user',
           platform: 'reddit',
           username: redditData.username,
           clientId: redditData.clientId,
@@ -159,7 +161,7 @@ export function SocialConnectors() {
         
         // Call Convex mutation to create Twitter connection
         const connectionId = await createSocialConnection({
-          userId: 'temp-user-id', // TODO: Replace with actual user ID
+          userId: authUserId || 'unknown-user',
           platform: 'twitter',
           username: twitterData.username,
           // Use Twitter-specific fields
@@ -227,8 +229,8 @@ export function SocialConnectors() {
         return;
       }
 
-      // Use environment variable to ensure consistency with backend
-      const redirectUri = 'http://localhost:3000/api/auth/reddit/callback'; // Match the actual dev server port
+  // Build redirect URI from current origin to avoid mismatches
+  const redirectUri = `${window.location.origin}/api/auth/reddit/callback`;
       console.log('🔗 Starting OAuth with redirect URI:', redirectUri);
       
       const scope = 'submit,identity,read'; // Added 'read' scope for analytics data
@@ -262,8 +264,8 @@ export function SocialConnectors() {
         return;
       }
 
-      // Use environment variable to ensure consistency with backend
-      const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/twitter/callback`;
+  // Build redirect URI from current origin to avoid mismatches
+  const redirectUri = `${window.location.origin}/api/auth/twitter/callback`;
       console.log('🐦 Starting X OAuth with redirect URI:', redirectUri);
       
       const scope = 'tweet.read tweet.write users.read like.write offline.access'; // Complete scopes for dashboard

@@ -3,6 +3,7 @@
 // /Users/matthewsimon/Projects/eac/eac/lib/hooks/useSocialConnectionSync.ts
 
 import { api } from "@/convex/_generated/api";
+import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
@@ -20,12 +21,17 @@ interface Connection {
   twitterClientId?: string;
 }
 
-export function useSocialConnectionSync(userId: string = 'temp-user-id') {
+export function useSocialConnectionSync(userIdParam?: string) {
   // Generate unique hook instance ID for debugging
   const hookInstanceId = useRef(`sync-${Math.random().toString(36).substr(2, 9)}`).current;
+  const { userId: clerkUserId } = useAuth();
+  const effectiveUserId = userIdParam || clerkUserId || undefined;
   
   // Re-enable social connections query now that functions are deployed
-  const connections = useQuery(api.socialConnections.getSocialConnections, { userId });
+  const connections = useQuery(
+    api.socialConnections.getSocialConnections,
+    effectiveUserId ? { userId: effectiveUserId } : "skip"
+  );
 
   // Prevent duplicate logging
   const lastLoggedConnectionsRef = useRef<string>('');
@@ -76,7 +82,11 @@ export function useSocialConnectionSync(userId: string = 'temp-user-id') {
   // Helper function to check if platform is connected - memoized
   const isPlatformConnected = useCallback((platform: string) => {
     const connection = getConnectionByPlatform(platform);
-    return connection?.isActive === true && !!connection.twitterAccessToken;
+    if (!connection || connection.isActive !== true) return false;
+    // Platform-specific token checks
+    if (platform === 'twitter') return !!connection.twitterAccessToken;
+    if (platform === 'reddit') return !!connection.accessToken;
+    return true;
   }, [getConnectionByPlatform]);
 
   // Memoized platform-specific connections to ensure React detects changes properly

@@ -44,10 +44,25 @@ export default defineSchema({
       status: v.union(v.literal("pending"), v.literal("completed"), v.literal("cancelled")),
       result: v.optional(v.any()), // Result data from component interaction
     })),
+    // Temporary flag for progress messages that can be cleaned up
+    isTemporary: v.optional(v.boolean()),
   }).index("by_created_at", ["createdAt"])
     .index("by_session", ["sessionId", "createdAt"])
     .index("by_user", ["userId", "createdAt"])
     .index("by_user_session", ["userId", "sessionId", "createdAt"]),
+  
+  // Agent progress tracking for pinned progress indicators
+  agentProgress: defineTable({
+    sessionId: v.string(),
+    agentType: v.string(), // "instructions", "file-creator", "project-creator", etc.
+    percentage: v.number(),
+    status: v.string(),
+    isComplete: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_session", ["sessionId"])
+    .index("by_session_agent", ["sessionId", "agentType"])
+    .index("by_created_at", ["createdAt"]),
 
   // Chat sessions for token tracking and limits
   chatSessions: defineTable({

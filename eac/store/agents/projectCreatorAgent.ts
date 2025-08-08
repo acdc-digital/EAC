@@ -44,7 +44,8 @@ export class ProjectCreatorAgent extends BaseAgent {
   async execute(
     tool: AgentTool,
     input: string,
-    convexMutations: ConvexMutations
+    convexMutations: ConvexMutations,
+    sessionId?: string
   ): Promise<string> {
     console.log('🚀 ProjectCreatorAgent executing with input:', input);
     

@@ -9,24 +9,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { api } from '@/convex/_generated/api'
+import { useFiles } from '@/lib/hooks/useFiles'
+import { useSocialConnectionSync } from '@/lib/hooks/useSocialConnectionSync'
 import { useXApi } from '@/lib/hooks/useXApi'
 import { cn } from '@/lib/utils'
 import { useEditorStore } from '@/store'
-import { useMutation, useQuery } from 'convex/react'
+import { useTerminalStore } from '@/store/terminal'
+import { useAuth } from '@clerk/nextjs'
+import { useAction, useMutation, useQuery } from 'convex/react'
 import {
-    AtSign,
-    Calendar,
-    CheckCircle,
-    Edit3,
-    Eye,
-    Facebook,
-    Globe,
-    Instagram,
-    MessageCircle,
-    Twitter,
-    Users
+  AtSign,
+  Calendar,
+  CheckCircle,
+  Edit3,
+  Eye,
+  Facebook,
+  Globe,
+  Instagram,
+  MessageCircle,
+  Twitter,
+  Users
 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 interface SocialMediaFormEditorProps {
   content: string
@@ -60,6 +64,30 @@ interface SocialPostData {
     shares?: number
   }
 }
+
+// Reddit specific fields captured in UI (not all platforms need these)
+interface RedditFields {
+  subreddit: string
+  title: string
+  postType: 'self' | 'link'
+  linkUrl?: string
+  nsfw: boolean
+  spoiler: boolean
+  sendReplies: boolean
+  flairText?: string
+  flairId?: string
+}
+
+// Helper: Platform-aware unauthorized guidance text
+const getReauthHelpText = (platformKey: string) => {
+  const normalized = platformKey === 'x' ? 'twitter' : platformKey;
+  const label = normalized === 'reddit'
+    ? 'Reddit connection'
+    : normalized === 'twitter'
+      ? 'X/Twitter connection'
+      : 'account';
+  return `If this is an Unauthorized error, re-authorize your ${label} in Settings → Social Connections and try again.`;
+};
 
 // Parse markdown content into structured data
 const parseMarkdownToFormData = (markdownContent: string): SocialPostData => {
@@ -143,23 +171,55 @@ const parseMarkdownToFormData = (markdownContent: string): SocialPostData => {
 };
 
 // Convert form data back to markdown
-const convertFormDataToMarkdown = (data: SocialPostData, platform: string, fileName: string): string => {
-  const platformName = platform === 'x' ? 'X (Twitter)' : platform.charAt(0).toUpperCase() + platform.slice(1);
+const convertFormDataToMarkdown = (
+  data: SocialPostData,
+  platform: string,
+  fileName: string,
+  redditExtra?: RedditFields
+): string => {
+  console.log('🔧 convertFormDataToMarkdown called:', {
+    content: data.content,
+    contentLength: data.content?.length || 0,
+    platform,
+    fileName,
+    redditTitle: redditExtra?.title,
+    redditSubreddit: redditExtra?.subreddit
+  });
   
-  return `# ${fileName.replace(/\.[^/.]+$/, "")} - ${platformName} Post
+  const platformName = platform === 'x' ? 'X (Twitter)' : platform.charAt(0).toUpperCase() + platform.slice(1);
+
+  // Platform-specific settings block
+  let settingsBlock = '';
+  if (platform === 'reddit') {
+    const r = redditExtra;
+    settingsBlock = `## Settings
+- Title: ${r?.title || fileName.replace(/\.[^/.]+$/, '')}
+- Subreddit: ${r?.subreddit || 'r/test'}
+- Post Type: ${r?.postType === 'link' ? 'Link' : 'Text'}
+${r?.postType === 'link' && r?.linkUrl ? `- Link URL: ${r.linkUrl}` : ''}
+- NSFW: ${(r?.nsfw ? 'Yes' : 'No')}
+- Spoiler: ${(r?.spoiler ? 'Yes' : 'No')}
+- Send Replies: ${(r?.sendReplies !== false ? 'Yes' : 'No')}
+${r?.flairText ? `- Flair: ${r.flairText}` : ''}
+- Schedule: ${data.settings.scheduledDate && data.settings.scheduledTime ? `${data.settings.scheduledDate} ${data.settings.scheduledTime}` : 'Now'}`.trim();
+  } else {
+    settingsBlock = `## Settings
+- Reply Settings: ${data.settings.replySettings || 'following'}
+- Schedule: ${data.settings.scheduledDate && data.settings.scheduledTime ? `${data.settings.scheduledDate} ${data.settings.scheduledTime}` : 'Now'}
+- Thread: ${data.settings.isThread ? 'Multi-tweet Thread' : 'Single Tweet'}
+${data.settings.hashtags ? `- Hashtags: ${data.settings.hashtags}` : ''}
+${data.settings.location ? `- Location: ${data.settings.location}` : ''}
+${data.settings.taggedUsers ? `- Tagged Users: ${data.settings.taggedUsers}` : ''}`.trim();
+  }
+
+  return `# ${fileName.replace(/\.[^/.]+$/, '')} - ${platformName} Post
 Platform: ${platformName}
 Created: ${new Date().toLocaleDateString()}
 
 ## Post Content
 ${data.content || 'Write your post content here...'}
 
-## Settings
-- Reply Settings: ${data.settings.replySettings || 'following'}
-- Schedule: ${data.settings.scheduledDate && data.settings.scheduledTime ? `${data.settings.scheduledDate} ${data.settings.scheduledTime}` : 'Now'}
-- Thread: ${data.settings.isThread ? 'Multi-tweet Thread' : 'Single Tweet'}
-${data.settings.hashtags ? `- Hashtags: ${data.settings.hashtags}` : ''}
-${data.settings.location ? `- Location: ${data.settings.location}` : ''}
-${data.settings.taggedUsers ? `- Tagged Users: ${data.settings.taggedUsers}` : ''}
+${settingsBlock}
 
 ## Media
 - Images: ${JSON.stringify(data.media.images || [])}
@@ -172,11 +232,16 @@ ${data.settings.taggedUsers ? `- Tagged Users: ${data.settings.taggedUsers}` : '
 - Shares: ${data.analytics?.shares || 0}`;
 };
 
+// Add debugging before function
+console.log('🔧 convertFormDataToMarkdown defined');
+
 const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, fileName }: SocialMediaFormEditorProps) => {
   const [formData, setFormData] = useState<SocialPostData>(() => parseMarkdownToFormData(content));
   const [mode, setMode] = useState<'form' | 'preview'>('form');
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
+  const normalizedPlatform = (platform === 'x' ? 'twitter' : platform);
+  const { userId: authUserId } = useAuth();
   
   // Track when we're updating content from form to prevent parsing loop
   const isUpdatingFromForm = useRef(false);
@@ -184,15 +249,23 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
   // Editor store access
   const { openTabs, updateFileContent, updateFileStatus } = useEditorStore();
 
+  // Files hook to get updateFile mutation
+  const { updateFile } = useFiles(null);
+
   // Get current file status
   const currentTab = openTabs.find(tab => tab.name === fileName);
 
   // Convex mutations
   const upsertPost = useMutation(api.socialPosts.upsertPost);
   const schedulePost = useMutation(api.socialPosts.schedulePost);
+  const createRedditPost = useMutation(api.reddit.createRedditPost);
+  const submitRedditPost = useAction(api.redditApi.submitRedditPost);
 
   // X API integration for actual posting
   const { postTweet, hasConnection } = useXApi();
+
+  // Social connections (to get Reddit connection)
+  const { redditConnection, isPlatformConnected } = useSocialConnectionSync();
 
   // Fetch scheduling data from Convex database
   const agentPosts = useQuery(api.socialPosts.getAllPosts);
@@ -214,6 +287,32 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
     currentPost: currentPost,
     hasScheduleData: !!currentPost?.scheduledFor
   });
+
+  // Initialize Reddit fields from content (best-effort parsing of markdown Settings)
+  const parsedInitialRedditFields = useMemo<RedditFields>(() => {
+    const settingsMatch = content.match(/## Settings\s*([\s\S]*?)(?=##|$)/);
+    const block = settingsMatch?.[1] ?? '';
+    const getLine = (label: string) => {
+      const m = block.match(new RegExp(`-\\s*${label}:\\s*(.+)`, 'i'));
+      return m?.[1]?.trim();
+    };
+    const subredditRaw = getLine('Subreddit') || 'r/test';
+    const postTypeRaw = (getLine('Post Type') || 'Text').toLowerCase();
+    const flair = getLine('Flair');
+    const nsfwRaw = (getLine('NSFW') || 'No').toLowerCase();
+    return {
+      subreddit: subredditRaw,
+      title: content.split('\n')[0]?.replace(/^#\s*/, '').replace(/\s*-\s*Reddit Post.*$/, '') || fileName.replace(/\.[^/.]+$/, ''),
+      postType: (postTypeRaw.startsWith('link') ? 'link' : 'self') as 'self' | 'link',
+      linkUrl: undefined,
+      nsfw: nsfwRaw === 'yes' || nsfwRaw === 'true',
+      spoiler: false,
+      sendReplies: true,
+      flairText: flair,
+      flairId: undefined,
+    };
+  }, [content, fileName]);
+  const [redditFields, setRedditFields] = useState<RedditFields>(parsedInitialRedditFields);
 
   // Merge Convex scheduling data with form data
   useEffect(() => {
@@ -254,10 +353,51 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
     
     const newFormData = parseMarkdownToFormData(content);
     setFormData(newFormData);
+    // Light refresh of reddit fields if Settings changed drastically
+    if (normalizedPlatform === 'reddit') {
+      const settingsMatch = content.match(/## Settings\s*([\s\S]*?)(?=##|$)/);
+      const block = settingsMatch?.[1] ?? '';
+      const getLine = (label: string) => {
+        const m = block.match(new RegExp(`-\\s*${label}:\\s*(.+)`, 'i'));
+        return m?.[1]?.trim();
+      };
+      const subredditRaw = getLine('Subreddit');
+      const postTypeRaw = getLine('Post Type');
+      const flair = getLine('Flair');
+      const nsfwRaw = getLine('NSFW');
+      if (settingsMatch) {
+        // Update only the fields present in the Settings block
+        setRedditFields(prev => ({
+          ...prev,
+          ...(subredditRaw ? { subreddit: subredditRaw } : {}),
+          ...(postTypeRaw ? { postType: postTypeRaw.toLowerCase().startsWith('link') ? 'link' : 'self' } : {}),
+          ...(flair ? { flairText: flair } : {}),
+          ...(nsfwRaw ? { nsfw: nsfwRaw.toLowerCase() === 'yes' || nsfwRaw.toLowerCase() === 'true' } : {}),
+        }));
+      } else {
+        // No Settings block found (likely a fresh template). Reset to parsed defaults
+        // to avoid leaking values (e.g., subreddit) from the previously opened tab.
+        setRedditFields(parsedInitialRedditFields);
+      }
+    }
   }, [content]); // Only depend on content prop
+
+  // When switching files, ensure reddit fields are re-initialized for the new file
+  useEffect(() => {
+    if (normalizedPlatform === 'reddit') {
+      setRedditFields(parsedInitialRedditFields);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fileName]);
 
   // Handle form changes and update parent
   const handleFormChange = (updates: Partial<SocialPostData>) => {
+    console.log('📝 handleFormChange called:', {
+      updates,
+      currentFormContent: formData.content,
+      updatesContent: updates.content
+    });
+    
     const newFormData = {
       ...formData,
       ...updates,
@@ -271,12 +411,21 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
       }
     };
     
+    console.log('📝 New form data:', {
+      newContent: newFormData.content,
+      newContentLength: newFormData.content?.length || 0
+    });
+    
     setFormData(newFormData);
     
     // Convert back to markdown and notify parent
     if (onChange) {
       isUpdatingFromForm.current = true; // Prevent parsing loop
-      const markdownContent = convertFormDataToMarkdown(newFormData, platform, fileName);
+      const markdownContent = convertFormDataToMarkdown(newFormData, platform, fileName, platform === 'reddit' ? redditFields : undefined);
+      console.log('📝 Calling onChange with markdown:', {
+        markdownLength: markdownContent.length,
+        containsNewContent: markdownContent.includes(newFormData.content || '')
+      });
       onChange(markdownContent);
     }
   };
@@ -292,7 +441,7 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
       
       if (currentTab) {
         // Convert form data to markdown format (same as normal form changes)
-        const markdownContent = convertFormDataToMarkdown(formData, platform, fileName);
+        const markdownContent = convertFormDataToMarkdown(formData, platform, fileName, platform === 'reddit' ? redditFields : undefined);
         
         // Update file content in editor store
         updateFileContent(currentTab.id, markdownContent);
@@ -302,14 +451,29 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
       }
       
       // Also save to Convex database
-      const normalizedPlatform = platform === 'x' ? 'twitter' : platform;
       if (normalizedPlatform === 'twitter' || normalizedPlatform === 'reddit') {
+        const markdownContent = convertFormDataToMarkdown(formData, platform, fileName, platform === 'reddit' ? redditFields : undefined);
+        const platformData = normalizedPlatform === 'reddit'
+          ? JSON.stringify({
+              ...formData.settings,
+              subreddit: redditFields.subreddit,
+              title: redditFields.title,
+              postType: redditFields.postType,
+              linkUrl: redditFields.linkUrl,
+              nsfw: redditFields.nsfw,
+              spoiler: redditFields.spoiler,
+              sendReplies: redditFields.sendReplies,
+              flairText: redditFields.flairText,
+              flairId: redditFields.flairId,
+              connectionId: redditConnection?._id,
+            })
+          : JSON.stringify(formData.settings);
         await upsertPost({
-          content: formData.content,
+          content: markdownContent,
           fileName: fileName,
           fileType: normalizedPlatform,
           status: 'draft',
-          platformData: JSON.stringify(formData.settings)
+          platformData,
         });
         
         console.log('✅ Draft saved to database');
@@ -323,34 +487,62 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
   }, [fileName, formData, openTabs, updateFileContent, updateFileStatus, upsertPost, platform]);
 
   // Handle publishing or scheduling
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const { pushAlert, setActiveTab, isCollapsed, toggleCollapse } = useTerminalStore();
+
+  // Clear publish error when file changes
+  useEffect(() => {
+    setPublishError(null);
+  }, [fileName]);
+
   const handlePublish = useCallback(async () => {
     setIsPublishing(true);
+    setPublishError(null);
     
     try {
       console.log('🚀 Publishing post:', { fileName, content: formData.content });
       
-      const isScheduled = formData.settings.scheduledDate && formData.settings.scheduledTime;
-      const normalizedPlatform = platform === 'x' ? 'twitter' : platform;
+  const isScheduled = formData.settings.scheduledDate && formData.settings.scheduledTime;
+  const markdownContent = convertFormDataToMarkdown(formData, platform, fileName, platform === 'reddit' ? redditFields : undefined);
       
       if (isScheduled) {
         // Schedule the post
         const scheduledDateTime = new Date(`${formData.settings.scheduledDate}T${formData.settings.scheduledTime}`);
         
         if (normalizedPlatform === 'twitter' || normalizedPlatform === 'reddit') {
+          const platformData = normalizedPlatform === 'reddit'
+            ? JSON.stringify({
+                ...formData.settings,
+                subreddit: redditFields.subreddit,
+                title: redditFields.title,
+                postType: redditFields.postType,
+                linkUrl: redditFields.linkUrl,
+                nsfw: redditFields.nsfw,
+                spoiler: redditFields.spoiler,
+                sendReplies: redditFields.sendReplies,
+                flairText: redditFields.flairText,
+                flairId: redditFields.flairId,
+                connectionId: redditConnection?._id,
+              })
+            : JSON.stringify(formData.settings);
           await schedulePost({
-            content: formData.content,
+            content: markdownContent,
             fileName: fileName,
             fileType: normalizedPlatform,
             scheduledFor: scheduledDateTime.getTime(),
-            platformData: JSON.stringify(formData.settings)
+            platformData,
           });
         }
         
         console.log('✅ Post scheduled successfully for:', scheduledDateTime);
         
-        // Show success message for scheduled posts
+        // Log success to terminal alerts (non-blocking)
         const formattedDate = scheduledDateTime.toLocaleString();
-        alert(`📅 Successfully scheduled for ${formattedDate}!`);
+        pushAlert({
+          title: 'Post Scheduled',
+          message: `This post has been scheduled for ${formattedDate}.`,
+          level: 'info',
+        });
       } else {
         // Publish immediately to actual platform
         if (normalizedPlatform === 'twitter') {
@@ -367,11 +559,11 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
 
           // First update database status to 'posting'
           await upsertPost({
-            content: formData.content,
+            content: markdownContent,
             fileName: fileName,
             fileType: normalizedPlatform,
             status: 'posting',
-            platformData: JSON.stringify(formData.settings)
+            platformData: JSON.stringify(formData.settings),
           });
 
           // Actually post to Twitter using the API
@@ -413,17 +605,20 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
           if (tweetResult.success) {
             // Update database with success status
             await upsertPost({
-              content: formData.content,
+              content: markdownContent,
               fileName: fileName,
               fileType: normalizedPlatform,
               status: 'posted',
-              platformData: JSON.stringify(formData.settings)
+              platformData: JSON.stringify(formData.settings),
             });
             console.log('✅ Post published successfully to Twitter:', tweetResult.data);
             
-            // Show success message
-            const tweetId = tweetResult.data?.id || 'N/A';
-            alert(`🎉 Successfully posted to X/Twitter!\n\nTweet ID: ${tweetId}`);
+            // Log publish success to terminal alerts (non-blocking)
+            pushAlert({
+              title: 'Publish Succeeded',
+              message: 'This post has been successfully published and is now read-only.',
+              level: 'info',
+            });
           } else {
             // Update file status to 'failed'
             const currentTab = openTabs.find(tab => tab.name === fileName || tab.filePath.includes(fileName));
@@ -433,27 +628,183 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
 
             // Update database with failed status
             await upsertPost({
-              content: formData.content,
+              content: markdownContent,
               fileName: fileName,
               fileType: normalizedPlatform,
               status: 'failed',
-              platformData: JSON.stringify(formData.settings)
+              platformData: JSON.stringify(formData.settings),
             });
-            throw new Error(tweetResult.error || 'Failed to publish to Twitter');
+            const message = tweetResult.error || 'Failed to publish to Twitter';
+            setPublishError(message);
+            pushAlert({
+              title: 'Publish Failed',
+              message: `Failed to publish post. ${message}\n\nTip: ${getReauthHelpText(platform)}`,
+              level: 'error',
+            });
+            if (!isCollapsed) setActiveTab('alerts');
+            return; // Handle error inline; don't throw
           }
         } else if (normalizedPlatform === 'reddit') {
-          // Reddit publishing (existing logic)
-          await upsertPost({
-            content: formData.content,
-            fileName: fileName,
-            fileType: normalizedPlatform,
-            status: 'posted',
-            platformData: JSON.stringify(formData.settings)
+          // Reddit publishing (real API via Convex)
+          // Validate connection
+          if (!redditConnection?._id) {
+            throw new Error('No Reddit connection found. Connect your Reddit account in Settings → Social Connections.');
+          }
+          if (!isPlatformConnected('reddit')) {
+            throw new Error('Reddit connected but not authorized yet. Click Authorize in Settings → Social Connections.');
+          }
+          // Validate fields
+          const cleanSubreddit = (redditFields.subreddit || '').trim();
+          const subredditName = cleanSubreddit.replace(/^r\//i, '');
+          if (!subredditName) {
+            throw new Error('Please select a subreddit (e.g., r/webdev).');
+          }
+          const title = (redditFields.title || '').trim() || fileName.replace(/\.[^/.]+$/, '');
+          if (!title) {
+            throw new Error('Please provide a title for your Reddit post.');
+          }
+          if (redditFields.postType === 'link' && !redditFields.linkUrl) {
+            throw new Error('Please provide a link URL for a Link post.');
+          }
+
+          // Debug: Log Reddit fields state
+          console.log('🔍 Reddit submission debug:', {
+            originalRedditFields: redditFields,
+            cleanSubreddit,
+            subredditName,
+            title,
+            formDataContent: formData.content,
+            postType: redditFields.postType,
+            allFieldsReady: !!(subredditName && title && formData.content),
+            subredditValidation: {
+              original: redditFields.subreddit,
+              cleaned: cleanSubreddit,
+              final: subredditName,
+              isEmpty: !subredditName,
+              length: subredditName.length
+            }
           });
-          console.log('✅ Post published successfully to Reddit');
-          
-          // Show success message for Reddit
-          alert('🎉 Successfully posted to Reddit!');
+
+          // Validation: Ensure all required data is present
+          if (!subredditName || subredditName.length === 0) {
+            throw new Error(`Subreddit is empty. Please set a valid subreddit like 'r/test' or 'r/testingground4bots'. Current value: "${redditFields.subreddit}"`);
+          }
+          if (!formData.content || formData.content.trim().length === 0) {
+            throw new Error(`Post content is empty. Please enter some content. Current length: ${formData.content.length}`);
+          }
+          if (!title || title.trim().length === 0) {
+            throw new Error(`Post title is empty. Please enter a title. Current value: "${title}"`);
+          }
+
+          // Small delay to ensure state is fully synchronized
+          console.log('⏳ Waiting 500ms for state synchronization...');
+          await new Promise(resolve => setTimeout(resolve, 500));
+
+          // Update UI + DB status to posting
+          const currentTab = openTabs.find(tab => tab.name === fileName || tab.filePath.includes(fileName));
+          if (currentTab) updateFileStatus(currentTab.id, 'posting');
+          await upsertPost({
+            content: markdownContent,
+            fileName,
+            fileType: normalizedPlatform,
+            status: 'posting',
+            platformData: JSON.stringify({
+              ...formData.settings,
+              subreddit: cleanSubreddit,
+              title,
+              postType: redditFields.postType,
+              linkUrl: redditFields.linkUrl,
+              nsfw: redditFields.nsfw,
+              spoiler: redditFields.spoiler,
+              sendReplies: redditFields.sendReplies,
+              flairText: redditFields.flairText,
+              flairId: redditFields.flairId,
+              connectionId: redditConnection._id,
+            }),
+          });
+
+          // Reddit submission - Direct from form data
+          console.log('🚀 Submitting Reddit post directly from form data');
+
+          // Ensure we have an authenticated user
+          if (!authUserId) {
+            throw new Error('You need to be signed in to publish to Reddit.');
+          }
+
+          // Prepare Reddit submission data directly from form
+          const redditPostData = {
+            userId: authUserId,
+            connectionId: redditConnection._id,
+            subreddit: subredditName, // This should be just the subreddit name without 'r/'
+            title: title,
+            kind: redditFields.postType,
+            text: redditFields.postType === 'self' ? formData.content : undefined,
+            url: redditFields.postType === 'link' ? redditFields.linkUrl : undefined,
+            nsfw: !!redditFields.nsfw,
+            spoiler: !!redditFields.spoiler,
+            sendReplies: redditFields.sendReplies !== false,
+            flairId: redditFields.flairId,
+            flairText: redditFields.flairText,
+          };
+
+          console.log('🐛 Direct Reddit submission data:', {
+            postData: redditPostData,
+            formContent: formData.content,
+            contentLength: formData.content.length,
+            subredditName,
+            title
+          });
+
+          // Create Reddit post in Convex
+          const createdPostId = await createRedditPost(redditPostData);
+          console.log('✅ Reddit post created with ID:', createdPostId);
+
+          // Submit to Reddit API
+          const result = await submitRedditPost({ postId: createdPostId });
+          console.log('📡 Reddit API result:', result);
+
+          if ((result as any)?.success) {
+            await upsertPost({
+              content: markdownContent,
+              fileName,
+              fileType: normalizedPlatform,
+              status: 'posted',
+              platformData: JSON.stringify({
+                subreddit: cleanSubreddit,
+                title,
+                postType: redditFields.postType,
+                linkUrl: redditFields.linkUrl,
+              }),
+            });
+            console.log('✅ Post published successfully to Reddit');
+            pushAlert({
+              title: 'Publish Succeeded',
+              message: `Posted to r/${subredditName}. ${((result as any).url) ? 'View: ' + (result as any).url : ''}`,
+              level: 'info',
+            });
+          } else {
+            const rawError = (result as any)?.error || 'Failed to publish to Reddit';
+            const message = rawError.includes('SUBREDDIT_NOTALLOWED')
+              ? `${rawError} — This subreddit is restricted. Try r/test or change the Subreddit in Settings.`
+              : rawError;
+            // Update file status to failed
+            if (currentTab) updateFileStatus(currentTab.id, 'failed');
+            await upsertPost({
+              content: markdownContent,
+              fileName,
+              fileType: normalizedPlatform,
+              status: 'failed',
+              platformData: JSON.stringify({ subreddit: cleanSubreddit, title }),
+            });
+            setPublishError(message);
+            pushAlert({
+              title: 'Publish Failed',
+              message: message,
+              level: 'error',
+            });
+            if (!isCollapsed) setActiveTab('alerts');
+            return;
+          }
         }
       }
       
@@ -464,20 +815,30 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
       }
       
     } catch (error) {
-      console.error('❌ Failed to publish post:', error);
+      // Avoid console error noise; rely on inline UI and terminal alert
       
-      // Update file status to 'failed' on error
+  // Update file status to 'failed' on unexpected error
       const currentTab = openTabs.find(tab => tab.name === fileName || tab.filePath.includes(fileName));
       if (currentTab) {
         updateFileStatus(currentTab.id, 'failed');
       }
       
-      // Show user-friendly error message
-      alert(`❌ Failed to publish post:\n\n${error instanceof Error ? error.message : 'Unknown error occurred'}`);
+  const message = error instanceof Error ? error.message : 'Unknown error occurred';
+      setPublishError(message);
+      // Push alert to terminal alerts tab with guidance
+      pushAlert({
+        title: 'Publish Failed',
+        message: `Failed to publish post. ${message}\n\nTip: ${getReauthHelpText(platform)}`,
+        level: 'error',
+      });
+      // If terminal is expanded and not showing alerts, switch to alerts to surface the log
+      if (!isCollapsed) {
+        setActiveTab('alerts');
+      }
     } finally {
       setIsPublishing(false);
     }
-  }, [fileName, formData, schedulePost, upsertPost, platform, openTabs, updateFileStatus, postTweet, hasConnection]);
+  }, [fileName, formData, schedulePost, upsertPost, platform, openTabs, updateFileStatus, postTweet, hasConnection, pushAlert, setActiveTab, isCollapsed]);
 
   const getPlatformIcon = () => {
     switch (platform) {
@@ -507,6 +868,21 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
     }
   };
 
+  const getStatusBadge = () => {
+    const color =
+      fileStatus === 'posted' ? 'text-[#4caf50] border-[#4caf50]'
+      : fileStatus === 'scheduled' ? 'text-[#fbbc04] border-[#fbbc04]'
+      : fileStatus === 'posting' ? 'text-[#8ab4f8] border-[#8ab4f8]'
+      : fileStatus === 'failed' ? 'text-[#f28b82] border-[#f28b82]'
+      : 'text-[#cccccc] border-[#cccccc]';
+    const label = fileStatus.charAt(0).toUpperCase() + fileStatus.slice(1);
+    return (
+      <Badge variant="outline" className={cn("text-xs", color)}>
+        {label}
+      </Badge>
+    );
+  };
+
   const getCharacterLimit = () => {
     switch (platform) {
       case 'x':
@@ -525,7 +901,12 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
   const remainingChars = maxChars - formData.content.length;
 
   const renderPreview = () => {
-    const markdownContent = convertFormDataToMarkdown(formData, platform, fileName);
+    const markdownContent = convertFormDataToMarkdown(
+      formData,
+      platform,
+      fileName,
+      platform === 'reddit' ? redditFields : undefined
+    );
     
     return (
       <div className="p-4 text-[#cccccc] text-sm leading-relaxed bg-[#1a1a1a] h-full overflow-auto">
@@ -546,9 +927,7 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
           <span className="text-sm font-medium text-[#cccccc]">
             {platform === 'x' ? 'X/Twitter' : platform.charAt(0).toUpperCase() + platform.slice(1)} Post
           </span>
-          <Badge variant="outline" className={cn("text-xs", getPlatformColor())}>
-            Draft
-          </Badge>
+          {getStatusBadge()}
         </div>
         
         {editable && (
@@ -742,6 +1121,133 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Reddit Specific Fields */}
+                {normalizedPlatform === 'reddit' && (
+                  <Card className="bg-[#2d2d2d] border-[#454545]">
+                    <CardHeader>
+                      <CardTitle className="text-[#cccccc] flex items-center gap-2">
+                        <MessageCircle className="w-4 h-4" />
+                        Reddit Settings
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-[#cccccc]">Subreddit</Label>
+                          <Input
+                            value={redditFields.subreddit}
+                            onChange={(e) => setRedditFields({ ...redditFields, subreddit: e.target.value })}
+                            disabled={!editable}
+                            placeholder="r/test"
+                            className="bg-[#1e1e1e] border-[#454545] text-[#cccccc] placeholder-[#858585]"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-[#cccccc]">Title</Label>
+                          <Input
+                            value={redditFields.title}
+                            onChange={(e) => setRedditFields({ ...redditFields, title: e.target.value })}
+                            disabled={!editable}
+                            placeholder="Post title"
+                            className="bg-[#1e1e1e] border-[#454545] text-[#cccccc] placeholder-[#858585]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-[#cccccc]">Post Type</Label>
+                          <Select
+                            value={redditFields.postType}
+                            onValueChange={(value) => setRedditFields({ ...redditFields, postType: value as 'self' | 'link' })}
+                            disabled={!editable}
+                          >
+                            <SelectTrigger className="bg-[#1e1e1e] border-[#454545] text-[#cccccc]"><SelectValue /></SelectTrigger>
+                            <SelectContent className="bg-[#2d2d2d] border-[#454545]">
+                              <SelectItem value="self" className="text-[#cccccc]">Text</SelectItem>
+                              <SelectItem value="link" className="text-[#cccccc]">Link</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {redditFields.postType === 'link' && (
+                          <div className="space-y-2">
+                            <Label className="text-[#cccccc]">Link URL</Label>
+                            <Input
+                              value={redditFields.linkUrl || ''}
+                              onChange={(e) => setRedditFields({ ...redditFields, linkUrl: e.target.value })}
+                              disabled={!editable}
+                              placeholder="https://example.com"
+                              className="bg-[#1e1e1e] border-[#454545] text-[#cccccc] placeholder-[#858585]"
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id="nsfw"
+                            aria-label="Mark post as NSFW"
+                            checked={!!redditFields.nsfw}
+                            onChange={(e) => setRedditFields({ ...redditFields, nsfw: e.target.checked })}
+                            disabled={!editable}
+                            className="rounded border-[#454545] bg-[#1e1e1e] text-[#1DA1F2]"
+                          />
+                          <Label htmlFor="nsfw" className="text-[#cccccc]">NSFW</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id="spoiler"
+                            aria-label="Mark post as spoiler"
+                            checked={!!redditFields.spoiler}
+                            onChange={(e) => setRedditFields({ ...redditFields, spoiler: e.target.checked })}
+                            disabled={!editable}
+                            className="rounded border-[#454545] bg-[#1e1e1e] text-[#1DA1F2]"
+                          />
+                          <Label htmlFor="spoiler" className="text-[#cccccc]">Spoiler</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id="sendreplies"
+                            aria-label="Enable send replies notifications"
+                            checked={redditFields.sendReplies !== false}
+                            onChange={(e) => setRedditFields({ ...redditFields, sendReplies: e.target.checked })}
+                            disabled={!editable}
+                            className="rounded border-[#454545] bg-[#1e1e1e] text-[#1DA1F2]"
+                          />
+                          <Label htmlFor="sendreplies" className="text-[#cccccc]">Send Reply Notifications</Label>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-[#cccccc]">Flair (Text)</Label>
+                          <Input
+                            value={redditFields.flairText || ''}
+                            onChange={(e) => setRedditFields({ ...redditFields, flairText: e.target.value })}
+                            disabled={!editable}
+                            placeholder="Discussion"
+                            className="bg-[#1e1e1e] border-[#454545] text-[#cccccc] placeholder-[#858585]"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-[#cccccc]">Flair ID (optional)</Label>
+                          <Input
+                            value={redditFields.flairId || ''}
+                            onChange={(e) => setRedditFields({ ...redditFields, flairId: e.target.value })}
+                            disabled={!editable}
+                            placeholder="t5_flairid"
+                            className="bg-[#1e1e1e] border-[#454545] text-[#cccccc] placeholder-[#858585]"
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </TabsContent>
 
               <TabsContent value="schedule" className="space-y-6">
@@ -886,10 +1392,21 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
             </Tabs>
 
             {/* Action Buttons */}
-            <div className="flex gap-3 pt-4 border-t border-[#454545]">
+            <div className="flex flex-col gap-2 pt-4 border-t border-[#454545]">
+              {publishError && (
+                <div className="text-xs text-[#f28b82] bg-[#3a1f1f] border border-[#5a2b2b] rounded px-2 py-1 whitespace-pre-wrap">
+                  ❌ {publishError}
+                  <div className="text-[10px] text-[#ffadad] mt-1">{getReauthHelpText(platform)}</div>
+                </div>
+              )}
+              <div className="flex gap-3">
               <Button 
                 onClick={handlePublish}
-                disabled={!editable || isPublishing || isSaving || !formData.content.trim()}
+                disabled={!editable || isPublishing || isSaving || (
+                  normalizedPlatform === 'reddit'
+                    ? (redditFields.postType === 'self' ? !formData.content.trim() : !(redditFields.linkUrl && redditFields.linkUrl.trim()))
+                    : !formData.content.trim()
+                )}
                 className={cn(
                   "flex-1",
                   platform === 'x' || platform === 'twitter' ? "bg-[#1DA1F2] hover:bg-[#1a8cd8]" :
@@ -903,12 +1420,17 @@ const SocialMediaFormEditor = ({ content, onChange, editable = true, platform, f
               </Button>
               <Button 
                 onClick={handleSaveDraft}
-                disabled={!editable || isSaving || isPublishing || !formData.content.trim()}
+                disabled={!editable || isSaving || isPublishing || (
+                  normalizedPlatform === 'reddit'
+                    ? (redditFields.postType === 'self' ? !formData.content.trim() : !(redditFields.linkUrl && redditFields.linkUrl.trim()))
+                    : !formData.content.trim()
+                )}
                 variant="outline" 
                 className="border-[#454545] text-[#cccccc] hover:bg-[#2d2d2d]"
               >
                 {isSaving ? 'Saving...' : 'Save Draft'}
               </Button>
+              </div>
             </div>
           </div>
         ) : (

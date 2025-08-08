@@ -177,6 +177,17 @@ export const createRedditPost = mutation({
   handler: async (ctx, args) => {
     const now = Date.now();
     
+    // Debug: Log what we receive in Convex
+    console.log('🐛 Convex createRedditPost received:', {
+      userId: args.userId,
+      title: args.title,
+      kind: args.kind,
+      text: args.text,
+      textLength: args.text?.length || 0,
+      subreddit: args.subreddit,
+      allArgs: args
+    });
+    
     // Determine initial status
     const status = args.publishAt && args.publishAt > now ? "scheduled" : "draft";
     

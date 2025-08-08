@@ -228,10 +228,16 @@ export function useProjects() {
 - `/components/ui` - ShadCN/UI components
 - `/lib` - Utility functions and configurations
 - `/lib/hooks` - Custom React hooks (including Convex integrations)
-- `/convex` - Backend functions and schema
+- `/eac/convex` - Backend functions and schema (authoritative)
 - `/store` - Zustand state management stores organized by feature
 - `/public` - Static assets
 - `/docs` - Project documentation
+
+Import from the Next.js app using the alias:
+
+```ts
+import { api } from "@/convex/_generated/api";
+```
 
 ## Dashboard-Specific Patterns
 
@@ -241,6 +247,12 @@ export function useProjects() {
 - **Sidebar**: Context-aware sidebar with file explorer and panel-specific content (`dashSidebar.tsx`)
 - **Editor**: Tabbed editor interface with file management (`dashEditor.tsx`)
 - **Overview**: Dashboard homepage with metrics and project overview (`dashOverview.tsx`)
+
+### Slash Commands & Agents
+
+- Normalize on slash-prefixed commands: `/instructions`, `/twitter`, `/create-project`, `/create-file`, `/schedule`.
+- Maintain legacy aliases internally for a deprecation window; do not surface them in UI or docs.
+- Twitter agent must never create instruction files; keep guardrails when importing shared mutations.
 
 ### Project Creation Workflow Integration
 
@@ -326,3 +338,13 @@ const handleFolderNameSubmit = async () => {
 - Reference this documentation for patterns
 - Suggest performance optimizations when relevant
 - Focus on maintainable, secure code for financial operations
+
+### AI Model Usage (GPT‑5 ready)
+
+- Avoid chain-of-thought; provide concise, actionable outputs and diffs.
+- Prefer structured outputs (typed JSON) for data; keep code edits minimal and localized.
+- Enforce Convex `v.*` validators server-side; do not trust client-side parsing only.
+- Be token-aware: keep messages short; paginate or stream large responses.
+- Respect slash commands: parse leading `/twitter`, `/create-project`, `/create-file`, `/schedule`.
+- Do not output secrets; scrub tokens from logs and messages.
+- Emit statuses compatible with `chatMessages` (`role`, `interactiveComponent`, `processIndicator`).

@@ -247,9 +247,13 @@ async function submitRedditPostHandler(ctx: any, postId: Id<"redditPosts">) {
     
     // Prepare post data for Reddit API
     const formData = new URLSearchParams();
-    formData.append("sr", post.subreddit);
+  formData.append("sr", post.subreddit);
     formData.append("title", post.title);
     formData.append("kind", post.kind);
+  // Request structured JSON response instead of jQuery commands
+  formData.append("api_type", "json");
+  // Ask Reddit to validate and return business-rule errors clearly
+  formData.append("validate_on_submit", "true");
     
     if (post.kind === "self" && post.text) {
       formData.append("text", post.text);
@@ -261,12 +265,16 @@ async function submitRedditPostHandler(ctx: any, postId: Id<"redditPosts">) {
     formData.append("spoiler", post.spoiler.toString());
     formData.append("sendreplies", post.sendReplies.toString());
     
-    if (post.flairId) {
+    // Reddit API requires both flair_id and flair_text together
+    // If we only have flairText without flairId, Reddit will reject it
+    if (post.flairId && post.flairText) {
+      formData.append("flair_id", post.flairId);
+      formData.append("flair_text", post.flairText);
+    } else if (post.flairId) {
+      // If we only have flairId, send just that
       formData.append("flair_id", post.flairId);
     }
-    if (post.flairText) {
-      formData.append("flair_text", post.flairText);
-    }
+    // Note: We don't send flair_text without flair_id as Reddit will reject it
     
     // Submit to Reddit
     const response = await fetch("https://oauth.reddit.com/api/submit", {
@@ -284,10 +292,41 @@ async function submitRedditPostHandler(ctx: any, postId: Id<"redditPosts">) {
       throw new Error(`Reddit API error: ${response.status} ${errorText}`);
     }
     
-    const result: RedditSubmitResponse = await response.json();
+  const result: RedditSubmitResponse = await response.json();
     
     console.log('📡 Reddit API response:', JSON.stringify(result, null, 2));
     
+    // Helper to extract a human-friendly error from the jQuery style payload
+    const extractErrorFromJquery = (jquery: any[] | undefined): string | null => {
+      if (!jquery || !Array.isArray(jquery)) return null;
+      let lastAttrWasText = false;
+      let message: string | null = null;
+      let errorCode: string | null = null;
+      for (const cmd of jquery) {
+        // Capture error code like .error.SUBREDDIT_NOTALLOWED.field-sr
+        if (Array.isArray(cmd) && cmd[2] === "call" && Array.isArray(cmd[3])) {
+          const val = cmd[3][0];
+          if (typeof val === "string" && val.includes(".error.")) {
+            errorCode = val.substring(val.indexOf(".error.") + 7);
+          }
+        }
+        if (Array.isArray(cmd) && cmd[2] === "attr" && cmd[3] === "text") {
+          lastAttrWasText = true;
+          continue;
+        }
+        if (lastAttrWasText && Array.isArray(cmd) && cmd[2] === "call" && Array.isArray(cmd[3])) {
+          const maybeText = cmd[3][0];
+          if (typeof maybeText === "string" && maybeText.trim().length > 0) {
+            message = maybeText.trim();
+            break;
+          }
+          lastAttrWasText = false;
+        }
+      }
+      if (message && errorCode) return `${message} (${errorCode})`;
+      return message;
+    };
+
     // Check for Reddit API errors - handle different response formats
     if (result.json && result.json.errors && result.json.errors.length > 0) {
       const errorMessages = result.json.errors.map(err => err.join(": ")).join(", ");
@@ -324,11 +363,20 @@ async function submitRedditPostHandler(ctx: any, postId: Id<"redditPosts">) {
       console.log('🔗 Extracted from JSON response:', { url: extractedUrl, id: extractedId });
     }
     
-    // Check if we have a success indicator
-    const isSuccess = result.success === true || response.ok;
-    
-    if (!isSuccess) {
-      throw new Error(`Reddit submission failed: ${JSON.stringify(result)}`);
+    // Determine success based on explicit flags or presence of a resulting URL/ID
+    const hasExplicitSuccess = result.success === true;
+    const hasResultUrl = typeof extractedUrl === "string" && extractedUrl !== "unknown";
+    const hasResultId = typeof extractedId === "string" && extractedId !== "unknown";
+
+    // Reddit often returns HTTP 200 even on business-logic errors; do NOT treat 200 as success
+    const inferredError = !hasExplicitSuccess && !hasResultUrl && !hasResultId
+      ? extractErrorFromJquery((result as any).jquery)
+      : null;
+
+    if (!hasExplicitSuccess && !hasResultUrl && !hasResultId) {
+      // Include any extracted jQuery error for clarity
+      const errDetail = inferredError ? `: ${inferredError}` : "";
+      throw new Error(`Reddit submission failed${errDetail}`);
     }
     
     // Update post with success data

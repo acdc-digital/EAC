@@ -127,7 +127,7 @@ export interface AgentState {
   updateAgent: (id: string, updates: Partial<Agent>) => void;
   deleteAgent: (id: string) => void;
   setActiveAgent: (id: string | null) => void;
-  executeAgentTool: (agentId: string, toolId: string, input: string, convexMutations?: ConvexMutations) => Promise<string>;
+  executeAgentTool: (agentId: string, toolId: string, input: string, convexMutations?: ConvexMutations, sessionId?: string) => Promise<string>;
   addExecution: (execution: Omit<AgentExecution, 'id' | 'timestamp'>) => void;
   clearExecutions: () => void;
   setError: (error: string | null) => void;

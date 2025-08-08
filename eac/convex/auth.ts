@@ -54,7 +54,7 @@ export async function getAuthContext(ctx: QueryCtx | MutationCtx): Promise<AuthC
     }
   }
 
-  // User has identity but not in database - need to create user
+  // User has identity but not in database - surface a clear error and let client call users.upsertUser
   return {
     userId: null,
     isAuthenticated: true, // They have identity, just not in our DB yet

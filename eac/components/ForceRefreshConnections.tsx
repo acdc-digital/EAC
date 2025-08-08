@@ -4,14 +4,14 @@
 "use client";
 
 import { api } from "@/convex/_generated/api";
+import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import React from "react";
 
 export function ForceRefreshConnections() {
   // Force a fresh query with a timestamp to bypass caching
-  const connections = useQuery(api.reddit.getSocialConnections, { 
-    userId: 'temp-user-id'
-  });
+  const { userId } = useAuth();
+  const connections = useQuery(api.reddit.getSocialConnections, userId ? { userId } : "skip");
 
   const handleForceRefresh = () => {
     console.log('🔄 Force refreshing connections...');

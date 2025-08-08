@@ -7,6 +7,8 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { Id } from "@/convex/_generated/dataModel";
+import { useFiles } from "@/lib/hooks/useFiles";
 import { useEditorStore } from "@/store";
 import { ProjectFile } from "@/store/editor/types";
 import { useTerminalStore } from "@/store/terminal";
@@ -130,6 +132,9 @@ export function DashEditor() {
 
   const { isCollapsed: isTerminalCollapsed } = useTerminalStore();
   const { isAuthenticated } = useConvexAuth();
+  
+  // Add files hook for database operations
+  const { updateFile } = useFiles(null);
 
   const [scrollPosition, setScrollPosition] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -241,12 +246,26 @@ export function DashEditor() {
     return content;
   };
 
-  const handleContentChange = useCallback((content: string) => {
+  const handleContentChange = useCallback(async (content: string) => {
     if (activeTab) {
-      // Update the file content in your store
+      // Update the file content in the local store
       updateFileContent(activeTab, content);
+      
+      // Also update the file in the database if it has a convexId
+      const file = projectFiles.find(f => f.id === activeTab);
+      if (file?.convexId) {
+        try {
+          await updateFile({
+            fileId: file.convexId as Id<"files">,
+            content: content
+          });
+          console.log(`✅ Updated file content in database for ${file.name}`);
+        } catch (error) {
+          console.error(`❌ Failed to update file content in database:`, error);
+        }
+      }
     }
-  }, [activeTab, updateFileContent]);
+  }, [activeTab, updateFileContent, updateFile, projectFiles]);
 
   // Get current tab content - memoized to ensure editors get fresh content
   const currentTabContent = useMemo(() => {
@@ -765,9 +784,11 @@ export function DashEditor() {
                         />
                       ) : isMarkdownFile ? (
                         <MarkdownEditor
+                          key={currentTab?.id}
                           content={currentTabContent}
                           onChange={handleContentChange}
                           editable={isEditable}
+                          initialMode={currentTab?.filePath?.startsWith('/instructions/') ? 'preview' : 'edit'}
                         />
                       ) : (
                         <div className="p-4">

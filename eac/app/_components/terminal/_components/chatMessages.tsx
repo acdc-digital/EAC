@@ -55,6 +55,9 @@ export function ChatMessages() {
     getSessionStatus,
     startNewSession
   } = useChat();
+  
+  // Query for agent progress
+  const agentProgress = useQuery(api.chat.getAgentProgress, { sessionId });
   const {
     isConnected: mcpConnected,
     isLoading: mcpLoading,
@@ -423,7 +426,8 @@ Please start a new session to continue chatting.`,
               activeAgentId,
               defaultTool.id,
               messageContent,
-              convexMutations
+              convexMutations,
+              sessionId
             );
             
             // Handle empty results from interactive components
@@ -671,7 +675,8 @@ Please start a new session to continue chatting.`,
                                     fileCreatorAgent.id,
                                     fileCreatorAgent.tools[0].id,
                                     projectSelectionInput,
-                                    convexMutations
+                                    convexMutations,
+                                    sessionId
                                   );
                                   
                                   console.log('📥 Agent execution result:', result);
@@ -1019,13 +1024,42 @@ Please start a new session to continue chatting.`,
                     )}
                     
                     {isAgentProcessMessage && (
-                      <div className="text-[10px] text-[#4ec9b0] mt-1 opacity-80">
-                        {(msg.content.includes("✅ **File Created Successfully!**") || 
-                          msg.content.includes("✅ **Project Created Successfully!**") ||
-                          msg.content.includes("✅ **Template Applied Successfully!**")) 
-                          ? "↳ Process completed successfully!"
-                          : "↳ Agent waiting for your input..."
-                        }
+                      <div className="text-[10px] mt-1 opacity-80">
+                        {(() => {
+                          // Check for successful file creation with specific file info
+                          if (msg.content.includes("The comprehensive instruction document has been created and saved to your files.")) {
+                            // Extract filename from the message
+                            const fileMatch = msg.content.match(/📄 \*\*File:\*\* `([^`]+)`/);
+                            const fileName = fileMatch ? fileMatch[1] : null;
+                            
+                            if (fileName) {
+                              return (
+                                <button
+                                  onClick={() => {
+                                    const { projectFiles } = useEditorStore.getState();
+                                    const file = projectFiles.find(f => f.name === fileName);
+                                    if (file) {
+                                      useEditorStore.getState().openTab(file);
+                                    }
+                                  }}
+                                  className="text-[#007acc] hover:text-[#4ec9b0] hover:underline cursor-pointer transition-colors"
+                                >
+                                  ↳ Click here to view your file...
+                                </button>
+                              );
+                            }
+                          }
+                          
+                          // Check for other success indicators
+                          if (msg.content.includes("✅ **File Created Successfully!**") || 
+                              msg.content.includes("✅ **Project Created Successfully!**") ||
+                              msg.content.includes("✅ **Template Applied Successfully!**")) {
+                            return <span className="text-[#4ec9b0]">↳ Process completed successfully!</span>;
+                          }
+                          
+                          // Default waiting message
+                          return <span className="text-[#4ec9b0]">↳ Agent waiting for your input...</span>;
+                        })()}
                       </div>
                     )}
                   </div>
@@ -1070,6 +1104,35 @@ Please start a new session to continue chatting.`,
           )}
         </div>
       </div>
+
+      {/* Pinned Agent Progress Bar */}
+      {agentProgress && agentProgress.length > 0 && (
+        <div className="bg-[#0e0e0e] p-2 font-mono text-xs flex-shrink-0">
+          {agentProgress.map((progress) => (
+            <div key={progress._id} className="mb-2 last:mb-0">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[#007acc] text-xs">
+                  🤖 {progress.agentType} Agent
+                </span>
+                <span className="text-[#858585] text-xs">
+                  {progress.percentage}%
+                </span>
+              </div>
+              <div className="w-64 bg-[#333] rounded-full h-1.5 relative overflow-hidden">
+                <div 
+                  className="bg-[#007acc] h-1.5 rounded-full transition-all duration-300 absolute left-0 top-0"
+                  style={{ width: `${Math.min(100, Math.max(0, progress.percentage))}%` }}
+                />
+              </div>
+              {progress.status && (
+                <div className="text-[#858585] text-xs mt-1">
+                  {progress.status}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Input area - Now outside the scrollable container */}
       <div className="bg-[#0e0e0e] p-2 font-mono text-xs flex-shrink-0">

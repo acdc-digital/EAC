@@ -10,6 +10,51 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
+// --- Anthropic Web Search configuration helpers ---
+// Enable/disable globally (default: enabled unless explicitly set to 'false')
+const WEB_SEARCH_ENABLED = (process.env.EAC_WEB_SEARCH_ENABLED ?? 'true').toLowerCase() !== 'false';
+
+function csvToList(val?: string): string[] | undefined {
+  if (!val) return undefined;
+  const list = val
+    .split(/[,\n]/)
+    .map(s => s.trim())
+    .filter(Boolean)
+    // Ensure we don't accidentally include schemes
+    .map(s => s.replace(/^https?:\/\//i, ''));
+  return list.length ? list : undefined;
+}
+
+function buildWebSearchToolConfig() {
+  if (!WEB_SEARCH_ENABLED) return null;
+  const allowed = csvToList(process.env.EAC_WEB_SEARCH_ALLOWED_DOMAINS);
+  const blocked = csvToList(process.env.EAC_WEB_SEARCH_BLOCKED_DOMAINS);
+  // API requires not supplying both at once
+  const maxUses = Number.parseInt(process.env.EAC_WEB_SEARCH_MAX_USES || '5', 10);
+  const city = process.env.EAC_WEB_SEARCH_CITY;
+  const region = process.env.EAC_WEB_SEARCH_REGION;
+  const country = process.env.EAC_WEB_SEARCH_COUNTRY;
+  const timezone = process.env.EAC_WEB_SEARCH_TIMEZONE;
+
+  const tool: any = {
+    type: "web_search_20250305",
+    name: "web_search",
+    max_uses: Number.isFinite(maxUses) && maxUses > 0 ? maxUses : 5,
+  };
+  if (allowed && !blocked) tool.allowed_domains = allowed;
+  if (blocked && !allowed) tool.blocked_domains = blocked;
+  if (city || region || country || timezone) {
+    tool.user_location = {
+      type: "approximate",
+      ...(city ? { city } : {}),
+      ...(region ? { region } : {}),
+      ...(country ? { country } : {}),
+      ...(timezone ? { timezone } : {}),
+    };
+  }
+  return tool;
+}
+
 // MCP Intent Detection Helper
 function detectMCPIntent(message: string): { tool: string; confidence: number; params?: any } | null {
   const msg = message.toLowerCase().trim();
@@ -501,68 +546,259 @@ Please try again or check:
 // Instructions Command Handler
 async function handleInstructionsCommand(ctx: any, fullCommand: string, input: string): Promise<string> {
   try {
-    // Basic instruction creation logic - for now, let's create the file directly
-    const content = input.trim();
-    
-    if (!content) {
+    // Parse input and optional parameters (e.g., --audience developers)
+    const raw = input.trim();
+    if (!raw) {
       return "❌ Please provide instruction content. Example: every time you reply, i want you to tell me a joke first";
     }
 
-    // Generate a brief filename based on content
-    const words = content.split(' ').slice(0, 3);
-    const briefTitle = words.join('-').toLowerCase().replace(/[^a-z0-9-]/g, '');
-    const fileName = `${briefTitle || 'instruction'}-${new Date().toISOString().split('T')[0]}.md`;
-
-    // Check if the content includes a request for jokes
-    const shouldIncludeJoke = content.toLowerCase().includes('joke') || 
-                             content.toLowerCase().includes('tell me a joke') ||
-                             content.toLowerCase().includes('every time you reply');
-    
-    let jokeSection = '';
-    if (shouldIncludeJoke) {
-      const jokes = [
-        "Why don't programmers like nature? It has too many bugs! 🐛",
-        "Why do programmers prefer dark mode? Because light attracts bugs! 💡",
-        "How many programmers does it take to change a light bulb? None, that's a hardware problem! 💡",
-        "Why do Java developers wear glasses? Because they can't C# 👓",
-        "A SQL query goes into a bar, walks up to two tables and asks: 'Can I join you?' 🍺"
-      ];
-      const randomJoke = jokes[Math.floor(Math.random() * jokes.length)];
-      jokeSection = `## 😄 Developer Joke
-
-${randomJoke}
-
----
-
-`;
+    // Extract optional audience parameter
+    let audience: string | undefined;
+    const audienceMatch = raw.match(/--audience[=\s]+(developers|users|administrators|general)/i);
+    if (audienceMatch) {
+      audience = audienceMatch[1].toLowerCase();
     }
 
-    // Basic instruction document content
-    const documentContent = `# Instructions: ${briefTitle.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+    // Clean the topic by removing params
+    const topic = raw
+      .replace(/--audience[=\s]+(developers|users|administrators|general)/gi, '')
+      .trim();
 
-*Generated on ${new Date().toISOString().split('T')[0]}*
+    // Initialize fileName - will be set by LLM generation later
+    let fileName = 'instruction.md';
 
-${jokeSection}## Overview
-This document provides comprehensive instructions for: **${content}**
+    // Build an LLM prompt to generate topic-specific content with a fixed structure
+    const today = new Date().toISOString().split('T')[0];
+  const structurePrompt = `Act like a world-class teacher and practical coach (clear, energetic, Gary Vee-style urgency without fluff). Create a COMPLETE, ACTIONABLE Markdown instruction document.
 
-## Instruction Details
+If up-to-date knowledge would materially improve accuracy, you MAY perform targeted web searches BEFORE answering. Prefer official docs and reputable sources. Always attribute with inline citations.
 
-${content}
+Top-level headings MUST be exactly these (you may add subheadings inside them as needed):
 
-## Implementation Notes
+# Instructions: {TITLE}
 
-- This instruction should be followed consistently across the project
-- Review and update as needed based on project evolution
-- Ensure all team members are aware of this guideline
+*Generated on ${today}*
+
+## Overview
+Summarize the mission in 2–4 sentences. Explain the goal and what success looks like for this topic.
+
+## Prerequisites
+- List practical prerequisites (tools, permissions, accounts, inputs) tailored to the topic
+
+## Step-by-Step Instructions
+
+### Step 1: Preparation
+- Concrete, topic-specific setup tasks (numbered list). Include any research or planning checklist.
+
+### Step 2: Implementation
+- Exact steps (numbered list) with specifics, parameters, and examples. Include short templates/snippets where helpful.
+
+### Step 3: Verification
+- Tests and validation steps (numbered list) with measurable acceptance criteria.
 
 ## Best Practices
-- Always test in a development environment first
-- Keep detailed logs of all changes
-- Follow security guidelines
-- Document any customizations
+- Key principles tailored to the topic. Include DO and DON'T bullets.
+- If the topic is about social posts (e.g., Twitter/X), include rules (character limits, hashtag count, mentions strategy, link/media usage, thread vs single post, publishing cadence, timing windows).
+- Include voice & tone guidance and 3–5 hook/CTA patterns.
+
+## Troubleshooting
+- 2–4 common issues with concise fixes.
+
+## Additional Resources
+- 2–4 resource placeholders (keep as plain text, no links required)
+
+Special requirements:
+- Replace {TITLE} with a short, value-forward, non-literal title (6–12 words) that reframes the user prompt into a clear subject. Do NOT echo the user's wording like “create instructions…”. Start with an action verb (e.g., "Craft", "Implement", "Design", "Scale").
+- Topic context: "${topic}"
+- Audience${audience ? `: ${audience}` : ": general"}
+- Be concrete and specific. Prefer bullets and numbered lists. Keep it skimmable and immediately useful.
+- Return ONLY the Markdown document—no extra commentary.`;
+
+    let generated = '';
+    let thinkingContent = '';
+    let sources: Array<{ title: string; url: string; page_age?: string } > = [];
+    try {
+      const completion = await anthropic.messages.create({
+        model: "claude-3-7-sonnet-20250219",
+        max_tokens: 4096,
+        thinking: { type: "enabled", budget_tokens: 1024 },
+        messages: [{ role: "user", content: structurePrompt }],
+        ...(WEB_SEARCH_ENABLED ? { tools: [buildWebSearchToolConfig()].filter(Boolean) as any } : {}),
+      });
+
+      for (const block of completion.content) {
+        if (block.type === "thinking") thinkingContent = block.thinking;
+        if (block.type === "text") {
+          generated += block.text;
+          const anyBlock: any = block as any;
+          const cites = Array.isArray(anyBlock.citations) ? anyBlock.citations : [];
+          for (const c of cites) {
+            if (c && c.type === 'web_search_result_location' && c.url && c.title) {
+              sources.push({ title: c.title, url: c.url });
+            }
+          }
+        }
+        if (block.type === "web_search_tool_result") {
+          const content = Array.isArray(block.content) ? block.content : [];
+          for (const item of content) {
+            if (item && item.type === 'web_search_result' && item.url && item.title) {
+              sources.push({ title: item.title, url: item.url, page_age: (item as any).page_age });
+            }
+          }
+        }
+      }
+    } catch (llmError) {
+      console.error("LLM generation failed, will fallback to template:", llmError);
+    }
+
+    // Fallback to baseline template if LLM didn't return content
+    if (!generated || !generated.trim()) {
+      console.log('📝 Using fallback template for content generation');
+      // Build a better non-literal title from the topic
+      const normalized = topic
+        .replace(/^(create\s+)?instructions?\s+(for|about)\s+/i, '')
+        .replace(/^(how\s+to\s+)/i, '')
+        .replace(/\bwhich\s+are\s+aimed\s+at\b/i, 'to')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const toTitleCase = (s: string) => s.replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1));
+      const title = toTitleCase(normalized || 'Effective Instructions');
+      generated = `# Instructions: ${title}
+
+*Generated on ${today}*
+
+## Overview
+This document teaches you how to execute: **${normalized || topic}**. It focuses on clear steps, measurable outcomes, and practical tips you can apply immediately.
+
+## Prerequisites
+- Ensure required access and tools are available
+- Verify environment/versions as applicable
+
+## Step-by-Step Instructions
+
+### Step 1: Preparation
+1. Review the current setup
+2. Identify dependencies/configuration
+3. Prepare necessary resources
+
+### Step 2: Implementation
+1. Follow the procedures for ${normalized || topic}
+2. Verify outcomes at each step
+3. Capture notes/variations
+
+### Step 3: Verification
+1. Test results
+2. Validate success criteria
+3. Document findings
+
+## Best Practices
+- DO: Test in development first
+- DO: Keep detailed change logs
+- DO: Follow security and privacy guidelines
+- DON'T: Skip validation or ship unreviewed content
+
+## Troubleshooting
+**Issue:** Unexpected error
+- Solution: Check logs, validate configuration, retry steps
+
+**Issue:** Missing permissions
+- Solution: Request required access and re-run
+
+## Additional Resources
+- Internal docs placeholder
+- Team playbook placeholder
+- Tooling reference placeholder
 
 ---
 *Generated by EAC Instructions Agent*`;
+    }
+
+    // Store thinking if available
+    if (thinkingContent) {
+      await ctx.runMutation(api.chat.storeChatMessage, {
+        role: "thinking",
+        content: `📝 Instructions Agent Thinking:\n\n${thinkingContent}`,
+        sessionId: undefined,
+      });
+    }
+
+    // Normalize the H1 heading to be clean and concise (avoid LLM making it verbose)
+    const toTitleCase = (s: string) => s.replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+    const normalizedSubject = topic
+      .replace(/^(create\s+)?(new\s+)?instructions?\s+(for|about)\s+/i, '')
+      .replace(/^(how\s+to\s+|guide\s+to\s+|steps\s+to\s+)/i, '')
+      .replace(/^(write|generate|make|build|design)\s+/i, '')
+      .replace(/\bwhich\s+are\s+aimed\s+at\b/gi, 'for')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    const desiredHeading = `# Instructions: ${toTitleCase(normalizedSubject)}`;
+    if (/^#\s+Instructions:\s+/m.test(generated)) {
+      generated = generated.replace(/^#\s+Instructions:\s+.*$/m, desiredHeading);
+    } else {
+      generated = `${desiredHeading}\n\n${generated}`;
+    }
+
+    // Generate filename from the clean, normalized subject
+    try {
+      const filenamePrompt = `Create a short, descriptive filename for an instruction document about: "${normalizedSubject || topic}"
+
+Requirements:
+- 3-6 words maximum
+- Use hyphens between words (kebab-case)
+- No quotes, no file extension, no special characters
+- Make it specific and clear
+
+Return ONLY the filename (no extra text).`;
+      
+      console.log('🎯 Attempting LLM filename generation for topic:', normalizedSubject || topic);
+      
+      const fnCompletion = await anthropic.messages.create({
+        model: "claude-3-7-sonnet-20250219",
+        max_tokens: 128,
+        messages: [{ role: "user", content: filenamePrompt }],
+      });
+      
+      let filenameText = '';
+      for (const block of fnCompletion.content) {
+        if (block.type === "text") filenameText += block.text;
+      }
+      
+      console.log('🎯 LLM generated filename text:', filenameText);
+      
+      // Clean and format the filename
+      const cleanFilename = (filenameText || '')
+        .replace(/[\r\n]+/g, ' ')
+        .replace(/^\"|\"$|^'|'$/g, '')
+        .replace(/[^a-zA-Z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .toLowerCase()
+        .replace(/^-+|-+$/g, '')
+        .trim();
+      
+      if (cleanFilename && cleanFilename.length > 2) {
+        fileName = `${cleanFilename}.md`;
+        console.log('✅ Using LLM-generated filename:', fileName);
+      } else {
+        throw new Error('LLM returned invalid filename');
+      }
+    } catch (e) {
+      console.warn('❌ Filename LLM generation failed, using deterministic fallback:', e);
+      const fallback = normalizedSubject
+        .replace(/[^a-zA-Z0-9\s]/g, '')
+        .replace(/\s+/g, '-')
+        .toLowerCase()
+        .slice(0, 50);
+      fileName = `${fallback || 'instruction'}.md`;
+      console.log('📝 Using fallback filename:', fileName);
+    }
+
+    // If we have sources from web search, append a Sources section to the markdown
+    if (sources.length) {
+      const deduped = Array.from(new Map(sources.map(s => [s.url, s])).values()).slice(0, 10);
+      const sourcesMd = ['\n\n## Sources', ...deduped.map(s => `- [${s.title}](${s.url})${s.page_age ? ` — ${s.page_age}` : ''}`)].join('\n');
+      generated += sourcesMd;
+    }
 
     // Ensure Instructions project exists
     await ctx.runMutation(api.projects.ensureInstructionsProject, {});
@@ -570,21 +806,21 @@ ${content}
     // Create the instruction file
     const file = await ctx.runMutation(api.files.createInstructionFile, {
       name: fileName,
-      content: documentContent,
-      topic: content,
-      audience: "developers",
+      content: generated,
+      topic: topic,
+      audience: (audience as any) || "developers",
     });
 
-    return `📝 **Instructions Created Successfully!**
+    return `📝 **Instructions Created Successfully! [SERVER-SIDE]**
 
 **File:** \`${fileName}\`
-**Topic:** ${content}
+**Topic:** ${topic}
 **Location:** /instructions/${fileName}
 
 The instruction document has been created and saved to your Instructions project. You can now view and edit it in the editor.
 
 **Preview:**
-${documentContent.split('\n').slice(0, 5).join('\n')}...
+${generated.split('\n').slice(0, 5).join('\n')}...
 
 *Open the file in the editor to see the complete instructions.*`;
 

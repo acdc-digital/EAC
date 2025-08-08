@@ -16,12 +16,12 @@ export const getProjects = query({
   handler: async (ctx) => {
     const auth = await getAuthContext(ctx);
     
-    // If not authenticated, return empty array instead of throwing
-    if (!auth.isAuthenticated) {
+    // If not authenticated or user record not created yet, return empty array
+    if (!auth.isAuthenticated || !auth.userId) {
       return [];
     }
 
-    const userId = auth.requireAuth();
+    const userId = auth.userId;
     return await ctx.db
       .query("projects")
       .withIndex("by_user", (q) => q.eq("userId", userId))
@@ -61,8 +61,8 @@ export const getProjectStats = query({
   handler: async (ctx) => {
     const auth = await getAuthContext(ctx);
     
-    // If not authenticated, return empty stats
-    if (!auth.isAuthenticated) {
+  // If not authenticated or user record not created yet, return empty stats
+  if (!auth.isAuthenticated || !auth.userId) {
       return {
         total: 0,
         active: 0,
@@ -71,7 +71,7 @@ export const getProjectStats = query({
       };
     }
 
-    const userId = auth.requireAuth();
+  const userId = auth.userId;
     const projects = await ctx.db
       .query("projects")
       .withIndex("by_user", (q) => q.eq("userId", userId))

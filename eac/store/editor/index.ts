@@ -193,7 +193,7 @@ Created: ${new Date().toLocaleDateString()}
 Write your Reddit post content here...
 
 ## Settings
-- Subreddit: r/example
+- Subreddit: r/test
 - Post Type: Text/Link/Image
 - Flair: Discussion
 - NSFW: No
@@ -667,7 +667,7 @@ export const useEditorStore = create<EditorState>()(
         },
 
         updateFileStatus: (fileId: string, status: 'draft' | 'scheduled' | 'posting' | 'posted' | 'failed' | 'complete') => {
-          const { projectFiles, financialFiles } = get();
+          const { projectFiles, financialFiles, openTabs } = get();
 
           console.log('🔄 updateFileStatus called:', {
             fileId,
@@ -681,8 +681,8 @@ export const useEditorStore = create<EditorState>()(
             file.id === fileId ? { ...file, status, modifiedAt: new Date() } : file
           );
 
-          // Check if any file was actually updated
-          const updatedFile = updatedProjectFiles.find(f => f.id === fileId);
+          // Check if any file was actually updated by id
+          let updatedFile = updatedProjectFiles.find(f => f.id === fileId);
           console.log('📝 File status update result:', {
             fileId,
             newStatus: status,
@@ -690,6 +690,24 @@ export const useEditorStore = create<EditorState>()(
             updatedFileStatus: updatedFile?.status,
             wasChanged: updatedFile?.status === status
           });
+
+          // Fallback: if not found by id, attempt match by file name from open tab
+          if (!updatedFile) {
+            const tab = openTabs.find(t => t.id === fileId);
+            if (tab) {
+              const matchedByNameIndex = updatedProjectFiles.findIndex(f => f.name === tab.name);
+              if (matchedByNameIndex !== -1) {
+                const byName = updatedProjectFiles[matchedByNameIndex];
+                updatedProjectFiles[matchedByNameIndex] = {
+                  ...byName,
+                  status,
+                  modifiedAt: new Date()
+                } as any;
+                updatedFile = updatedProjectFiles[matchedByNameIndex];
+                console.log('🧩 Fallback status update by name:', { name: tab.name, status });
+              }
+            }
+          }
 
           // Update in financial files
           const updatedFinancialFiles = financialFiles.map(file =>

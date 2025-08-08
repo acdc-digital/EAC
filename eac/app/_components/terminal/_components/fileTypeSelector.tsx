@@ -75,7 +75,7 @@ export function FileTypeSelector({
       description: 'Reddit Post',
       platform: 'Reddit',
       icon: MessageCircle,
-      available: false
+  available: true
     },
     {
       type: 'linkedin',

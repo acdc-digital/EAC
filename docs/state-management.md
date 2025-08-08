@@ -1,382 +1,240 @@
-# Zustand State Management Guide
-## EAC Financial Dashboard Project
+# EAC State Management: Zustand + Convex
 
-### Overview
-Zustand is our chosen state management solution for the EAC Financial Dashboard. It's lightweight, performant, and provides excellent TypeScript support without the boilerplate of Redux.
+Last updated: 2025-08-07
 
-## Core Principles
+## Executive summary
 
-### 1. Store Structure
-- **One store per domain/feature**: Create separate stores for different business domains
-- **Flat state structure**: Avoid deeply nested state when possible
-- **Immutable updates**: Always use the `set` function for state changes
+- Source of truth: Convex DB. Zustand stores mirror DB state for UX and performance. Never persist stale local data over DB truth.
+- Data flow: Convex functions → React hooks (useQuery/useMutation/useAction) → Zustand stores → UI. One-way sync with explicit events for side-effects.
+- Key workflows wired end-to-end: Projects, Files, Terminal Chat/Sessions, Trash, Agents. Each has a primary store, supporting hooks, and Convex functions.
+- Persistence: Only minimal UI preferences are persisted. IDs from Convex (project/file convexId) are the bridge; missing IDs are the #1 root cause of drift.
+- Troubleshooting: Use the checklists below to localize issues quickly (Store → Hook → Convex). Clear all persisted state via clearAllPersistedState when in doubt.
 
-### 2. TypeScript Integration
-Always use TypeScript interfaces for type safety:
+## Architecture at a glance
 
-```typescript
-interface FinancialState {
-  revenue: number;
-  expenses: number;
-  projects: Project[];
-  isLoading: boolean;
-  error: string | null;
-  // Actions
-  updateRevenue: (amount: number) => void;
-  fetchProjects: () => Promise<void>;
-  setError: (error: string | null) => void;
-}
+- Stores (Zustand)
+  - Projects: `eac/store/projects` — DB-mirrored list + UI flags
+  - Editor: `eac/store/editor` — folders/files/tabs; bridges local files to DB via convexId
+  - Terminal: `eac/store/terminal` — chat messages (local view), sessions, panel UI
+  - Agents: `eac/store/agents` — registry-backed tools, executions
+  - Sidebar: `eac/store/sidebar` — open sections, active panel (custom Set serialization)
 
-const useFinancialStore = create<FinancialState>((set, get) => ({
-  // Initial state
-  revenue: 0,
-  expenses: 0,
-  projects: [],
-  isLoading: false,
-  error: null,
-  
-  // Actions
-  updateRevenue: (amount: number) => 
-    set({ revenue: amount }),
-    
-  fetchProjects: async () => {
-    set({ isLoading: true, error: null });
-    try {
-      const projects = await api.projects.list();
-      set({ projects, isLoading: false });
-    } catch (error) {
-      set({ error: error.message, isLoading: false });
-    }
-  },
-  
-  setError: (error: string | null) => 
-    set({ error }),
-}));
+- Hooks (React)
+  - Projects: `useProjects`, `useProjectSync`
+  - Files: `useFileSync`, `useProjectFileSync`
+  - Chat: `useChat`
+  - Trash: `useTrashSync`
+
+- Convex (backend)
+  - Schema: `eac/convex/schema.ts` (projects, files, chatMessages/chatSessions, deletedProjects/deletedFiles, activityLogs, socialConnections, redditPosts, agentPosts, users)
+  - Projects: `eac/convex/projects.ts` (get/create/update/delete, ensure/get system projects, generateProjectNumber)
+  - Files: `eac/convex/files.ts` (CRUD + platform fields, instruction/content creation helpers)
+  - Trash: `eac/convex/trash.ts` (soft delete snapshots, restore, permanent delete, cleanup)
+  - Chat: `eac/convex/chat.ts`, `chatActions.ts` (message store, streaming thinking)
+
+Import alias in app: `import { api } from '@/convex/_generated/api'`
+
+## Data flow and invariants
+
+1. Projects
+
+- Query: `useProjects()` → useQuery(api.projects.getProjects) → `useProjectStore.setProjects`
+- Create: `useProjects.createProject` → mutation(api.projects.createProject) → `useProjectStore.addProject`
+- Stats: `useProjects` maps api.projects.getProjectStats → `setProjectStats`
+- Sidebar sync: `useProjectSync.performFullSync` keeps Editor folders aligned with Convex (by name + convexId)
+
+Invariants
+
+- DB is source of truth; `useProjectStore.projects` should match `getProjects` for the user
+- Each Editor project folder representing a DB project must have `convexId` set
+
+2. Files
+
+- Local create: Editor store `createNewFile` emits `window.dispatchEvent('fileCreated', { file, projectId })`
+- Sync: `useFileSync` listens and calls `api.files.createFile`, then updates local file with returned `_id` via `updateFileConvexId`
+- Bulk reconcile: `useProjectFileSync` emits `requestProjectFileSync` per folder with `convexId` for components to reconcile
+
+Invariants
+
+- Every DB-backed file in Editor must have `file.convexId`
+- For social posts, extensions/mime: `.x` → `text/plain`; markdown → `text/markdown`
+
+3. Terminal chat & sessions
+
+- View: `useChat` queries `api.chat.getChatMessages(sessionId)`
+- Send: `useChat` → `api.chatActions.sendChatMessageWithStreaming` (streams thinking via backend); also updates `useSessionStore.updateSession`
+- Local store: `useChatStore` persists only `sessionId` (partialize) and manages transient thinking content
+
+Invariants
+
+- Session metadata in `useSessionStore` matches latest messages for active session
+- Thinking (`role: 'thinking'`) not counted in billable aggregates; present in message stream
+
+4. Trash (Soft delete)
+
+- Move to trash: `useProjects.deleteProject` → `api.trash.deleteProject`
+- Local view: `useTrashSync` queries deleted items and writes to Editor `trashItems`
+- Restore/permanent delete: Convex trash functions, then Editor store updates
+
+Invariants
+
+- 30-day retention; deleted tables mirror originals; restore re-creates `files` with original timestamps
+
+5. Agents
+
+- Registry-driven: `store/agents/registry.ts` enumerates tools and normalizes slash commands
+- Execution: `useAgentStore.executeAgentTool` → `agentRegistry.executeAgent` (may call Convex mutations passed in)
+- Safety: Twitter agent strips disallowed mutation helpers (prevents instruction-file creation)
+
+## Module inventory (where things live)
+
+- Zustand stores
+  - Projects: `eac/store/projects/index.ts`, `types.ts`
+  - Editor: `eac/store/editor/index.ts`, `types.ts`
+  - Terminal: `eac/store/terminal/{index,chat,session}.ts`
+  - Agents: `eac/store/agents/{index,registry,*.ts}`
+  - Sidebar: `eac/store/sidebar/{index,types}.ts`
+
+- Key hooks
+  - Projects: `eac/lib/hooks/useProjects.ts`, `useProjectSync.ts`
+  - Files: `eac/lib/hooks/useFileSync.ts`, `useProjectFileSync.ts`
+  - Chat: `eac/lib/hooks/useChat.ts`
+  - Trash: `eac/lib/hooks/useTrashSync.ts`
+  - State utils: `eac/lib/utils/stateSync.ts` (sync + clearAllPersistedState)
+
+- Convex
+  - Projects: `eac/convex/projects.ts`
+  - Files: `eac/convex/files.ts`
+  - Trash: `eac/convex/trash.ts`
+  - Chat: `eac/convex/chat.ts`, `chatActions.ts`
+  - Schema: `eac/convex/schema.ts`
+
+## Persistence & serialization
+
+- Persisted keys (localStorage)
+  - sidebar-store (custom Set serialization)
+  - session-store (activeSessionId, panel toggles)
+  - chat-store (sessionId only)
+  - agent-store (activeAgentId, last 50 executions)
+  - editor-storage, project-store, etc. (UI and content state; may be reset)
+
+- Golden rules
+  - DB is authoritative: never treat persisted local arrays as truth after login
+  - Always attach `convexId` to Editor folders/files that represent DB entities
+  - Prefer querying fresh (`useQuery`) then hydrating stores rather than optimistic-only updates
+
+Clear everything safely:
+
+```ts
+import { clearAllPersistedState } from "@/lib/utils/stateSync";
+clearAllPersistedState(); // then reload the app
 ```
 
-## Store Organization
+## Key workflows (step-by-step)
 
-### File Structure
-```
-store/
-├── index.ts           # Re-export all stores
-├── dailyTracker/
-│   ├── index.ts       # Store implementation
-│   └── types.ts       # TypeScript interfaces
-├── editor/
-│   ├── index.ts
-│   └── types.ts
-├── materials/
-│   ├── index.ts
-│   └── types.ts
-└── sidebar/
-    ├── index.ts
-    └── types.ts
-```
+### A) Create project and see it in the sidebar
 
-### Example Store Implementation
+1. UI → `useProjects.createProject()` → Convex `projects.createProject`
+2. On success → `useProjectStore.addProject`
+3. `useProjectSync.performFullSync` → creates Editor folder with `convexId`
+4. Sidebar now shows the new project (folder name === project.name)
 
-```typescript
-// store/financial/types.ts
-export interface Project {
-  id: string;
-  name: string;
-  budget: number;
-  spent: number;
-  status: 'active' | 'completed' | 'on-hold';
-}
+If the folder doesn’t appear:
 
-export interface FinancialState {
-  // Data
-  revenue: number;
-  expenses: number;
-  projects: Project[];
-  
-  // UI State
-  isLoading: boolean;
-  error: string | null;
-  selectedProjectId: string | null;
-  
-  // Actions
-  updateRevenue: (amount: number) => void;
-  updateExpenses: (amount: number) => void;
-  addProject: (project: Omit<Project, 'id'>) => void;
-  updateProject: (id: string, updates: Partial<Project>) => void;
-  deleteProject: (id: string) => void;
-  selectProject: (id: string | null) => void;
-  fetchProjects: () => Promise<void>;
-  setError: (error: string | null) => void;
-  setLoading: (loading: boolean) => void;
-}
+- Check `useProjects.projects` contains the new project
+- Check `performFullSync` logs; confirm `createFolder(name, 'project', _id)` called
+- Verify folder has `convexId`; without it, file syncing will be skipped
 
-// store/financial/index.ts
-import { create } from 'zustand';
-import { devtools } from 'zustand/middleware';
-import { FinancialState, Project } from './types';
+### B) Create a file in a DB-backed project
 
-export const useFinancialStore = create<FinancialState>()(
-  devtools(
-    (set, get) => ({
-      // Initial state
-      revenue: 0,
-      expenses: 0,
-      projects: [],
-      isLoading: false,
-      error: null,
-      selectedProjectId: null,
+1. UI → Editor `createNewFile` (folder has `convexId`)
+2. Emits `window.dispatchEvent('fileCreated', { file, projectId: folder.convexId })`
+3. `useFileSync` listens → calls `files.createFile` → updates local file’s `convexId`
+4. Optional components reconcile via `requestProjectFileSync` events
 
-      // Simple state updates
-      updateRevenue: (amount: number) => 
-        set({ revenue: amount }, false, 'updateRevenue'),
-        
-      updateExpenses: (amount: number) => 
-        set({ expenses: amount }, false, 'updateExpenses'),
-        
-      selectProject: (id: string | null) => 
-        set({ selectedProjectId: id }, false, 'selectProject'),
-        
-      setError: (error: string | null) => 
-        set({ error }, false, 'setError'),
-        
-      setLoading: (loading: boolean) => 
-        set({ isLoading: loading }, false, 'setLoading'),
+If file exists locally but not in DB:
 
-      // Complex state updates
-      addProject: (projectData: Omit<Project, 'id'>) => 
-        set((state) => ({
-          projects: [
-            ...state.projects,
-            { ...projectData, id: crypto.randomUUID() }
-          ]
-        }), false, 'addProject'),
+- Confirm folder has `convexId`
+- Ensure `useFileSync` is mounted and `fileCreated` event fired
+- Check `files.createFile` params: type/extension/mime/platform mapping
 
-      updateProject: (id: string, updates: Partial<Project>) => 
-        set((state) => ({
-          projects: state.projects.map(project =>
-            project.id === id ? { ...project, ...updates } : project
-          )
-        }), false, 'updateProject'),
+### C) Terminal chat session with streaming
 
-      deleteProject: (id: string) => 
-        set((state) => ({
-          projects: state.projects.filter(project => project.id !== id),
-          selectedProjectId: state.selectedProjectId === id ? null : state.selectedProjectId
-        }), false, 'deleteProject'),
+1. `useChat` queries messages for active session ID (from `useSessionStore` or `useChatStore`)
+2. Sending → `chatActions.sendChatMessageWithStreaming` streams thinking; UI shows interim thinking text
+3. Session metadata updated via `useSessionStore.updateSession`
 
-      // Async actions
-      fetchProjects: async () => {
-        const { setLoading, setError } = get();
-        
-        setLoading(true);
-        setError(null);
-        
-        try {
-          // Replace with actual API call
-          const projects = await fetch('/api/projects').then(res => res.json());
-          set({ projects, isLoading: false }, false, 'fetchProjects/success');
-        } catch (error) {
-          setError(error instanceof Error ? error.message : 'Failed to fetch projects');
-          setLoading(false);
-        }
-      },
-    }),
-    {
-      name: 'financial-store', // DevTools name
-    }
-  )
-);
-```
+If session panel looks stale:
 
-## Usage Patterns in Components
+- Confirm `useSessionStore.activeSessionId` matches `useChat`’s currentSessionId
+- Verify `messages` updates and `updateSession` is called (see logs)
 
-### Basic Usage
-```tsx
-import { useFinancialStore } from '@/store/financial';
+### D) Move project/file to trash and restore
 
-function FinancialOverview() {
-  const { revenue, expenses, isLoading } = useFinancialStore();
-  
-  if (isLoading) return <Skeleton />;
-  
-  return (
-    <div>
-      <p>Revenue: ${revenue}</p>
-      <p>Expenses: ${expenses}</p>
-      <p>Profit: ${revenue - expenses}</p>
-    </div>
-  );
-}
-```
+1. Delete project: `useProjects.deleteProject` → `trash.deleteProject` snapshot + delete
+2. `useTrashSync` loads deleted items into Editor `trashItems`
+3. Restore via `trash.restoreProject`/`trash.restoreFile` → Editor reflects restored items
 
-### Selective Subscriptions (Performance Optimization)
-```tsx
-import { useFinancialStore } from '@/store/financial';
+If trash isn’t populated:
 
-function ProjectSelector() {
-  // Only subscribe to projects and selectedProjectId
-  const { projects, selectedProjectId, selectProject } = useFinancialStore(
-    (state) => ({
-      projects: state.projects,
-      selectedProjectId: state.selectedProjectId,
-      selectProject: state.selectProject,
-    })
-  );
-  
-  return (
-    <select 
-      value={selectedProjectId || ''} 
-      onChange={(e) => selectProject(e.target.value || null)}
-    >
-      <option value="">Select a project</option>
-      {projects.map(project => (
-        <option key={project.id} value={project.id}>
-          {project.name}
-        </option>
-      ))}
-    </select>
-  );
-}
-```
+- Ensure user is authenticated (queries use `useConvexAuth` gating)
+- Verify `useTrashSync` mounted; check logs
 
-### Actions with Effects
-```tsx
-function ProjectForm() {
-  const { addProject, updateProject, selectedProjectId } = useFinancialStore();
-  
-  const handleSubmit = async (formData: FormData) => {
-    const projectData = {
-      name: formData.get('name') as string,
-      budget: Number(formData.get('budget')),
-      spent: 0,
-      status: 'active' as const,
-    };
-    
-    if (selectedProjectId) {
-      updateProject(selectedProjectId, projectData);
-    } else {
-      addProject(projectData);
-    }
-    
-    // Optional: Show success message, redirect, etc.
-  };
-  
-  return <form onSubmit={handleSubmit}>{/* form fields */}</form>;
-}
-```
+## Troubleshooting matrix (what to say and where to look)
 
-## Advanced Patterns
+- Symptom: “Project appears in DB but not in sidebar”
+  - Language: “Editor folder sync missing convexId link for project; Zustand Editor store not hydrated from Convex list.”
+  - Check: `useProjects.projects` contains item; `performFullSync` logs; folder `convexId` present
 
-### Computed Values with Selectors
-```typescript
-// In store
-export const useFinancialStore = create<FinancialState>((set, get) => ({
-  // ... other state and actions
-  
-  // Computed values as getters
-  get totalProfit() {
-    const { revenue, expenses } = get();
-    return revenue - expenses;
-  },
-  
-  get activeProjects() {
-    return get().projects.filter(p => p.status === 'active');
-  },
-}));
+- Symptom: “File created in UI doesn’t show in DB”
+  - Language: “fileCreated event not handled or project folder lacks convexId; useFileSync didn’t persist to Convex.”
+  - Check: Browser event log; `useFileSync` mounted; `api.files.createFile` call; extension/mime/platform mapping
 
-// In component
-function ProfitDisplay() {
-  const totalProfit = useFinancialStore((state) => state.totalProfit);
-  const activeProjects = useFinancialStore((state) => state.activeProjects);
-  
-  return (
-    <div>
-      <p>Total Profit: ${totalProfit}</p>
-      <p>Active Projects: {activeProjects.length}</p>
-    </div>
-  );
-}
-```
+- Symptom: “Chat session metadata not updating”
+  - Language: “Session aggregation in useSessionStore not receiving message updates; activeSessionId mismatch.”
+  - Check: `useSessionStore.activeSessionId` vs `useChat` currentSessionId; `messages` array; `updateSession` calls
 
-### Middleware Usage
-```typescript
-import { subscribeWithSelector } from 'zustand/middleware';
+- Symptom: “Soft-deleted items not visible”
+  - Language: “Trash queries gated by auth; useTrashSync not initializing due to skip conditions.”
+  - Check: `useConvexAuth.isAuthenticated` and Clerk `user`; `api.trash.getDeleted*` queries
 
-export const useFinancialStore = create<FinancialState>()(
-  devtools(
-    subscribeWithSelector((set, get) => ({
-      // ... store implementation
-    }))
-  )
+- Symptom: “Agent executed but no result in terminal”
+  - Language: “Agent registry execution completed but terminal didn’t receive feedback; ensure chat storage of outputs or terminal feedback hook invoked.”
+  - Check: `useAgentStore.executions`; `addTerminalFeedback` usage; agent tool returns string
+
+## Logging and DevTools
+
+- Action names (for Redux DevTools):
+  - Projects: setProjects, addProject, updateProject, removeProject, setStatusFilter, reset, …
+  - Editor: openTab, updateFileConvexId, createFolder, moveToTrash, restoreFromTrash, …
+  - Terminal/Session: setActiveSession, addSession, updateSession, toggleSessionsPanel, …
+
+- Quick log snippets
+
+```ts
+// Compare DB and store counts
+console.log(
+  "Convex projects vs store",
+  projectsQuery?.length,
+  useProjectStore.getState().projects.length,
 );
 
-// Subscribe to specific changes
-useFinancialStore.subscribe(
-  (state) => state.selectedProjectId,
-  (selectedProjectId) => {
-    console.log('Selected project changed:', selectedProjectId);
-  }
-);
+// Inspect a folder’s DB linkage
+const folder = useEditorStore
+  .getState()
+  .projectFolders.find((f) => f.name === "My Project");
+console.log("Folder convexId", folder?.convexId);
 ```
 
-## Testing Stores
+## Guardrails and consistency checks (pre‑trial)
 
-### Unit Testing
-```typescript
-import { renderHook, act } from '@testing-library/react';
-import { useFinancialStore } from './index';
+- Ensure all Editor folders representing DB projects have `convexId`
+- Mount `useProjectSync`, `useFileSync`, `useTrashSync`, `useChat` in relevant pages
+- Verify authenticated queries are not skipped (`isAuthenticated` true)
+- Validate Convex functions exist/return values for your user (check Convex dashboard)
 
-describe('useFinancialStore', () => {
-  beforeEach(() => {
-    // Reset store state
-    useFinancialStore.setState({
-      revenue: 0,
-      expenses: 0,
-      projects: [],
-      isLoading: false,
-      error: null,
-      selectedProjectId: null,
-    });
-  });
+## Appendix: Simplified mental model
 
-  it('should update revenue', () => {
-    const { result } = renderHook(() => useFinancialStore());
-    
-    act(() => {
-      result.current.updateRevenue(1000);
-    });
-    
-    expect(result.current.revenue).toBe(1000);
-  });
-  
-  it('should add a project', () => {
-    const { result } = renderHook(() => useFinancialStore());
-    
-    const newProject = {
-      name: 'Test Project',
-      budget: 5000,
-      spent: 0,
-      status: 'active' as const,
-    };
-    
-    act(() => {
-      result.current.addProject(newProject);
-    });
-    
-    expect(result.current.projects).toHaveLength(1);
-    expect(result.current.projects[0]).toMatchObject(newProject);
-  });
-});
-```
-
-## Best Practices
-
-1. **Keep stores focused**: One store per feature/domain
-2. **Use TypeScript**: Always define interfaces for type safety
-3. **Immutable updates**: Use `set` function properly
-4. **Selective subscriptions**: Only subscribe to needed state
-5. **DevTools**: Use devtools middleware for debugging
-6. **Action naming**: Use descriptive action names for DevTools
-7. **Error handling**: Implement proper error states
-8. **Loading states**: Track loading states for async operations
-
-This guide ensures consistent and performant state management across the EAC Financial Dashboard project.
+- Think “DB-first.” UI stores cache and orchestrate, but Convex defines reality.
+- If something looks wrong, ask: Do we have the Convex ID? Is the sync hook mounted? Did the event fire?
+- Resetting local state is cheap. Protect DB truth; hydrate local state from queries.

@@ -68,7 +68,8 @@ export class SchedulingAgent extends BaseAgent {
   async execute(
     tool: AgentTool,
     input: string,
-    convexMutations: ConvexMutations
+    convexMutations: ConvexMutations,
+    sessionId?: string
   ): Promise<string> {
     if (tool.id === "schedule-content") {
       return await this.scheduleContent(input, convexMutations);
@@ -343,14 +344,13 @@ export class SchedulingAgent extends BaseAgent {
           throw new Error("schedulePost mutation not available");
         }
 
-        await convexMutations.schedulePost({
+  await convexMutations.schedulePost({
           fileName: item.post.fileName,
           fileType: item.post.fileType,
           content: item.post.content,
           title: item.post.title,
           platformData: item.post.platformData,
           scheduledFor: item.scheduledFor,
-          userId: item.post.userId || 'current-user', // Ensure we have a userId
         });
 
         results.push({

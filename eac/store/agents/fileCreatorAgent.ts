@@ -43,13 +43,19 @@ export class FileCreatorAgent extends BaseAgent {
     timestamp: number;
   } | null = null;
 
-  // Predefined file type options - currently only X/Twitter is available
+  // Predefined file type options - X/Twitter and Reddit are available
   private fileTypeOptions: FileTypeOption[] = [
     {
       type: 'x',
       extension: '.x',
       description: 'X (Twitter) Social Media Post',
       contentTemplate: '# {fileName} - X (Twitter) Post\nPlatform: X (Twitter)\nCreated: {date}\n\n## Post Content\n\n\n## Settings\n- Reply Settings: following\n- Schedule: Now\n- Thread: Single Tweet\n\n## Media\n- Images: []\n- Videos: []\n\n## Analytics\n- Impressions: 0\n- Engagements: 0\n- Likes: 0\n- Shares: 0'
+    },
+    {
+      type: 'reddit',
+      extension: '.reddit',
+      description: 'Reddit Post',
+      contentTemplate: '# {fileName} - Reddit Post\nPlatform: Reddit\nCreated: {date}\n\n## Post Content\nWrite your Reddit post content here...\n\n## Settings\n- Subreddit: r/test\n- Post Type: Text\n- Flair: Discussion\n- NSFW: No\n\n## Media\n- Images: []\n- Links: []\n\n## Analytics\n- Upvotes: 0\n- Comments: 0\n- Awards: 0'
     }
     // Future file types will be added here as they become available
   ];
@@ -67,7 +73,8 @@ export class FileCreatorAgent extends BaseAgent {
   async execute(
     tool: AgentTool,
     input: string,
-    convexMutations: ConvexMutations
+    convexMutations: ConvexMutations,
+    sessionId?: string
   ): Promise<string> {
     console.log('🚀 FileCreatorAgent executing with input:', input);
     
@@ -180,28 +187,29 @@ export class FileCreatorAgent extends BaseAgent {
       console.log('🆕 Detected new file creation request - starting with file type selection');
       
       // ✨ ADD THINKING/CHAIN OF THOUGHT STEP
-      if (convexMutations.storeChatMessage) {
-        await convexMutations.storeChatMessage({
-          role: 'thinking',
-          content: `Analyzing file creation request: "${input}"
+    if (convexMutations.storeChatMessage) {
+      await convexMutations.storeChatMessage({
+       role: 'thinking',
+       content: `Analyzing file creation request: "${input}"
 
 I need to help the user create a new file. Let me think through this:
 
 1. The user wants to create a new file
 2. I should first determine what type of file they want to create
 3. Available file types include:
-   - X (Twitter) posts (.x extension)
-   - Markdown files (.md extension)  
-   - Other social media formats (coming soon)
+  - X (Twitter) posts (.x extension)
+  - Reddit posts (.reddit extension)
+  - Markdown files (.md extension)
+  - Other social media formats (coming soon)
 
 4. After file type selection, I'll need to:
-   - Get the project/folder location
-   - Get the file name
-   - Create the file with appropriate content
+  - Get the project/folder location
+  - Get the file name
+  - Create the file with appropriate content
 
 Starting with file type selection to guide the user through the process systematically.`
-        });
-      }
+      });
+    }
       
       return await this.getFileTypeSelectionPrompt(convexMutations);
     }
@@ -438,9 +446,9 @@ Next steps after validation:
 
     // ✨ ADD THINKING FOR FILE TYPE PROCESSING
     if (convexMutations.storeChatMessage) {
-      await convexMutations.storeChatMessage({
-        role: 'thinking',
-        content: `Processing file type selection: "${input}"
+  await convexMutations.storeChatMessage({
+    role: 'thinking',
+    content: `Processing file type selection: "${input}"
 
 The user has indicated their file type preference. Let me analyze:
 
@@ -448,15 +456,16 @@ The user has indicated their file type preference. Let me analyze:
 2. Normalized input: "${normalizedInput}"
 3. Checking against supported file types:
    - X/Twitter posts (keywords: x, twitter) → .x extension
+   - Reddit posts (keywords: reddit, subreddit, r/...) → .reddit extension
    - Markdown files → .md extension
    - Other formats (coming soon)
 
 Based on the input, I'll determine the appropriate file type and proceed to the next step of the creation process.`
-      });
+  });
     }
 
-    // For now, only support x/twitter type
-    if (normalizedInput.includes('x') || normalizedInput.includes('twitter')) {
+  // Support x/twitter and reddit types
+  if (normalizedInput.includes('x') || normalizedInput.includes('twitter')) {
       // Clear pending state
       FileCreatorAgent.pendingFileTypeInput = null;
       console.log('✅ Cleared pending file type input');
@@ -472,8 +481,22 @@ Based on the input, I'll determine the appropriate file type and proceed to the 
 
       // Now proceed to file name input
       return await this.getFileNameInputPrompt(fileDetails, convexMutations);
+  } else if (normalizedInput.includes('reddit') || normalizedInput.includes('subreddit') || normalizedInput.includes('r/')) {
+      // Clear pending state
+      FileCreatorAgent.pendingFileTypeInput = null;
+      console.log('✅ Cleared pending file type input');
+
+      const fileDetails: FileCreationDetails = {
+        fileName: '',
+        fileType: 'reddit',
+        extension: '.reddit'
+      };
+
+      console.log('📄 Created file details with type:', fileDetails);
+
+      return await this.getFileNameInputPrompt(fileDetails, convexMutations);
     } else {
-      return `❌ **Please select a valid file type**\n\nCurrently available:\n• **X (Twitter)** - for social media posts\n\nMore file types coming soon!`;
+      return `❌ **Please select a valid file type**\n\nCurrently available:\n• **X (Twitter)** - for social media posts\n• **Reddit** - for subreddit posts\n\nMore file types coming soon!`;
     }
   }
 
@@ -482,6 +505,8 @@ Based on the input, I'll determine the appropriate file type and proceed to the 
    */
   private isNewFileCreationRequest(input: string): boolean {
     const normalizedInput = input.toLowerCase().trim();
+    console.log('🔍 Checking if new file creation request:', normalizedInput);
+    
     const newFilePatterns = [
       /^create.*new.*file$/,
       /^create.*file$/,
@@ -489,10 +514,22 @@ Based on the input, I'll determine the appropriate file type and proceed to the 
       /^make.*new.*file$/,
       /^add.*new.*file$/,
       /^generate.*new.*file$/,
-      /^start.*new.*file$/
+      /^start.*new.*file$/,
+      // Add more flexible patterns
+      /create.*a.*new.*file/,
+      /create.*new.*file/,
+      /make.*a.*new.*file/,
+      /add.*a.*new.*file/
     ];
     
-    return newFilePatterns.some(pattern => pattern.test(normalizedInput));
+    const isMatch = newFilePatterns.some(pattern => {
+      const matches = pattern.test(normalizedInput);
+      console.log(`🔍 Pattern ${pattern} matches "${normalizedInput}":`, matches);
+      return matches;
+    });
+    
+    console.log('🎯 Final isNewFileCreationRequest result:', isMatch);
+    return isMatch;
   }
 
   /**
@@ -549,7 +586,8 @@ Based on the input, I'll determine the appropriate file type and proceed to the 
       }
     } catch (error) {
       console.error('Error setting up file type selection:', error);
-      return `🤖 **File Type Selection**\n\nLet's create a new file! Please specify what type of file you want to create.\n\n**💡 Currently available:** X (Twitter) posts`;
+  const availableList = this.fileTypeOptions.map(o => `• **${o.description}** (${o.extension})`).join("\n");
+  return `🤖 **File Type Selection**\n\nLet's create a new file! Please specify what type of file you want to create.\n\n**💡 Currently available:**\n${availableList}`;
     }
   }
 
@@ -735,7 +773,7 @@ Based on the input, I'll determine the appropriate file type and proceed to the 
       }
     }
 
-    // Detect file type from input
+  // Detect file type from input
     for (const option of this.fileTypeOptions) {
       const typePatterns = [
         new RegExp(`\\b${option.type}\\b`, 'i'),
@@ -767,6 +805,10 @@ Based on the input, I'll determine the appropriate file type and proceed to the 
         extension = option.extension;
         break;
       } else if (option.type === 'checklist' && /\b(checklist|tasks?|todo|list)\b/i.test(normalizedInput)) {
+        fileType = option.type;
+        extension = option.extension;
+        break;
+      } else if (option.type === 'reddit' && /(reddit|subreddit|r\/\w+)/i.test(normalizedInput)) {
         fileType = option.type;
         extension = option.extension;
         break;
@@ -835,7 +877,12 @@ Based on the input, I'll determine the appropriate file type and proceed to the 
         return await this.createXTwitterFile(fileDetails, convexMutations, editorStore);
       }
 
-      // Regular file creation for non-Twitter files
+      // Special handling for Reddit to add generated content
+      if (fileDetails.fileType === 'reddit') {
+        return await this.createRedditFile(fileDetails, convexMutations, editorStore);
+      }
+
+      // Regular file creation for non-special files
       return await this.createRegularFile(fileDetails, convexMutations, editorStore);
     } catch (error) {
       console.error('❌ File creation failed:', error);
@@ -1014,6 +1061,141 @@ Please try again or create a regular file instead.`;
   }
 
   /**
+   * Create Reddit file with sensible starter content and default form data
+   */
+  private async createRedditFile(
+    fileDetails: FileCreationDetails,
+    convexMutations: ConvexMutations,
+    editorStore: any
+  ): Promise<string> {
+    try {
+      console.log('🧵 Creating Reddit file with generated starter content...');
+
+      // Find the target project folder
+      const projectFolder = editorStore.projectFolders.find(
+        (folder: any) => folder.name === fileDetails.projectName
+      );
+
+      if (!projectFolder) {
+        return `❌ **Project Not Found**\n\nCould not find a project folder named "${fileDetails.projectName}". The file was not created.`;
+      }
+
+      // Derive a clean base name without extension
+      const baseName = fileDetails.fileName.replace(/\.[^/.]+$/, "");
+
+      // Lightweight content generation based on file name
+      const generatedBody = this.generateRedditPostBody(baseName);
+
+      const today = new Date().toLocaleDateString();
+      const timeStamp = new Date().toLocaleTimeString();
+
+      const richContent = `# ${baseName} - Reddit Post
+Platform: Reddit
+Created: ${today}
+
+## Post Content
+${generatedBody}
+
+## Settings
+- Subreddit: r/test
+- Post Type: Text
+- Flair: Discussion
+- NSFW: No
+
+## Media
+- Images: []
+- Links: []
+
+## Analytics
+- Upvotes: 0
+- Comments: 0
+- Awards: 0
+
+## File Details
+- Created: ${today} at ${timeStamp}
+- Status: Draft
+- Type: Reddit Post
+- Project: ${fileDetails.projectName}`;
+
+      // Create the file locally using editor store - this auto-opens the tab
+      const fileId = editorStore.createNewFile(
+        baseName,
+        'reddit' as any,
+        'project',
+        projectFolder.id,
+        richContent,
+        false
+      );
+
+      console.log(`✅ Reddit file created locally with ID: ${fileId}`);
+
+      // Save initial form data to Convex for auto-population in UI (best-effort)
+      try {
+        await this.populateRedditForm(baseName, generatedBody, convexMutations);
+      } catch (formError) {
+        console.warn('⚠️ Failed to populate Reddit form, but file was created:', formError);
+      }
+
+      return `🧵 **Reddit Post Created Successfully!**
+
+**📄 File Name:** ${baseName}.reddit
+**📁 Project:** ${fileDetails.projectName}
+**📝 Content:** Starter post content added
+**📅 Created:** ${today}
+
+**✨ Features:**
+✅ File opened in new tab
+✅ Starter content generated
+✅ Template sections included (Settings/Media/Analytics)
+
+**🔧 Next Steps:**
+• Review and edit the draft in the editor
+• Set the target subreddit, flair, and options
+• Publish or schedule from the toolbar
+
+*Your Reddit draft is ready for polishing!* 🚀`;
+    } catch (error) {
+      console.error('❌ Reddit file creation failed:', error);
+      return `❌ **Reddit File Creation Failed**
+
+Error: ${error instanceof Error ? error.message : 'Unknown error'}
+
+Please try again.`;
+    }
+  }
+
+  // Produce a simple, platform-appropriate Reddit text body
+  private generateRedditPostBody(titleHint: string): string {
+    const clean = titleHint.replace(/[-_]/g, ' ').trim();
+    const title = clean.charAt(0).toUpperCase() + clean.slice(1);
+    return `${title}
+
+Hey folks, sharing a quick update on ${clean || 'this topic'}.
+
+• Context: Briefly explain the situation
+• Key points: List 2–3 actionable insights
+• Question: Ask for feedback or experiences
+
+Thanks in advance for any thoughts!`;
+  }
+
+  /**
+   * Populate Reddit form defaults via Convex (status: draft)
+   */
+  private async populateRedditForm(
+    fileNameWithoutExt: string,
+    content: string,
+    convexMutations: ConvexMutations
+  ): Promise<void> {
+    try {
+  // Disabled to avoid duplicate agent posts; the UI derives form state from markdown.
+  console.log('ℹ️ Skipping agent post upsert on Reddit file creation to avoid duplicates.');
+    } catch (error) {
+      console.warn('⚠️ Failed to save Reddit draft data:', error);
+    }
+  }
+
+  /**
    * Create regular (non-Twitter) file
    */
   private async createRegularFile(
@@ -1087,47 +1269,8 @@ Please try again or contact support.`;
     convexMutations: ConvexMutations
   ): Promise<void> {
     try {
-      console.log('📝 Populating Twitter form fields...');
-
-      // Prepare platform data for the form
-      const platformData = {
-        replySettings: "following",
-        scheduledDate: "",
-        scheduledTime: "",
-        isThread: false,
-        threadTweets: [content],
-        hasPoll: false,
-        pollOptions: ["", ""],
-        pollDuration: 1440,
-      };
-
-      // Save to Convex database for form auto-population
-      if (convexMutations.upsertPost) {
-        await convexMutations.upsertPost({
-          fileName: fileName + ".x",
-          fileType: 'twitter',
-          content: content,
-          title: undefined, // Twitter doesn't use titles
-          platformData: JSON.stringify(platformData),
-          status: 'draft',
-        });
-        console.log(`✅ Twitter post data saved to database for form auto-population: ${fileName}.x`);
-      } else {
-        console.warn("⚠️ upsertPost mutation not available");
-        
-        // Fallback: dispatch event for form population
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('twitterPostCreated', {
-            detail: {
-              fileName: fileName + ".x",
-              content: content,
-              platformData: platformData,
-              status: 'draft'
-            }
-          }));
-          console.log(`📢 Dispatched twitterPostCreated event for form population: ${fileName}.x`);
-        }
-      }
+  // Disabled to avoid duplicate agent posts; the UI derives form state from markdown.
+  console.log('ℹ️ Skipping agent post upsert on Twitter file creation to avoid duplicates.');
 
     } catch (error) {
       console.error('❌ Failed to populate Twitter form:', error);
@@ -1141,6 +1284,7 @@ Please try again or contact support.`;
   private mapToEditorFileType(fileType: string): any {
     const typeMap: Record<string, string> = {
       x: 'x',
+      reddit: 'reddit',
       markdown: 'markdown',
       notes: 'markdown',
       plan: 'markdown',
@@ -1176,6 +1320,7 @@ Please try again or contact support.`;
   private mapToConvexFileType(fileType: string): 'post' | 'campaign' | 'note' | 'document' | 'image' | 'video' | 'other' {
     const typeMap: Record<string, 'post' | 'campaign' | 'note' | 'document' | 'image' | 'video' | 'other'> = {
       x: 'post', // X/Twitter posts
+  reddit: 'post', // Reddit posts
       markdown: 'note',
       notes: 'note',
       plan: 'note',

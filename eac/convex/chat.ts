@@ -17,14 +17,28 @@ export const getChatMessages = query({
     }
     
     if (args.sessionId) {
-      const messages = await ctx.db
+      // Get both authenticated user messages and progress messages for this session
+      const userMessages = await ctx.db
         .query("chatMessages")
         .withIndex("by_user_session", (q) =>
           q.eq("userId", userId).eq("sessionId", args.sessionId)
         )
         .order("desc")
         .take(args.limit ?? 500);
-      return messages.reverse(); // Reverse to get chronological order
+        
+      // Also get progress messages for this session
+      const progressMessages = await ctx.db
+        .query("chatMessages")
+        .withIndex("by_session", (q) =>
+          q.eq("sessionId", args.sessionId)
+        )
+        .filter((q) => q.eq(q.field("userId"), "progress_user"))
+        .order("desc")
+        .take(args.limit ?? 500);
+        
+      // Combine and sort by creation time
+      const allMessages = [...userMessages, ...progressMessages].sort((a, b) => a.createdAt - b.createdAt);
+      return allMessages;
     } else {
       // Get all messages for this user if no session specified
       const messages = await ctx.db
@@ -84,6 +98,124 @@ export const storeChatMessage = mutation({
     });
     
     return messageId;
+  },
+});
+
+// Mutation to store progress messages without authentication requirement
+// Used for agent progress updates when user may not be authenticated for backend operations
+export const storeProgressMessage = mutation({
+  args: {
+    role: v.union(v.literal("thinking"), v.literal("assistant"), v.literal("system")),
+    content: v.string(),
+    sessionId: v.string(),
+    isTemporary: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    // For progress messages, we'll use a generic user identifier or store without userId
+    // This allows us to show progress even when backend operations aren't authenticated
+    const messageId = await ctx.db.insert("chatMessages", {
+      role: args.role,
+      content: args.content,
+      sessionId: args.sessionId,
+      userId: "progress_user", // Generic identifier for progress messages
+      createdAt: Date.now(),
+      isTemporary: args.isTemporary ?? true,
+    });
+    
+    return messageId;
+  },
+});
+
+// Mutation to store agent progress updates (for pinned progress bar)
+export const storeAgentProgress = mutation({
+  args: {
+    sessionId: v.string(),
+    agentType: v.string(),
+    percentage: v.number(),
+    status: v.string(),
+    isComplete: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    // Store or update progress for this session and agent type
+    const existingProgress = await ctx.db
+      .query("agentProgress")
+      .withIndex("by_session_agent", (q) =>
+        q.eq("sessionId", args.sessionId).eq("agentType", args.agentType)
+      )
+      .first();
+
+    if (existingProgress) {
+      // Update existing progress
+      await ctx.db.patch(existingProgress._id, {
+        percentage: args.percentage,
+        status: args.status,
+        isComplete: args.isComplete ?? false,
+        updatedAt: Date.now(),
+      });
+      return existingProgress._id;
+    } else {
+      // Create new progress entry
+      const progressId = await ctx.db.insert("agentProgress", {
+        sessionId: args.sessionId,
+        agentType: args.agentType,
+        percentage: args.percentage,
+        status: args.status,
+        isComplete: args.isComplete ?? false,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      return progressId;
+    }
+  },
+});
+
+// Query to get current agent progress for a session
+export const getAgentProgress = query({
+  args: {
+    sessionId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const progress = await ctx.db
+      .query("agentProgress")
+      .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
+      .filter((q) => q.eq(q.field("isComplete"), false))
+      .collect();
+    
+    return progress;
+  },
+});
+
+// Mutation to clear completed agent progress
+export const clearAgentProgress = mutation({
+  args: {
+    sessionId: v.string(),
+    agentType: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    if (args.agentType) {
+      // Clear specific agent progress
+      const agentType = args.agentType; // Store in variable to satisfy TypeScript
+      const progress = await ctx.db
+        .query("agentProgress")
+        .withIndex("by_session_agent", (q) =>
+          q.eq("sessionId", args.sessionId).eq("agentType", agentType)
+        )
+        .first();
+      
+      if (progress) {
+        await ctx.db.delete(progress._id);
+      }
+    } else {
+      // Clear all progress for session
+      const allProgress = await ctx.db
+        .query("agentProgress")
+        .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
+        .collect();
+      
+      for (const progress of allProgress) {
+        await ctx.db.delete(progress._id);
+      }
+    }
   },
 });
 

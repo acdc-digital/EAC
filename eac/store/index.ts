@@ -9,9 +9,9 @@ export * from './materials';
 export type { ManufacturedProduct, MaterialsStore, MiscMaterial } from './materials/types';
 export { useProjectStore } from './projects';
 export type {
-  CreateProjectArgs, Project,
-  ProjectStats,
-  ProjectStatus, ProjectStoreState, UpdateProjectArgs
+    CreateProjectArgs, Project,
+    ProjectStats,
+    ProjectStatus, ProjectStoreState, UpdateProjectArgs
 } from './projects/types';
 export { useSidebarStore } from './sidebar';
 export type { SidebarState } from './sidebar/types';
@@ -28,14 +28,18 @@ export type { Agent, AgentExecution, AgentState, AgentTool } from './agents/type
 export { useHistoryStore } from './history';
 export type { HistoryEntry, HistoryFilter, HistoryStore } from './history/types';
 
+// Error Store
+export { reportError, useErrorStore } from './errors';
+export type { ErrorRecord } from './errors/types';
+
 // Social Media Store
 export { useIsConnecting, useIsPosting, useRedditConnection, useRedditPosts, useSelectedPost, useSocialActions, useSocialConnections, useSocialError, useSocialStore } from './social';
 export type { CreateRedditPostArgs, CreateSocialConnectionArgs, RedditPost, SocialConnection, SocialStoreState, UpdateRedditPostArgs } from './social/types';
 
 // Calendar Store
 export {
-  useAddScheduledPost, useCalendarActions, useCalendarError, useCalendarIsLoading, useCalendarStore, useClearCalendarError, useCurrentMonth, useDeleteScheduledPost, useGetPostsByDate,
-  useGetPostsByDateRange, useGetPostsByPlatform, useGetPostsByStatus, useLoadScheduledPosts, useScheduledPosts, useScheduledPostsFromConvex, useSelectedDate, useSetCurrentMonth, useSetScheduledPosts, useSetSelectedDate, useUpdateScheduledPost
+    useAddScheduledPost, useCalendarActions, useCalendarError, useCalendarIsLoading, useCalendarStore, useClearCalendarError, useCurrentMonth, useDeleteScheduledPost, useGetPostsByDate,
+    useGetPostsByDateRange, useGetPostsByPlatform, useGetPostsByStatus, useLoadScheduledPosts, useScheduledPosts, useScheduledPostsFromConvex, useSelectedDate, useSetCurrentMonth, useSetScheduledPosts, useSetSelectedDate, useUpdateScheduledPost
 } from './calendar';
 export type { CalendarStoreState, ScheduledPost } from './calendar/types';
 

@@ -9,7 +9,7 @@ import { useFileLoad } from "@/lib/hooks/useFileLoad";
 import { useProjects } from "@/lib/hooks/useProjects";
 import { useProjectSync } from "@/lib/hooks/useProjectSync";
 import { clearAllPersistedState, performFullSync } from "@/lib/utils/stateSync";
-import { useEditorStore, useScheduledPostsFromConvex } from "@/store";
+import { reportError, useEditorStore, useErrorStore, useScheduledPostsFromConvex } from "@/store";
 import { useChatStore } from "@/store/terminal/chat";
 import { useAuth } from "@clerk/nextjs";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
@@ -32,6 +32,7 @@ import {
     XCircle
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { ErrorBoundaryClient } from "../debug/ErrorBoundaryClient";
 
 export function DashDebug() {
   const { isAuthenticated } = useConvexAuth();
@@ -67,6 +68,15 @@ export function DashDebug() {
   // State sync hooks
   const { projects: convexProjects, error: projectsError } = useProjects();
   const { syncStatus, isLoading: isSyncLoading, error: syncError } = useProjectSync();
+  const { errors, clearErrors, removeError } = useErrorStore();
+
+  // Report hook-level errors to the error store automatically
+  useEffect(() => {
+    if (projectsError) reportError('useProjects', projectsError);
+  }, [projectsError]);
+  useEffect(() => {
+    if (syncError) reportError('useProjectSync', syncError);
+  }, [syncError]);
 
   // Convex queries for debugging - only when authenticated
   const convexProjectsQuery = useQuery(
@@ -219,7 +229,8 @@ export function DashDebug() {
         console.log('⏳ Waiting for Convex projects to load...');
       }
     } catch (error) {
-      console.error('❌ Manual sync failed:', error);
+  console.error('❌ Manual sync failed:', error);
+  reportError('dashDebug/manualSync', error);
     }
   };
 
@@ -281,7 +292,8 @@ export function DashDebug() {
       await createNewFile(`test-reddit-${timestamp}`, 'reddit', 'project');
       console.log('✅ Reddit test post created successfully');
     } catch (error) {
-      console.error('❌ Failed to create Reddit test post:', error);
+  console.error('❌ Failed to create Reddit test post:', error);
+  reportError('dashDebug/createRedditTestPost', error);
     }
   };
 
@@ -291,7 +303,8 @@ export function DashDebug() {
       await createNewFile(`test-twitter-${timestamp}`, 'x', 'project');
       console.log('✅ Twitter test post created successfully');
     } catch (error) {
-      console.error('❌ Failed to create Twitter test post:', error);
+  console.error('❌ Failed to create Twitter test post:', error);
+  reportError('dashDebug/createTwitterTestPost', error);
     }
   };
 
@@ -320,7 +333,8 @@ export function DashDebug() {
       console.log(`🔧 Repaired ${emptyProjectFiles + emptyFinancialFiles} files with missing content`);
       console.log('✅ File repair completed successfully');
     } catch (error) {
-      console.error('❌ Failed to repair files:', error);
+  console.error('❌ Failed to repair files:', error);
+  reportError('dashDebug/repairAllFiles', error);
     }
   };
 
@@ -373,7 +387,8 @@ export function DashDebug() {
       console.log('✅ Test project created:', result);
       return 'success';
     } catch (error) {
-      console.error('❌ Failed to create test project:', error);
+  console.error('❌ Failed to create test project:', error);
+  reportError('dashDebug/testConvexProject', error);
       return 'error';
     }
   };
@@ -392,7 +407,8 @@ export function DashDebug() {
       console.log('✅ Test social post created:', result);
       return 'success';
     } catch (error) {
-      console.error('❌ Failed to create test social post:', error);
+  console.error('❌ Failed to create test social post:', error);
+  reportError('dashDebug/testConvexSocialPost', error);
       return 'error';
     }
   };
@@ -417,7 +433,8 @@ export function DashDebug() {
       const result = await createCalendarTestPost({ userId: 'debug-user' });
       console.log('✅ Calendar test post created:', result);
     } catch (error) {
-      console.error('❌ Failed to create calendar test post:', error);
+  console.error('❌ Failed to create calendar test post:', error);
+  reportError('dashDebug/runCalendarTestPost', error);
     }
   };
 
@@ -427,7 +444,8 @@ export function DashDebug() {
       const result = await createCalendarTestPostAuth();
       console.log('✅ Calendar authenticated test post created:', result);
     } catch (error) {
-      console.error('❌ Failed to create calendar authenticated test post:', error);
+  console.error('❌ Failed to create calendar authenticated test post:', error);
+  reportError('dashDebug/runCalendarAuthTestPost', error);
     }
   };
 
@@ -437,7 +455,8 @@ export function DashDebug() {
       const result = await createCalendarRealPost({ userId: 'debug-user' });
       console.log('✅ Calendar real post created:', result);
     } catch (error) {
-      console.error('❌ Failed to create calendar real post:', error);
+  console.error('❌ Failed to create calendar real post:', error);
+  reportError('dashDebug/runCalendarRealPost', error);
     }
   };
 
@@ -447,7 +466,8 @@ export function DashDebug() {
       const result = await resetAndCreateCalendarExamples({ userId: 'debug-user' });
       console.log('✅ Calendar examples reset and created:', result);
     } catch (error) {
-      console.error('❌ Failed to reset and create calendar examples:', error);
+  console.error('❌ Failed to reset and create calendar examples:', error);
+  reportError('dashDebug/runCalendarResetAndCreateExamples', error);
     }
   };
 
@@ -465,6 +485,8 @@ export function DashDebug() {
 
   return (
     <div className="h-full bg-[#181818] text-[#cccccc] flex flex-col">
+      {/* Global error capture hooks */}
+      <ErrorBoundaryClient />
       <div className="p-2">
         <div className="flex items-center justify-between text-xs uppercase text-[#858585] px-2 py-1">
           <span>Debug Console</span>
@@ -708,6 +730,51 @@ export function DashDebug() {
           )}
         </div>
         
+        {/* Errors */}
+        <div className="rounded bg-[#1e1e1e] border border-[#2d2d2d]">
+          <button
+            onClick={() => toggleSection('errors')}
+            className="w-full flex items-center gap-2 p-2 hover:bg-[#2d2d2d]/30 transition-colors"
+          >
+            {expandedSections.has('errors') ?
+              <ChevronDown className="w-3.5 h-3.5 text-[#858585]" /> :
+              <ChevronRight className="w-3.5 h-3.5 text-[#858585]" />
+            }
+            <XCircle className="w-3.5 h-3.5 text-red-400" />
+            <span className="text-xs font-medium flex-1 text-left">Errors</span>
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-[#858585]">{errors.length}</span>
+            </div>
+          </button>
+          {expandedSections.has('errors') && (
+            <div className="px-2 pb-2 space-y-2">
+              <Separator className="bg-[#2d2d2d]" />
+              <div className="space-y-1 max-h-48 overflow-auto pr-1">
+                {errors.length === 0 && (
+                  <div className="text-[10px] text-[#858585] px-1">No errors recorded</div>
+                )}
+                {errors.map((e) => (
+                  <div key={e.id} className="text-[10px] text-[#cccccc] bg-[#2a2a2a]/50 rounded p-1 border border-[#2d2d2d]">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">{e.source ?? 'unknown'}</span>
+                      <button onClick={() => removeError(e.id)} className="text-[#858585] hover:text-[#cccccc]">clear</button>
+                    </div>
+                    <div className="text-[#ff6b6b] break-words">{e.message}</div>
+                    {e.stack && <div className="text-[#858585] mt-1 whitespace-pre-wrap break-words line-clamp-4">{e.stack}</div>}
+                    <div className="text-[#6b6b6b] mt-1">{new Date(e.timestamp).toLocaleTimeString()}</div>
+                  </div>
+                ))}
+              </div>
+              {errors.length > 0 && (
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-xs text-[#858585]">Clear all</span>
+                  <button onClick={clearErrors} className="text-xs text-[#ff6b6b] hover:text-[#ff5252] underline-offset-2 hover:underline">Clear</button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Storage Management */}
         <div className="rounded bg-[#1e1e1e] border border-[#2d2d2d]">
           <button

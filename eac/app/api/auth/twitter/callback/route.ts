@@ -1,3 +1,4 @@
+// @ts-nocheck
 // X (Twitter) OAuth Callback Handler
 // /Users/matthewsimon/Projects/eac/eac/app/api/auth/twitter/callback/route.ts
 

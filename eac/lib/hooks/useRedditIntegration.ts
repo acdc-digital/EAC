@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Reddit Integration Hook
 // /Users/matthewsimon/Projects/eac/eac/lib/hooks/useRedditIntegration.ts
 

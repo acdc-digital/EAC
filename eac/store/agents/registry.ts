@@ -92,7 +92,8 @@ export class AgentRegistry {
     agentId: string,
     toolId: string,
     input: string,
-    convexMutations: any
+    convexMutations: any,
+    sessionId?: string
   ): Promise<string> {
     const agent = this.getAgent(agentId);
     if (!agent) {
@@ -104,7 +105,7 @@ export class AgentRegistry {
       throw new Error(`Tool not found: ${toolId} for agent ${agentId}`);
     }
 
-    return await agent.execute(tool, input, convexMutations);
+    return await agent.execute(tool, input, convexMutations, sessionId);
   }
 
   /**

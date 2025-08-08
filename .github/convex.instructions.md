@@ -4,11 +4,11 @@ This file contains instructions for GitHub Copilot when working with Convex in t
 
 ## Project Architecture
 
-**Important**: Convex functions are located at the **root level** in `/convex/`, while the Next.js app is in `/eac/`.
+**Important**: In this monorepo, the Next.js app and Convex backend live under `/eac/`.
 
-- Convex backend: `/convex/` (root level)
-- Next.js frontend: `/eac/` (sub-directory)
-- Import path from frontend: `import { api } from '../convex/_generated/api';`
+- Convex backend: `/eac/convex/`
+- Next.js frontend: `/eac/`
+- Import path from frontend (tsconfig alias): `import { api } from '@/convex/_generated/api';`
 
 ## Database Schema and Functions
 
@@ -229,6 +229,18 @@ if (!user) {
 - Use pagination for large datasets
 - Create appropriate indexes for your query patterns
 - Avoid N+1 queries by batching database calls when possible
+
+### Agent & Token Model Notes
+
+- Slash commands normalized: `/instructions`, `/twitter`, `/create-project`, `/create-file`, `/schedule`.
+- `chatMessages` includes `role: 'thinking'` (non-billable), `interactiveComponent`, and `processIndicator` fields.
+- `chatSessions` aggregates `totalTokens`, `totalInputTokens`, `totalOutputTokens`, `totalCost`; keep invariants consistent.
+
+### GPT‑5 Ready Guidance
+
+- Keep server functions deterministic and idempotent where possible.
+- Validate all inputs with `v.*` and return typed, minimal payloads.
+- Do not store or log API secrets; prefer Convex environment variables/KMS.
 
 ## Common Patterns
 

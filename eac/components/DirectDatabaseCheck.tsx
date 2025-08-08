@@ -4,6 +4,7 @@
 "use client";
 
 import { api } from "@/convex/_generated/api";
+import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { useState } from "react";
 
@@ -12,9 +13,8 @@ export function DirectDatabaseCheck() {
   
   // Direct query to database - no caching, no hooks, just raw data
   // The forceRefreshKey will cause the component to re-render and create a fresh query
-  const rawConnections = useQuery(api.reddit.getSocialConnections, { 
-    userId: 'temp-user-id'
-  });
+  const { userId } = useAuth();
+  const rawConnections = useQuery(api.reddit.getSocialConnections, userId ? { userId } : "skip");
 
   const handleForceRefresh = () => {
     console.log('🔄 FORCING DATABASE REFRESH...');

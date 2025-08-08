@@ -17,22 +17,22 @@ import { useTrash } from "@/lib/hooks/useTrash";
 import { useEditorStore, useSidebarStore } from "@/store";
 import { useConvexAuth, useMutation } from "convex/react";
 import {
-  AtSign,
-  Braces,
-  Camera,
-  ChevronDown,
-  ChevronRight,
-  ChevronsDown,
-  FileCode,
-  FileSpreadsheet,
-  FileText,
-  FileType,
-  Folder,
-  GripVertical,
-  MessageSquare,
-  Pin,
-  Plus,
-  X
+    AtSign,
+    Braces,
+    Camera,
+    ChevronDown,
+    ChevronRight,
+    ChevronsDown,
+    FileCode,
+    FileSpreadsheet,
+    FileText,
+    FileType,
+    Folder,
+    GripVertical,
+    MessageSquare,
+    Pin,
+    Plus,
+    X
 } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
 import { DashAgents } from "./dashAgents";
@@ -379,25 +379,28 @@ export function DashSidebar({ activePanel }: SidebarProps) {
           isSystemFolder: true, // Mark as system folder (non-deletable)
           children: [
             // Show instruction files that belong to this project
-            ...(instructionFiles || []).map(file => ({
-              id: file._id,
-              name: file.name,
-              icon: FileText, // Use FileText icon for instruction files
-              type: 'markdown' as const, // Instructions are markdown files
-              file: {
+            ...(instructionFiles || []).map(file => {
+              const displayName = file.name.endsWith('.md') ? file.name.replace(/\.md$/i, '') : file.name;
+              return {
                 id: file._id,
-                name: file.name,
-                icon: FileText,
-                type: 'markdown' as const,
-                category: 'project' as const,
-                content: file.content || '',
-                filePath: file.path || `/instructions/${file.name}`,
-                createdAt: new Date(file._creationTime),
-                modifiedAt: new Date(file._creationTime),
-                folderId: `instructions-${instructionsProject._id}`,
-                convexId: file._id,
-              },
-            }))
+                name: displayName,
+                icon: FileText, // Use FileText icon for instruction files
+                type: 'markdown' as const, // Instructions are markdown files
+                file: {
+                  id: file._id,
+                  name: displayName,
+                  icon: FileText,
+                  type: 'markdown' as const,
+                  category: 'project' as const,
+                  content: file.content || '',
+                  filePath: file.path || `/instructions/${file.name}`,
+                  createdAt: new Date(file._creationTime),
+                  modifiedAt: new Date(file._creationTime),
+                  folderId: `instructions-${instructionsProject._id}`,
+                  convexId: file._id,
+                },
+              };
+            })
           ]
         });
       }
@@ -697,7 +700,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                   aria-label="Create new project"
                   title={isAuthenticated ? "Create new project" : "Authentication required"}
                 >
-                  <Plus className="w-3 h-3" />
+                  <Plus className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => {
@@ -714,7 +717,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                   aria-label="Collapse all folders"
                   title={isAuthenticated ? "Collapse all folders" : "Authentication required"}
                 >
-                  <ChevronsDown className="w-3 h-3" />
+                  <ChevronsDown className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => {
@@ -731,7 +734,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                   aria-label="Close all tabs"
                   title={isAuthenticated ? "Close all tabs" : "Authentication required"}
                 >
-                  <X className="w-3 h-3" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -812,14 +815,14 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                     className={`flex items-center flex-1 text-left cursor-pointer`}
                   >
                     {isOpen ? (
-                      <ChevronDown className="w-3 h-3 mr-1 text-[#858585] cursor-pointer" />
+                      <ChevronDown className="w-4 h-4 mr-1 text-[#858585] cursor-pointer" />
                     ) : (
-                      <ChevronRight className="w-3 h-3 mr-1 text-[#858585] cursor-pointer" />
+                      <ChevronRight className="w-4 h-4 mr-1 text-[#858585] cursor-pointer" />
                     )}
                     {section.icon && typeof section.icon === 'function' ? (
-                      <section.icon className="w-4 h-4 mr-1 text-[#c09553]" />
+                      <section.icon className="w-5 h-5 mr-1 text-[#c09553]" />
                     ) : (
-                      <Folder className="w-4 h-4 mr-1 text-[#c09553]" />
+                      <Folder className="w-5 h-5 mr-1 text-[#c09553]" />
                     )}
                     {isCurrentlyRenamingFolder ? (
                       <input
@@ -842,8 +845,8 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                         aria-label="Enter folder name"
                       />
                     ) : (
-                      <div className="flex items-center">
-                        <span className="text-xs text-[#cccccc]">{section.name}</span>
+                      <div className="flex items-center min-w-0">
+                        <span className="text-xs text-[#cccccc] truncate block max-w-full">{section.name}</span>
                         {isPinnedFolder && (
                           <div title="Pinned folder">
                             <Pin className="w-3 h-3 ml-1 text-[#007acc]" />
@@ -975,14 +978,14 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                                 onDragEnd={isProjectFile && !isCurrentlyRenaming ? handleFileDragEnd : undefined}
                               >
                                 <div
-                                  className="flex items-center flex-1"
+                                  className="flex items-center flex-1 min-w-0"
                                   onClick={() => {
                                     if (isProjectFile && file.file && !isCurrentlyRenaming) {
                                       openTab(file.file);
                                     }
                                   }}
                                 >
-                                  <FileIconComponent className="w-3 h-3 mr-2 text-[#c09553]" />
+                                  <FileIconComponent className="w-5 h-5 mr-2 text-[#c09553]" />
                                   {isCurrentlyRenaming ? (
                                     <input
                                       type="text"
@@ -1004,7 +1007,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                                       aria-label="Enter file name"
                                     />
                                   ) : (
-                                    <span className="text-xs text-[#cccccc]">{file.name}</span>
+                                    <span className="text-xs text-[#cccccc] block max-w-full overflow-hidden text-ellipsis whitespace-nowrap" title={file.name}>{file.name}</span>
                                   )}
                                 </div>
                                 {isProjectFile && file.file && !isCurrentlyRenaming && (
@@ -1051,7 +1054,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                           onDragEnd={renamingFile?.fileId !== section.file.id ? handleFileDragEnd : undefined}
                         >
                           <div
-                            className="flex items-center flex-1"
+                            className="flex items-center flex-1 min-w-0"
                             onClick={() => {
                               const isCurrentlyRenaming = renamingFile?.fileId === section.file.id;
                               if (section.file && !isCurrentlyRenaming) {
@@ -1061,7 +1064,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                           >
                             {(() => {
                               const IconComponent = getFileIconComponent(section.type);
-                              return <IconComponent className="w-3 h-3 mr-2 text-[#c09553]" />;
+                              return <IconComponent className="w-5 h-5 mr-2 text-[#c09553]" />;
                             })()}
                             {renamingFile?.fileId === section.file.id ? (
                               <input
@@ -1084,7 +1087,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                                 aria-label="Enter file name"
                               />
                             ) : (
-                              <span className="text-xs text-[#cccccc]">{section.name}</span>
+                              <span className="text-xs text-[#cccccc] block max-w-full overflow-hidden text-ellipsis whitespace-nowrap" title={section.name}>{section.name}</span>
                             )}
                           </div>
                           {renamingFile?.fileId !== section.file.id && (

@@ -136,6 +136,14 @@
       "static/chunks/_app-pages-browser_lib_twitter-tools_fileNamer_ts.js"
     ]
   },
+  "store/agents/instructionsAgent.ts -> ../../convex/_generated/api": {
+    "id": "store/agents/instructionsAgent.ts -> ../../convex/_generated/api",
+    "files": []
+  },
+  "store/agents/instructionsAgent.ts -> convex/browser": {
+    "id": "store/agents/instructionsAgent.ts -> convex/browser",
+    "files": []
+  },
   "store/agents/schedulingAgent.ts -> @/store": {
     "id": "store/agents/schedulingAgent.ts -> @/store",
     "files": []

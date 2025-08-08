@@ -18,7 +18,7 @@ interface FileCreationDropdownProps {
 }
 
 export function FileCreationDropdown({ isOpen, onClose, preselectedFolder, buttonRef }: FileCreationDropdownProps) {
-  const { createNewFile, projectFolders } = useEditorStore();
+  const { createNewFile, projectFolders, updateFileConvexId } = useEditorStore();
   const { createFile } = useFiles(null); // We'll get the project ID from the selected folder
   const [newFileName, setNewFileName] = useState('');
   const [newFileType, setNewFileType] = useState<ProjectFile['type']>('markdown');
@@ -65,31 +65,36 @@ export function FileCreationDropdown({ isOpen, onClose, preselectedFolder, butto
           
           try {
             // First create the file locally
-            createNewFile(newFileName.trim(), newFileType, 'project', newFileFolderId === 'no-folder' ? undefined : newFileFolderId);        // If we have a folder with a convexId, also create the file in Convex
-        const selectedFolder = projectFolders.find(f => f.id === newFileFolderId);
-        if (selectedFolder?.convexId) {
-          try {
-            const convexFile = await createFile({
-              name: newFileName.trim(),
-              type: getConvexFileType(newFileType),
-              projectId: selectedFolder.convexId as Id<"projects">,
-              content: getDefaultContentForType(newFileType),
-              extension: getFileExtension(newFileType),
-              platform: getPlatformForFileType(newFileType),
-              size: 0,
-            });
-            
-            console.log(`✅ File "${newFileName.trim()}" created in database:`, convexFile);
-            
-            // TODO: Update the local file with the convexId
-            // This would require updating the editor store to support updating convexId after creation
-            
-          } catch (error) {
-            console.error(`❌ Error creating file "${newFileName.trim()}" in database:`, error);
-          }
-        } else {
-          console.log(`📁 File "${newFileName.trim()}" created locally only (no project Convex ID)`);
-        }
+            const localFileId = createNewFile(newFileName.trim(), newFileType, 'project', newFileFolderId === 'no-folder' ? undefined : newFileFolderId);
+
+            // If we have a folder with a convexId, also create the file in Convex
+            const selectedFolder = projectFolders.find(f => f.id === newFileFolderId);
+            if (selectedFolder?.convexId) {
+              try {
+                const convexFile = await createFile({
+                  name: newFileName.trim(),
+                  type: getConvexFileType(newFileType),
+                  projectId: selectedFolder.convexId as Id<"projects">,
+                  content: getDefaultContentForType(newFileType),
+                  extension: getFileExtension(newFileType),
+                  platform: getPlatformForFileType(newFileType),
+                  size: 0,
+                });
+                
+                console.log(`✅ File "${newFileName.trim()}" created in database:`, convexFile);
+                
+                // Update the local file with the convex ID to link them
+                if (localFileId && convexFile?._id) {
+                  updateFileConvexId(localFileId, convexFile._id);
+                  console.log(`🔗 Linked local file ${localFileId} with Convex ID ${convexFile._id}`);
+                }
+                
+              } catch (error) {
+                console.error(`❌ Error creating file "${newFileName.trim()}" in database:`, error);
+              }
+            } else {
+              console.log(`📁 File "${newFileName.trim()}" created locally only (no project Convex ID)`);
+            }
         
       } catch (error) {
         console.error('Error creating file:', error);

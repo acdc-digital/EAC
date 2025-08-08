@@ -499,6 +499,9 @@ export const getInstructionFiles = query({
   },
 });
 
+// One-time migration: Rename instruction files to human-readable titles
+// (Removed) migrateInstructionFilenames mutation per user request
+
 // Soft delete a file (mark as deleted but keep in database)
 export const softDeleteFile = mutation({
   args: {
@@ -753,7 +756,11 @@ export const createContentCreationFile = mutation({
 export const getAllUserFiles = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await getCurrentUserId(ctx);
+    // Be tolerant of first-run where auth identity exists but user profile isn't created yet
+    const userId = await getCurrentUserIdOptional(ctx);
+    if (!userId) {
+      return [];
+    }
     
     // Get all projects owned by the user
     const userProjects = await ctx.db
