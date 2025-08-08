@@ -11,9 +11,11 @@ import { useAgentStore, useEditorStore } from "@/store";
 import { useChatStore } from "@/store/terminal/chat";
 import { useSessionStore } from "@/store/terminal/session";
 import { useUser } from "@clerk/nextjs";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import React, { useEffect, useRef, useState } from "react";
+import { EditInstructionsInput } from "./editInstructionsInput";
 import { FileNameInput } from "./fileNameInput";
+import { FileSelector } from "./fileSelector";
 import { FileTypeSelector } from "./fileTypeSelector";
 import { ProjectNameInput } from "./projectNameInput";
 import { ProjectSelector } from "./projectSelector";
@@ -76,6 +78,8 @@ export function ChatMessages() {
   const createProject = useMutation(api.projects.createProject);
   const createFile = useMutation(api.files.createFile);
   const updateInteractiveComponent = useMutation(api.chat.updateInteractiveComponent);
+  const editFileWithAI = useAction(api.editorActions.editFileWithAI);
+  const updateFileContent = useMutation(api.files.updateFileContent);
   const allPosts = useQuery(api.socialPosts.getAllPosts, {});
   const allProjects = useQuery(api.projects.getProjects, {});
   const instructionContext = useInstructionContext();
@@ -351,6 +355,20 @@ ${content}
       getAllPosts: async () => {
         return allPosts || [];
       },
+      editFileWithAI: async (params: any) => {
+        return await editFileWithAI({
+          fileName: params.fileName,
+          originalContent: params.originalContent,
+          editInstructions: params.editInstructions,
+          fileType: params.fileType,
+        });
+      },
+      updateFileContent: async (params: any) => {
+        return await updateFileContent({
+          fileId: params.fileId,
+          content: params.content,
+        });
+      },
     };
   };
 
@@ -381,13 +399,38 @@ Please start a new session to continue chatting.`,
       setMessage("");
       
       // Check if this is an agent command when an agent is active
+      // BUT only route to editor agent if it has a selected file and is waiting for edit instructions
       if (activeAgentId && !messageContent.startsWith('/')) {
-        console.log('🤖 Routing to active agent:', activeAgentId);
-        try {
-          console.log(`🤖 Executing agent ${activeAgentId} with message: ${messageContent}`);
+        console.log('🤖 Checking if should route to active agent:', activeAgentId);
+        
+        let shouldRouteToAgent = true;
+        
+        // Special handling for editor agent - only route if file is selected and waiting for edit instructions
+        if (activeAgentId === 'editor') {
+          const { EditorAgent } = await import('@/store/agents/editorAgent');
+          const hasSelectedFile = EditorAgent.selectedFile !== null;
+          const isWaitingForEditInstructions = EditorAgent.currentStep === 'edit-request';
           
-          // Create convex mutations for the agent
-          const convexMutations = createConvexMutations();
+          console.log('🔍 Editor agent state check:', {
+            hasSelectedFile,
+            isWaitingForEditInstructions,
+            selectedFile: EditorAgent.selectedFile,
+            currentStep: EditorAgent.currentStep
+          });
+          
+          // If no file selected, agent should show file selector
+          // If file selected and waiting for instructions, agent should process the edit
+          // Always route to editor agent when it's active
+          shouldRouteToAgent = true;
+        }
+        
+        if (shouldRouteToAgent) {
+          console.log('🤖 Routing to active agent:', activeAgentId);
+          try {
+            console.log(`🤖 Executing agent ${activeAgentId} with message: ${messageContent}`);
+            
+            // Create convex mutations for the agent
+            const convexMutations = createConvexMutations();
           
           // Check if the last message was an agent waiting for input
           const lastMessage = messages && messages.length > 0 ? messages[messages.length - 1] : null;
@@ -474,6 +517,32 @@ Please start a new session to continue chatting.`,
               console.log('Clearing active agent process - agent completed');
               // Clear active process when agent completes
               setActiveAgentProcess(null);
+              
+              // For editor agent, keep it active during the file selection workflow
+              // Only clear it when the editing is actually complete
+              if (activeAgentId === 'editor') {
+                // Check if editor agent is waiting for edit instructions after file selection
+                const { EditorAgent } = await import('@/store/agents/editorAgent');
+                if (EditorAgent.currentStep === 'edit-request' && EditorAgent.selectedFile) {
+                  console.log('Keeping editor agent active - waiting for edit instructions');
+                  // Keep the agent active to receive editing instructions
+                } else if (EditorAgent.currentStep === 'file-selection') {
+                  console.log('Keeping editor agent active - waiting for file selection');
+                  // Keep the agent active during file selection
+                } else {
+                  console.log('Clearing editor agent - editing complete');
+                  setActiveAgent(null);
+                }
+              } else {
+                // Clear active agent ID if the result indicates interactive components are shown
+                // This prevents subsequent text input from being routed back to the agent
+                if (result.includes("Select a file to edit") || 
+                    result.includes("file_selector") ||
+                    result.includes("Choose a file from the selector")) {
+                  console.log('Clearing active agent ID - interactive component shown');
+                  setActiveAgent(null);
+                }
+              }
             }
             
             // Store agent result with process indicators (user message already stored above)
@@ -518,6 +587,7 @@ Please start a new session to continue chatting.`,
           
           return;
         }
+        } // Close the if (shouldRouteToAgent) block
       }
       
       // Check if this looks like a natural language MCP query
@@ -746,6 +816,179 @@ Please start a new session to continue chatting.`,
                             className="mb-2"
                           />
                         )}
+
+                        {msg.interactiveComponent.type === 'file_selector' && (
+                          <FileSelector
+                            disabled={msg.interactiveComponent.status === 'completed'}
+                            selectedFile={msg.interactiveComponent.status === 'completed' ? msg.interactiveComponent.result?.selectedFile : undefined}
+                            onFileSelected={async (file) => {
+                              try {
+                                console.log('🔥 [FileSelector] File selected callback triggered:', file);
+                                
+                                // Use the file name for database storage but pass complete object to agent
+                                const filePath = file.name || file.path || file.id;
+                                
+                                console.log('🔥 [FileSelector] Updating interactive component status');
+                                // Update the component status to completed
+                                await updateInteractiveComponent({
+                                  messageId: msg._id,
+                                  status: 'completed',
+                                  result: { selectedFile: filePath },
+                                });
+
+                                console.log('🔥 [FileSelector] Continuing the editing process');
+                                // Continue the editing process
+                                const convexMutations = createConvexMutations();
+                                const editorAgent = agents.find(a => a.id === 'editor');
+                                if (editorAgent) {
+                                  console.log('🔥 [FileSelector] Found editor agent, storing user message');
+                                  // Send user message showing the selection
+                                  await storeChatMessage({
+                                    role: 'user',
+                                    content: `Selected file: ${file.name}`,
+                                    sessionId: sessionId,
+                                    processIndicator: {
+                                      type: 'continuing',
+                                      processType: 'file_selection',
+                                      color: 'blue',
+                                    },
+                                  });
+
+                                  console.log('🔥 [FileSelector] Calling handleFileSelected method');
+                                  // Call the editor agent's handleFileSelected method with complete file object
+                                  // Need to import the actual agent instance, not use the store agent data
+                                  try {
+                                    const { editorAgent: actualEditorAgent } = await import('@/store/agents/editorAgent');
+                                    console.log('🔥 [FileSelector] Imported actual editor agent instance');
+                                    console.log('🔥 [FileSelector] Agent has handleFileSelected:', 'handleFileSelected' in actualEditorAgent);
+                                    
+                                    if ('handleFileSelected' in actualEditorAgent) {
+                                      await actualEditorAgent.handleFileSelected(sessionId, file);
+                                      console.log('🔥 [FileSelector] handleFileSelected completed successfully');
+                                    } else {
+                                      console.error('❌ [FileSelector] handleFileSelected method not found on editor agent');
+                                    }
+                                  } catch (error) {
+                                    console.error('❌ [FileSelector] Error calling handleFileSelected:', error);
+                                  }
+                                    
+                                  console.log('🔥 [FileSelector] Storing message with edit instructions input');
+                                  // Show edit instructions input component
+                                  await storeChatMessage({
+                                    role: 'assistant',
+                                    content: `✅ **File Selected: ${file.name}**
+
+📄 **The file has been opened in the editor tab.**`,
+                                    sessionId,
+                                    interactiveComponent: {
+                                      type: 'edit_instructions_input',
+                                      status: 'pending',
+                                      data: {
+                                        fileName: file.name,
+                                        placeholder: 'Describe what changes you want to make to this file...',
+                                        examples: [
+                                          'Add a section about best practices',
+                                          'Update the pricing information',
+                                          'Make the tone more professional',
+                                          'Fix any grammar or spelling errors',
+                                          'Add examples and code snippets'
+                                        ]
+                                      }
+                                    }
+                                  });
+                                }
+                              } catch (error) {
+                                console.error('Error handling file selection:', error);
+                              }
+                            }}
+                            onCancel={async () => {
+                              try {
+                                await updateInteractiveComponent({
+                                  messageId: msg._id,
+                                  status: 'cancelled',
+                                });
+                                await storeChatMessage({
+                                  role: 'assistant',
+                                  content: '❌ File editing cancelled. You can start a new edit request anytime.',
+                                  sessionId,
+                                });
+                              } catch (error) {
+                                console.error('Error cancelling file selection:', error);
+                              }
+                            }}
+                            className="mb-2"
+                          />
+                        )}
+
+                        {msg.interactiveComponent.type === 'edit_instructions_input' && (
+                          <EditInstructionsInput
+                            placeholder={msg.interactiveComponent.data?.placeholder}
+                            fileName={msg.interactiveComponent.data?.fileName}
+                            examples={msg.interactiveComponent.data?.examples}
+                            onInstructionsSubmitted={async (instructions) => {
+                              try {
+                                // Update the component status to completed
+                                await updateInteractiveComponent({
+                                  messageId: msg._id,
+                                  status: 'completed',
+                                  result: { instructions },
+                                });
+
+                                // Send user message showing the edit instructions
+                                await storeChatMessage({
+                                  role: 'user',
+                                  content: instructions,
+                                  sessionId: sessionId,
+                                  processIndicator: {
+                                    type: 'continuing',
+                                    processType: 'edit_instructions',
+                                    color: 'blue',
+                                  },
+                                });
+
+                                // Continue the editing process using agent registry
+                                const convexMutations = createConvexMutations();
+                                const result = await executeAgentTool(
+                                  'editor',
+                                  'edit-file',
+                                  instructions,
+                                  convexMutations,
+                                  sessionId
+                                );
+
+                                await storeChatMessage({
+                                  role: 'assistant',
+                                  content: result,
+                                  sessionId: sessionId,
+                                });
+                              } catch (error) {
+                                console.error('Error processing edit instructions:', error);
+                                await storeChatMessage({
+                                  role: 'assistant',
+                                  content: `❌ **Error processing edit instructions**\n\n${error instanceof Error ? error.message : 'Unknown error occurred'}`,
+                                  sessionId: sessionId,
+                                });
+                              }
+                            }}
+                            onCancel={async () => {
+                              try {
+                                await updateInteractiveComponent({
+                                  messageId: msg._id,
+                                  status: 'cancelled',
+                                });
+                                await storeChatMessage({
+                                  role: 'assistant',
+                                  content: '❌ Edit instructions cancelled. You can start a new edit request anytime.',
+                                  sessionId,
+                                });
+                              } catch (error) {
+                                console.error('Error cancelling edit instructions:', error);
+                              }
+                            }}
+                            className="mb-2"
+                          />
+                        )}
+
                         {msg.interactiveComponent.type === 'project_selector' && msg.interactiveComponent.data?.projectNameInput && (
                           <ProjectNameInput
                             placeholder={msg.interactiveComponent.data?.placeholder}

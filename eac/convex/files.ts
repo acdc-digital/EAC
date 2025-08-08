@@ -787,3 +787,32 @@ export const getAllUserFiles = query({
     return allFiles;
   },
 });
+
+// Update file content
+export const updateFileContent = mutation({
+  args: {
+    fileId: v.id("files"),
+    content: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getCurrentUserId(ctx);
+    
+    // Get the file and verify ownership through project
+    const file = await ctx.db.get(args.fileId);
+    if (!file) {
+      throw new Error("File not found");
+    }
+    
+    // Verify project ownership
+    await verifyProjectOwnership(ctx, file.projectId, userId);
+    
+    // Update the file content
+    await ctx.db.patch(args.fileId, {
+      content: args.content,
+      size: args.content.length,
+      lastModified: Date.now(),
+    });
+    
+    return await ctx.db.get(args.fileId);
+  },
+});

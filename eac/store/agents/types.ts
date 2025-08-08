@@ -66,7 +66,7 @@ export interface ConvexMutations {
       color: 'blue' | 'green';
     };
     interactiveComponent?: {
-      type: 'project_selector' | 'file_name_input' | 'file_type_selector';
+      type: 'project_selector' | 'file_name_input' | 'file_type_selector' | 'file_selector' | 'edit_instructions_input';
       data?: any;
       status: 'pending' | 'completed' | 'cancelled';
     };
@@ -111,6 +111,16 @@ export interface ConvexMutations {
     platformData?: string;
     scheduledFor: number;
     userId?: string;
+  }) => Promise<unknown>;
+  editFileWithAI?: (params: {
+    fileName: string;
+    originalContent: string;
+    editInstructions: string;
+    fileType?: string;
+  }) => Promise<string>;
+  updateFileContent?: (params: {
+    fileId: string;
+    content: string;
   }) => Promise<unknown>;
 }
 
