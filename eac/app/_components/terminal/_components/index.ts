@@ -4,6 +4,7 @@
 export { AgentsPanel } from './agentsPanel';
 export { ChatInput } from './chatInput';
 export { ChatMessages } from './chatMessages';
+export { ExtensionsPanel } from './extensionsPanel';
 export { RealTerminal } from './realTerminal';
 export { SessionsPanel } from './sessionsPanel';
 export { SessionsRow } from './sessionsRow';

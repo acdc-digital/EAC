@@ -17,6 +17,8 @@ interface SessionState {
   activeSessionId: string | null;
   isSessionsPanelOpen: boolean;
   isAgentsPanelOpen: boolean;
+  isExtensionsPanelOpen: boolean;
+  activeExtensionId: string | null;
   
   // Session management
   setSessions: (sessions: ChatSession[]) => void;
@@ -26,11 +28,16 @@ interface SessionState {
   deleteSession: (sessionId: string) => void; // New function for soft delete
   setActiveSession: (sessionId: string | null) => void;
   
+  // Extension selection
+  setActiveExtension: (extensionId: string | null) => void;
+  
   // UI state
   toggleSessionsPanel: () => void;
   setSessionsPanelOpen: (open: boolean) => void;
   toggleAgentsPanel: () => void;
   setAgentsPanelOpen: (open: boolean) => void;
+  toggleExtensionsPanel: () => void;
+  setExtensionsPanelOpen: (open: boolean) => void;
   
   // Session creation
   createNewSession: () => string;
@@ -50,6 +57,8 @@ export const useSessionStore = create<SessionState>()(
       activeSessionId: null,
       isSessionsPanelOpen: true, // Default to open so Sessions view is shown by default
       isAgentsPanelOpen: false,
+      isExtensionsPanelOpen: false,
+      activeExtensionId: null,
       
       setSessions: (sessions) => {
         set({ sessions });
@@ -104,29 +113,53 @@ export const useSessionStore = create<SessionState>()(
       toggleSessionsPanel: () => {
         set(state => ({
           isSessionsPanelOpen: !state.isSessionsPanelOpen,
-          isAgentsPanelOpen: false // Close agents panel when opening sessions
+          isAgentsPanelOpen: false, // Close agents panel when opening sessions
+          isExtensionsPanelOpen: false // Close extensions panel when opening sessions
         }));
       },
       
       setSessionsPanelOpen: (open) => {
         set({ 
           isSessionsPanelOpen: open,
-          isAgentsPanelOpen: open ? false : get().isAgentsPanelOpen // Close agents if opening sessions
+          isAgentsPanelOpen: open ? false : get().isAgentsPanelOpen, // Close agents if opening sessions
+          isExtensionsPanelOpen: open ? false : get().isExtensionsPanelOpen // Close extensions if opening sessions
         });
       },
 
       toggleAgentsPanel: () => {
         set(state => ({
           isAgentsPanelOpen: !state.isAgentsPanelOpen,
-          isSessionsPanelOpen: false // Close sessions panel when opening agents
+          isSessionsPanelOpen: false, // Close sessions panel when opening agents
+          isExtensionsPanelOpen: false // Close extensions panel when opening agents
         }));
       },
       
       setAgentsPanelOpen: (open) => {
         set({ 
           isAgentsPanelOpen: open,
-          isSessionsPanelOpen: open ? false : get().isSessionsPanelOpen // Close sessions if opening agents
+          isSessionsPanelOpen: open ? false : get().isSessionsPanelOpen, // Close sessions if opening agents
+          isExtensionsPanelOpen: open ? false : get().isExtensionsPanelOpen // Close extensions if opening agents
         });
+      },
+
+      toggleExtensionsPanel: () => {
+        set(state => ({
+          isExtensionsPanelOpen: !state.isExtensionsPanelOpen,
+          isSessionsPanelOpen: false, // Close sessions panel when opening extensions
+          isAgentsPanelOpen: false // Close agents panel when opening extensions
+        }));
+      },
+      
+      setExtensionsPanelOpen: (open) => {
+        set({ 
+          isExtensionsPanelOpen: open,
+          isSessionsPanelOpen: open ? false : get().isSessionsPanelOpen, // Close sessions if opening extensions
+          isAgentsPanelOpen: open ? false : get().isAgentsPanelOpen // Close agents if opening extensions
+        });
+      },
+
+      setActiveExtension: (extensionId) => {
+        set({ activeExtensionId: extensionId });
       },
       
       createNewSession: () => {
@@ -151,7 +184,9 @@ export const useSessionStore = create<SessionState>()(
       partialize: (state) => ({
         activeSessionId: state.activeSessionId,
         isSessionsPanelOpen: state.isSessionsPanelOpen,
-        isAgentsPanelOpen: state.isAgentsPanelOpen
+        isAgentsPanelOpen: state.isAgentsPanelOpen,
+        isExtensionsPanelOpen: state.isExtensionsPanelOpen,
+        activeExtensionId: state.activeExtensionId
       }),
     }
   )

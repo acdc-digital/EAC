@@ -27,7 +27,8 @@ export default defineSchema({
         v.literal("file_created"), 
         v.literal("project_created"), 
         v.literal("tool_executed"), 
-        v.literal("error")
+        v.literal("error"),
+        v.literal("campaign_created")
       ),
       details: v.optional(v.any()),
     })),
@@ -369,7 +370,7 @@ export default defineSchema({
   agentPosts: defineTable({
     // File identification
     fileName: v.string(),
-    fileType: v.union(v.literal('reddit'), v.literal('twitter')),
+    fileType: v.union(v.literal('reddit'), v.literal('twitter'), v.literal('linkedin'), v.literal('facebook'), v.literal('instagram')),
     
     // Post content
     content: v.string(),
@@ -377,6 +378,10 @@ export default defineSchema({
     
     // Platform-specific data
     platformData: v.optional(v.string()), // JSON string for complex data
+    
+    // Campaign organization
+    campaignId: v.optional(v.string()),
+    batchId: v.optional(v.string()),
     
     // Status tracking
     status: v.union(
@@ -386,6 +391,9 @@ export default defineSchema({
       v.literal('posted'),
       v.literal('failed')
     ),
+    
+    // Post metadata
+    metadata: v.optional(v.string()), // JSON string for campaign metadata
     
     // Submission details
     postId: v.optional(v.string()), // Platform post ID after submission
@@ -401,7 +409,9 @@ export default defineSchema({
   })
     .index("by_fileName", ["fileName"])
     .index("by_status", ["status"])
-    .index("by_fileType", ["fileType"]),
+    .index("by_fileType", ["fileType"])
+    .index("by_campaign", ["campaignId"])
+    .index("by_batch", ["batchId"]),
 
   // Activity logs for history tracking
   activityLogs: defineTable({
@@ -424,4 +434,23 @@ export default defineSchema({
     .index('by_timestamp', ['timestamp'])
     .index('by_category', ['category', 'timestamp'])
     .index('by_type', ['type', 'timestamp']),
+
+  // Campaigns for organizing large-scale marketing campaigns
+  campaigns: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()),
+    startDate: v.string(),
+    endDate: v.string(),
+    status: v.union(v.literal("planning"), v.literal("processing"), v.literal("active"), v.literal("completed"), v.literal("paused")),
+    totalPosts: v.number(),
+    processedPosts: v.number(),
+    platforms: v.array(v.string()),
+    template: v.optional(v.string()), // Instructions content
+    userId: v.optional(v.union(v.string(), v.id("users"))),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status", ["status"])
+    .index("by_date", ["startDate"])
+    .index("by_user", ["userId", "createdAt"]),
 });

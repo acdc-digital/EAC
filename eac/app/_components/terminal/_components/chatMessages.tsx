@@ -17,6 +17,7 @@ import { EditInstructionsInput } from "./editInstructionsInput";
 import { FileNameInput } from "./fileNameInput";
 import { FileSelector } from "./fileSelector";
 import { FileTypeSelector } from "./fileTypeSelector";
+import { MarkdownRenderer } from "./markdownRenderer";
 import { ProjectNameInput } from "./projectNameInput";
 import { ProjectSelector } from "./projectSelector";
 
@@ -77,6 +78,7 @@ export function ChatMessages() {
   const createContentCreationFile = useMutation(api.files.createContentCreationFile);
   const createProject = useMutation(api.projects.createProject);
   const createFile = useMutation(api.files.createFile);
+  const getAllUserFiles = useQuery(api.files.getAllUserFiles, {});
   const updateInteractiveComponent = useMutation(api.chat.updateInteractiveComponent);
   const editFileWithAI = useAction(api.editorActions.editFileWithAI);
   const updateFileContent = useMutation(api.files.updateFileContent);
@@ -324,6 +326,9 @@ ${content}
       getProjects: async () => {
         return allProjects || [];
       },
+      getAllFiles: async () => {
+        return getAllUserFiles || [];
+      },
       storeChatMessage: async (params: any) => {
         return await storeChatMessage({
           role: params.role,
@@ -368,6 +373,17 @@ ${content}
           fileId: params.fileId,
           content: params.content,
         });
+      },
+      // Campaign-related functions (simplified for now)
+      createCampaign: async (params: any) => {
+        // For now, just return a simple campaign ID since the API isn't ready
+        console.log('Campaign creation requested:', params);
+        return { _id: `campaign_${Date.now()}` };
+      },
+      createPostsBatch: async (params: any) => {
+        // For now, just log the batch creation
+        console.log('Batch posts creation requested:', params);
+        return params.posts.map((_: any, index: number) => `post_${Date.now()}_${index}`);
       },
     };
   };
@@ -689,8 +705,10 @@ Please start a new session to continue chatting.`,
                 )}
                 {msg.role === 'assistant' && (
                   <div className={`text-[#4ec9b0] ${isAgentProcessMessage ? 'border-l-4 border-[#4ec9b0] pl-3' : ''}`}>
-                    <span className="text-[#4ec9b0]">🤖 assistant:</span>
-                    <div className="ml-1 text-[#cccccc] whitespace-pre-wrap">{msg.content}</div>
+                    <span className="text-[#4ec9b0]">$ assistant:</span>
+                    <div className="ml-1">
+                      <MarkdownRenderer content={msg.content} />
+                    </div>
                     
                     {/* Interactive Component */}
                     {msg.interactiveComponent && (msg.interactiveComponent.status === 'pending' || msg.interactiveComponent.status === 'completed') && (
@@ -836,12 +854,55 @@ Please start a new session to continue chatting.`,
                                   result: { selectedFile: filePath },
                                 });
 
-                                console.log('🔥 [FileSelector] Continuing the editing process');
-                                // Continue the editing process
+                                console.log('🔥 [FileSelector] Continuing the file selection process');
+                                // Continue the file selection process based on the active agent
                                 const convexMutations = createConvexMutations();
-                                const editorAgent = agents.find(a => a.id === 'editor');
-                                if (editorAgent) {
-                                  console.log('🔥 [FileSelector] Found editor agent, storing user message');
+                                const activeAgent = agents.find(a => a.id === activeAgentId);
+                                
+                                if (activeAgent && activeAgentId === 'director') {
+                                  console.log('🔥 [FileSelector] Found director agent, processing campaign instructions');
+                                  // Send user message showing the selection
+                                  await storeChatMessage({
+                                    role: 'user',
+                                    content: `Selected file: ${file.name}`,
+                                    sessionId: sessionId,
+                                    processIndicator: {
+                                      type: 'continuing',
+                                      processType: 'file_selection',
+                                      color: 'blue',
+                                    },
+                                  });
+
+                                  console.log('🔥 [FileSelector] Executing director agent with file selection');
+                                  try {
+                                    const result = await executeAgentTool(
+                                      activeAgentId,
+                                      activeAgent.tools[0].id, // Use the tool ID instead of command
+                                      `Selected file: ${file.name}`,
+                                      convexMutations,
+                                      sessionId
+                                    );
+                                    
+                                    console.log('🔥 [FileSelector] Director agent execution result:', result);
+                                    
+                                    // Store the director agent's response
+                                    await storeChatMessage({
+                                      role: 'assistant',
+                                      content: result,
+                                      sessionId,
+                                      operation: {
+                                        type: 'tool_executed',
+                                        details: {
+                                          selectedFile: file.name,
+                                          agentType: 'director'
+                                        }
+                                      }
+                                    });
+                                  } catch (error) {
+                                    console.error('❌ [FileSelector] Error executing director agent:', error);
+                                  }
+                                } else if (activeAgent && activeAgentId === 'editor') {
+                                  console.log('🔥 [FileSelector] Found editor agent, processing file edit');
                                   // Send user message showing the selection
                                   await storeChatMessage({
                                     role: 'user',
@@ -856,7 +917,6 @@ Please start a new session to continue chatting.`,
 
                                   console.log('🔥 [FileSelector] Calling handleFileSelected method');
                                   // Call the editor agent's handleFileSelected method with complete file object
-                                  // Need to import the actual agent instance, not use the store agent data
                                   try {
                                     const { editorAgent: actualEditorAgent } = await import('@/store/agents/editorAgent');
                                     console.log('🔥 [FileSelector] Imported actual editor agent instance');
@@ -1292,6 +1352,65 @@ Please start a new session to continue chatting.`,
                               );
                             }
                           }
+
+                          // Check for CMO report generation success
+                          if (msg.content.includes("CMO_REPORT_GENERATED_SUCCESS:")) {
+                            const fileMatch = msg.content.match(/CMO_REPORT_GENERATED_SUCCESS:\s*(.+)$/);
+                            const fileName = fileMatch ? fileMatch[1].trim() : null;
+                            
+                            if (fileName) {
+                              return (
+                                <button
+                                  onClick={() => {
+                                    const { projectFiles } = useEditorStore.getState();
+                                    const file = projectFiles.find(f => f.name === fileName);
+                                    if (file) {
+                                      useEditorStore.getState().openTab(file);
+                                    }
+                                  }}
+                                  className="flex items-center gap-1 text-[#007acc] hover:text-[#4ec9b0] hover:underline cursor-pointer transition-colors text-xs"
+                                >
+                                  <span className="transform rotate-90">↳</span>
+                                  Open Instructions File Tab
+                                </button>
+                              );
+                            }
+                          }
+
+                          // Check for CMO report that needs manual save
+                          if (msg.content.includes("CMO_REPORT_MANUAL_SAVE_NEEDED:")) {
+                            const fileMatch = msg.content.match(/CMO_REPORT_MANUAL_SAVE_NEEDED:\s*(.+)$/);
+                            const fileName = fileMatch ? fileMatch[1].trim() : null;
+                            
+                            if (fileName) {
+                              return (
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      const convexMutations = createConvexMutations();
+                                      // Use the same report content from the message to create instruction file
+                                      const reportMatch = msg.content.match(/📋 \*\*Marketing Campaign Report Generated\*\*([\s\S]*?)⚠️ \*\*Note:/);
+                                      const reportContent = reportMatch ? reportMatch[1].trim() : 'Marketing Campaign Report';
+                                      
+                                      // Execute the instructions agent to create the file
+                                      await executeAgentTool(
+                                        'instructions',
+                                        'natural-language-instructions',
+                                        `Create marketing campaign instruction file named "${fileName}" with the campaign strategy report that was just generated`,
+                                        convexMutations
+                                      );
+                                    } catch (error) {
+                                      console.error('Error creating instruction file:', error);
+                                    }
+                                  }}
+                                  className="flex items-center gap-1 text-[#007acc] hover:text-[#4ec9b0] hover:underline cursor-pointer transition-colors text-xs"
+                                >
+                                  <span className="transform rotate-90">↳</span>
+                                  Create an Instruction File Here
+                                </button>
+                              );
+                            }
+                          }
                           
                           // Check for other success indicators
                           if (msg.content.includes("✅ **File Created Successfully!**") || 
@@ -1303,6 +1422,131 @@ Please start a new session to continue chatting.`,
                           // Default waiting message
                           return <span className="text-[#4ec9b0]">↳ Agent waiting for your input...</span>;
                         })()}
+                      </div>
+                    )}
+
+                    {/* CMO Agent Create Instruction File Button - only appears when CMO agent is active */}
+                    {(() => {
+                      const shouldShow = activeAgentId === 'cmo' && msg.role === 'assistant';
+                      console.log('🔍 Button condition check:', {
+                        activeAgentId,
+                        msgRole: msg.role,
+                        shouldShow,
+                        msgContent: msg.content.substring(0, 50)
+                      });
+                      return shouldShow;
+                    })() && (
+                      <div className="mt-2 ml-1">
+                        <button
+                          onClick={async () => {
+                            try {
+                              // Extract key information from the Campaign Director's response
+                              const content = msg.content;
+                              
+                              // Generate a descriptive filename based on content
+                              let fileName = "campaign-strategy";
+                              
+                              // Try to extract campaign name or type from content
+                              const titleMatch = content.match(/(?:^|\n)#\s*(.+)$/m);
+                              if (titleMatch) {
+                                const title = titleMatch[1].trim().toLowerCase()
+                                  .replace(/[^a-z0-9\s]/g, '')
+                                  .replace(/\s+/g, '-')
+                                  .substring(0, 50);
+                                fileName = title || fileName;
+                              }
+                              
+                              // Add timestamp to ensure uniqueness
+                              const timestamp = new Date().toISOString().split('T')[0];
+                              const finalFileName = `${fileName}-${timestamp}`;
+                              
+                              // Format the content as a nice instruction document
+                              const instructionContent = `# Campaign Strategy Instructions
+
+This instruction document was generated from a Campaign Strategy response.
+
+---
+
+${content}
+
+---
+
+**Generated:** ${new Date().toLocaleString()}
+**Source:** Campaign Strategy Agent`;
+
+                              // Create the instruction file directly
+                              await createInstruction({
+                                name: finalFileName,
+                                content: instructionContent,
+                                topic: "Campaign Strategy",
+                                audience: "Marketing Team"
+                              });
+                              
+                              console.log('✅ Instruction file created successfully:', finalFileName);
+                              
+                              // Show success feedback
+                              const successMessage = `✅ **Instruction File Created!**\n\n📄 **File:** \`${finalFileName}.md\`\n🎯 **Topic:** Campaign Strategy\n📁 **Location:** Instructions Project\n\nThe campaign strategy has been saved as an instruction file for future reference.`;
+                              
+                              // Add success message to chat
+                              if (storeChatMessage && sessionId) {
+                                await storeChatMessage({
+                                  role: 'assistant',
+                                  content: successMessage,
+                                  sessionId: sessionId,
+                                });
+                              }
+                              
+                            } catch (error) {
+                              console.error('Error creating instruction file:', error);
+                              
+                              // Show error feedback
+                              const errorMessage = `❌ **Failed to Create Instruction File**\n\nThere was an error saving the campaign strategy as an instruction file. Please try again or contact support if the issue persists.`;
+                              
+                              if (storeChatMessage && sessionId) {
+                                await storeChatMessage({
+                                  role: 'assistant',
+                                  content: errorMessage,
+                                  sessionId: sessionId,
+                                });
+                              }
+                            }
+                          }}
+                          className="flex items-center gap-1 text-[#007acc] hover:text-[#4ec9b0] hover:underline cursor-pointer transition-colors text-xs opacity-60 hover:opacity-100"
+                        >
+                          <span className="transform rotate-90">↳</span>
+                          Create an Instruction File Here
+                        </button>
+                      </div>
+                    )}
+
+                    {/* CMO Agent Create Instruction File Button - only appears for CMO agent responses */}
+                    {(msg.content.includes('CMO_REPORT_GENERATED_SUCCESS') || msg.content.includes('CMO_REPORT_MANUAL_SAVE_NEEDED')) && (
+                      <div className="mt-2 ml-1">
+                        <button
+                          onClick={async () => {
+                            try {
+                              const convexMutations = createConvexMutations();
+                              
+                              // Create a descriptive prompt from the assistant's response
+                              const responseContent = msg.content.substring(0, 200).trim();
+                              const prompt = `Create instruction file from this CMO agent response: "${responseContent}${msg.content.length > 200 ? '...' : ''}"`;
+                              
+                              // Execute the instructions agent to create the file
+                              await executeAgentTool(
+                                'instructions',
+                                'generate-instructions',
+                                prompt,
+                                convexMutations
+                              );
+                            } catch (error) {
+                              console.error('Error creating instruction file:', error);
+                            }
+                          }}
+                          className="flex items-center gap-1 text-[#007acc] hover:text-[#4ec9b0] hover:underline cursor-pointer transition-colors text-xs opacity-60 hover:opacity-100"
+                        >
+                          <span className="transform rotate-90">↳</span>
+                          Create an Instruction File Here
+                        </button>
                       </div>
                     )}
                   </div>

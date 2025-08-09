@@ -15,7 +15,7 @@ export class SchedulingAgent extends BaseAgent {
       id: "schedule-content",
       name: "Schedule Content",
       command: "/schedule",
-      description: "Automatically schedule unscheduled content with intelligent timing",
+      description: "Analyze and automatically schedule unscheduled content with intelligent timing",
       parameters: [
         {
           name: "platform",
@@ -48,21 +48,6 @@ export class SchedulingAgent extends BaseAgent {
         },
       ],
     },
-    {
-      id: "analyze-content",
-      name: "Analyze Content",
-      command: "/analyze-content",
-      description: "Analyze unscheduled content and provide scheduling recommendations",
-      parameters: [
-        {
-          name: "platform",
-          type: "select",
-          description: "Platform to analyze",
-          required: false,
-          options: ["all", "twitter", "reddit"],
-        },
-      ],
-    },
   ];
 
   async execute(
@@ -72,19 +57,15 @@ export class SchedulingAgent extends BaseAgent {
     sessionId?: string
   ): Promise<string> {
     if (tool.id === "schedule-content") {
-      return await this.scheduleContent(input, convexMutations);
-    }
-    
-    if (tool.id === "analyze-content") {
-      return await this.analyzeContent(input, convexMutations);
+      return await this.scheduleContentWithAnalysis(input, convexMutations);
     }
 
     throw new Error(`Unknown tool: ${tool.id}`);
   }
 
-  private async scheduleContent(input: string, convexMutations: ConvexMutations): Promise<string> {
+  private async scheduleContentWithAnalysis(input: string, convexMutations: ConvexMutations): Promise<string> {
     try {
-      console.log(`📅 Scheduling Agent: Processing request: "${input}"`);
+      console.log(`📅 Scheduling Agent: Processing request with analysis: "${input}"`);
       
       // Clean the input by removing the command
       let cleanInput = input.trim();
@@ -102,6 +83,46 @@ export class SchedulingAgent extends BaseAgent {
         return `✅ No unscheduled ${params.platform === 'all' ? 'content' : params.platform + ' posts'} found. All content appears to be scheduled!`;
       }
 
+      // STEP 1: Analyze the content first
+      let analysisResult = `📊 **Content Analysis & Scheduling Report**\n\n`;
+      analysisResult += `🔍 **Analysis Phase:**\n`;
+      analysisResult += `📈 Total unscheduled posts: ${unscheduledPosts.length}\n`;
+
+      // Analyze by platform
+      const platformCounts = unscheduledPosts.reduce((acc, post) => {
+        acc[post.fileType] = (acc[post.fileType] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      analysisResult += `📱 By Platform:\n`;
+      Object.entries(platformCounts).forEach(([platform, count]) => {
+        analysisResult += `  • ${platform.toUpperCase()}: ${count} posts\n`;
+      });
+
+      // Add scheduling recommendations based on analysis
+      analysisResult += `\n🎯 Scheduling Strategy: ${params.strategy.toUpperCase()}\n`;
+      analysisResult += `⏰ Timeframe: ${params.timeframe}\n`;
+      analysisResult += `📅 Frequency: ${params.frequency}\n`;
+      
+      if (platformCounts.twitter) {
+        analysisResult += `  • Twitter: Optimal times 9 AM, 1 PM, 3 PM weekdays\n`;
+      }
+      
+      if (platformCounts.reddit) {
+        analysisResult += `  • Reddit: Optimal times 6-8 AM, 12-2 PM, 7-9 PM\n`;
+      }
+
+      analysisResult += `\n📋 Content to Schedule:\n`;
+      unscheduledPosts.forEach((post, index) => {
+        const contentPreview = post.content.length > 50 
+          ? post.content.substring(0, 50) + '...' 
+          : post.content;
+        analysisResult += `  ${index + 1}. [${post.fileType.toUpperCase()}] ${post.fileName}\n`;
+        analysisResult += `     Content: "${contentPreview}"\n`;
+      });
+
+      // STEP 2: Generate and apply the schedule
+      analysisResult += `\n⚡ **Scheduling Phase:**\n`;
       console.log(`📋 Found ${unscheduledPosts.length} unscheduled posts to process`);
 
       // Generate schedule based on strategy
@@ -116,87 +137,29 @@ export class SchedulingAgent extends BaseAgent {
       const successCount = results.filter(r => r.success).length;
       const errorCount = results.filter(r => !r.success).length;
 
-      let resultMessage = `📅 Scheduling completed:\n`;
-      resultMessage += `✅ Successfully scheduled: ${successCount} posts\n`;
+      analysisResult += `✅ Successfully scheduled: ${successCount} posts\n`;
       if (errorCount > 0) {
-        resultMessage += `❌ Errors: ${errorCount} posts\n`;
+        analysisResult += `❌ Errors: ${errorCount} posts\n`;
       }
       
-      // Add schedule summary
-      resultMessage += `\n📊 Schedule Summary:\n`;
+      // Add detailed schedule
+      analysisResult += `\n📊 **Final Schedule:**\n`;
       schedule.forEach((item, index) => {
         const date = new Date(item.scheduledFor);
         const platform = item.post.fileType.toUpperCase();
-        resultMessage += `${index + 1}. [${platform}] ${date.toLocaleDateString()} ${date.toLocaleTimeString()} - ${item.post.fileName}\n`;
+        const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+        const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        analysisResult += `  ${index + 1}. [${platform}] ${dayName} ${dateStr} at ${timeStr}\n`;
+        analysisResult += `     📄 ${item.post.fileName}\n`;
       });
 
-      return resultMessage;
-    } catch (error) {
-      console.error("❌ Scheduling Agent error:", error);
-      return `❌ Scheduling failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
-    }
-  }
-
-  private async analyzeContent(input: string, convexMutations: ConvexMutations): Promise<string> {
-    try {
-      console.log(`🔍 Scheduling Agent: Analyzing content: "${input}"`);
-      
-      // Clean the input by removing the command
-      let cleanInput = input.trim();
-      if (cleanInput.startsWith("/analyze-content")) {
-        cleanInput = cleanInput.replace("/analyze-content", "").trim();
-      }
-
-      const params = this.parseAnalysisParameters(cleanInput);
-      
-      // Get unscheduled posts from database
-      const unscheduledPosts = await this.getUnscheduledPosts(params.platform, convexMutations);
-      
-      if (unscheduledPosts.length === 0) {
-        return `✅ No unscheduled ${params.platform === 'all' ? 'content' : params.platform + ' posts'} found to analyze.`;
-      }
-
-      let analysisResult = `📊 Content Analysis Report\n\n`;
-      analysisResult += `📈 Total unscheduled posts: ${unscheduledPosts.length}\n\n`;
-
-      // Analyze by platform
-      const platformCounts = unscheduledPosts.reduce((acc, post) => {
-        acc[post.fileType] = (acc[post.fileType] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-
-      analysisResult += `📱 By Platform:\n`;
-      Object.entries(platformCounts).forEach(([platform, count]) => {
-        analysisResult += `  • ${platform.toUpperCase()}: ${count} posts\n`;
-      });
-
-      // Analyze content types and suggest optimal scheduling
-      analysisResult += `\n🎯 Scheduling Recommendations:\n`;
-      
-      if (platformCounts.twitter) {
-        analysisResult += `  • Twitter: Best times are 9 AM, 1 PM, 3 PM weekdays\n`;
-      }
-      
-      if (platformCounts.reddit) {
-        analysisResult += `  • Reddit: Best times are 6-8 AM, 12-2 PM, 7-9 PM\n`;
-      }
-
-      analysisResult += `\n📋 Unscheduled Posts:\n`;
-      unscheduledPosts.forEach((post, index) => {
-        const contentPreview = post.content.length > 50 
-          ? post.content.substring(0, 50) + '...' 
-          : post.content;
-        analysisResult += `  ${index + 1}. [${post.fileType.toUpperCase()}] ${post.fileName}\n`;
-        analysisResult += `     Content: "${contentPreview}"\n`;
-        analysisResult += `     Status: ${post.status}\n`;
-      });
-
-      analysisResult += `\n💡 Use "/schedule" to automatically schedule these posts!`;
+      analysisResult += `\n✨ **Scheduling Complete!** All posts are now optimally scheduled for maximum engagement.`;
 
       return analysisResult;
     } catch (error) {
-      console.error("❌ Content analysis error:", error);
-      return `❌ Content analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      console.error("❌ Scheduling Agent error:", error);
+      return `❌ Analysis and scheduling failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
     }
   }
 
@@ -453,20 +416,6 @@ export class SchedulingAgent extends BaseAgent {
     const frequencyMatch = input.match(/frequency:\s*([\w\s]+?)(?:\s|$)/i);
     if (frequencyMatch) {
       params.frequency = frequencyMatch[1].trim();
-    }
-
-    return params;
-  }
-
-  private parseAnalysisParameters(input: string): any {
-    const params = {
-      platform: 'all',
-    };
-
-    // Extract platform
-    const platformMatch = input.match(/platform:\s*(\w+)/i);
-    if (platformMatch) {
-      params.platform = platformMatch[1].toLowerCase();
     }
 
     return params;

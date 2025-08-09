@@ -1,13 +1,13 @@
-# EAC Dashboard
+# EAC Social Media Management Dashboard
 
 ![Repository Views Since Release](https://visitor-badge.laobi.icu/badge?page_id=matthewsimon.EAC)
 
 ```text
- _____    _    ____
-| ____|  / \  / ___|___
-|  _|   / _ \| |   / __|
-| |___ / ___ \ |___\__ \
-|_____/_/   \_\____|___/
+_________________________   _____________  ________  ___
+___  ____/__    |_  ____/   __  ___/__   |/  /__   |/  /
+__  __/  __  /| |  /        _____ \__  /|_/ /__  /|_/ / 
+_  /___  _  ___ / /___      ____/ /_  /  / / _  /  / /  
+/_____/  /_/  |_\____/      /____/ /_/  /_/  /_/  /_/  
 ```
 
 **Version:** `1.0.0` | **Last Updated:** 2025-02-21 | **License:** MIT | **Status:** Active Development

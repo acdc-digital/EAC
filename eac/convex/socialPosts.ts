@@ -343,7 +343,7 @@ export const getScheduledPostsForCalendar = query({
 
 // Get all posts by file type
 export const getPostsByFileType = query({
-  args: { fileType: v.union(v.literal('reddit'), v.literal('twitter')) },
+  args: { fileType: v.union(v.literal('reddit'), v.literal('twitter'), v.literal('linkedin'), v.literal('facebook'), v.literal('instagram')) },
   handler: async (ctx, args) => {
     const posts = await ctx.db
       .query("agentPosts")
@@ -358,7 +358,7 @@ export const getPostsByFileType = query({
 export const upsertPost = mutation({
   args: {
     fileName: v.string(),
-    fileType: v.union(v.literal('reddit'), v.literal('twitter')),
+    fileType: v.union(v.literal('reddit'), v.literal('twitter'), v.literal('linkedin'), v.literal('facebook'), v.literal('instagram')),
     content: v.string(),
     title: v.optional(v.string()),
     platformData: v.optional(v.string()), // JSON string
@@ -490,7 +490,7 @@ export const deletePost = mutation({
 export const schedulePost = mutation({
   args: {
     fileName: v.string(),
-    fileType: v.union(v.literal('reddit'), v.literal('twitter')),
+    fileType: v.union(v.literal('reddit'), v.literal('twitter'), v.literal('linkedin'), v.literal('facebook'), v.literal('instagram')),
     content: v.string(),
     title: v.optional(v.string()),
     platformData: v.optional(v.string()),

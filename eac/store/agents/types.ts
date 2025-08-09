@@ -57,7 +57,7 @@ export interface ConvexMutations {
     content: string;
     sessionId?: string;
     operation?: {
-      type: 'file_created' | 'project_created' | 'tool_executed' | 'error';
+      type: 'file_created' | 'project_created' | 'tool_executed' | 'error' | 'campaign_created';
       details?: any;
     };
     processIndicator?: {
@@ -84,16 +84,25 @@ export interface ConvexMutations {
     extension?: string;
     platform?: 'facebook' | 'instagram' | 'twitter' | 'linkedin' | 'reddit' | 'youtube';
     size?: number;
+    userId?: string;
+    path?: string;
+    mimeType?: string;
+    postStatus?: 'draft' | 'scheduled' | 'published' | 'archived';
+    scheduledAt?: number;
   }) => Promise<unknown>;
+  getAllFiles?: () => Promise<any[]>; // Add getAllFiles query
   upsertPost: (params: {
     fileName: string;
-    fileType: 'reddit' | 'twitter';
+    fileType: 'reddit' | 'twitter' | 'linkedin' | 'facebook' | 'instagram';
     content: string;
     title?: string;
     platformData?: string;
     status?: 'draft' | 'scheduled' | 'posting' | 'posted' | 'failed';
     scheduledFor?: number;
     userId?: string;
+    campaignId?: string;
+    batchId?: string;
+    metadata?: string;
   }) => Promise<unknown>;
   createContentCreationFile: (params: {
     name: string;
@@ -122,6 +131,29 @@ export interface ConvexMutations {
     fileId: string;
     content: string;
   }) => Promise<unknown>;
+  // Campaign-related mutations
+  createCampaign?: (params: {
+    name: string;
+    description?: string;
+    startDate: string;
+    endDate: string;
+    totalPosts: number;
+    platforms: string[];
+    template?: string;
+  }) => Promise<any>;
+  createPostsBatch?: (params: {
+    posts: Array<{
+      fileName: string;
+      fileType: 'reddit' | 'twitter' | 'linkedin' | 'facebook' | 'instagram';
+      content: string;
+      title?: string;
+      platformData?: string;
+      metadata?: string;
+      scheduledFor?: number;
+    }>;
+    campaignId: string;
+    batchId?: string;
+  }) => Promise<any>;
 }
 
 export interface AgentState {

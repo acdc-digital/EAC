@@ -427,6 +427,9 @@
   .my-2 {
     margin-block: calc(var(--spacing) * 2);
   }
+  .my-3 {
+    margin-block: calc(var(--spacing) * 3);
+  }
   .my-6 {
     margin-block: calc(var(--spacing) * 6);
   }
@@ -489,6 +492,9 @@
   }
   .ml-2 {
     margin-left: calc(var(--spacing) * 2);
+  }
+  .ml-3 {
+    margin-left: calc(var(--spacing) * 3);
   }
   .ml-4 {
     margin-left: calc(var(--spacing) * 4);
@@ -932,6 +938,9 @@
   .min-w-\[var\(--radix-select-trigger-width\)\] {
     min-width: var(--radix-select-trigger-width);
   }
+  .min-w-full {
+    min-width: 100%;
+  }
   .flex-1 {
     flex: 1;
   }
@@ -985,6 +994,9 @@
     --tw-scale-y: 105%;
     --tw-scale-z: 105%;
     scale: var(--tw-scale-x) var(--tw-scale-y);
+  }
+  .rotate-90 {
+    rotate: 90deg;
   }
   .transform {
     transform: var(--tw-rotate-x,) var(--tw-rotate-y,) var(--tw-rotate-z,) var(--tw-skew-x,) var(--tw-skew-y,);
@@ -1420,6 +1432,9 @@
   .border-\[\#ffcc02\] {
     border-color: #ffcc02;
   }
+  .border-\[\#ffcc02\]\/40 {
+    border-color: color-mix(in oklab, #ffcc02 40%, transparent);
+  }
   .border-black {
     border-color: var(--color-black);
   }
@@ -1591,6 +1606,9 @@
   .border-l-\[\#0078d4\] {
     border-left-color: #0078d4;
   }
+  .border-l-\[\#ffcc02\] {
+    border-left-color: #ffcc02;
+  }
   .border-l-blue-500 {
     border-left-color: var(--color-blue-500);
   }
@@ -1717,6 +1735,9 @@
   .bg-\[\#28a745\] {
     background-color: #28a745;
   }
+  .bg-\[\#51cf66\]\/20 {
+    background-color: color-mix(in oklab, #51cf66 20%, transparent);
+  }
   .bg-\[\#0078d4\] {
     background-color: #0078d4;
   }
@@ -1765,6 +1786,9 @@
   .bg-\[\#fbbf24\] {
     background-color: #fbbf24;
   }
+  .bg-\[\#ff6b6b\]\/20 {
+    background-color: color-mix(in oklab, #ff6b6b 20%, transparent);
+  }
   .bg-\[\#ff6b35\] {
     background-color: #ff6b35;
   }
@@ -1776,6 +1800,9 @@
   }
   .bg-\[\#ffcc02\] {
     background-color: #ffcc02;
+  }
+  .bg-\[\#ffcc02\]\/20 {
+    background-color: color-mix(in oklab, #ffcc02 20%, transparent);
   }
   .bg-accent {
     background-color: var(--accent);
@@ -2170,6 +2197,9 @@
   .px-1 {
     padding-inline: calc(var(--spacing) * 1);
   }
+  .px-1\.5 {
+    padding-inline: calc(var(--spacing) * 1.5);
+  }
   .px-2 {
     padding-inline: calc(var(--spacing) * 2);
   }
@@ -2446,8 +2476,14 @@
   .text-\[\#8b5cf6\] {
     color: #8b5cf6;
   }
+  .text-\[\#9cdcfe\] {
+    color: #9cdcfe;
+  }
   .text-\[\#28a745\] {
     color: #28a745;
+  }
+  .text-\[\#51cf66\] {
+    color: #51cf66;
   }
   .text-\[\#0078d4\] {
     color: #0078d4;
@@ -2484,6 +2520,9 @@
   }
   .text-\[\#858585\] {
     color: #858585;
+  }
+  .text-\[\#888888\] {
+    color: #888888;
   }
   .text-\[\#969696\] {
     color: #969696;
@@ -2733,6 +2772,11 @@
       color: #858585;
     }
   }
+  .placeholder-\[\#888888\] {
+    &::placeholder {
+      color: #888888;
+    }
+  }
   .caret-\[\#cccccc\] {
     caret-color: #cccccc;
   }
@@ -2893,6 +2937,9 @@
   }
   .\[--cell-size\:--spacing\(8\)\] {
     --cell-size: calc(var(--spacing) * 8);
+  }
+  .paused {
+    animation-play-state: paused;
   }
   .running {
     animation-play-state: running;
@@ -3187,6 +3234,13 @@
       }
     }
   }
+  .hover\:border-\[\#ffcc02\]\/60 {
+    &:hover {
+      @media (hover: hover) {
+        border-color: color-mix(in oklab, #ffcc02 60%, transparent);
+      }
+    }
+  }
   .hover\:border-red-500 {
     &:hover {
       @media (hover: hover) {
@@ -3408,6 +3462,13 @@
     &:hover {
       @media (hover: hover) {
         background-color: #454545;
+      }
+    }
+  }
+  .hover\:bg-\[\#484848\] {
+    &:hover {
+      @media (hover: hover) {
+        background-color: #484848;
       }
     }
   }
@@ -3678,6 +3739,13 @@
     &:hover {
       @media (hover: hover) {
         color: #4ec9b0;
+      }
+    }
+  }
+  .hover\:text-\[\#4fc1ff\] {
+    &:hover {
+      @media (hover: hover) {
+        color: #4fc1ff;
       }
     }
   }
@@ -4064,6 +4132,21 @@
   .disabled\:cursor-not-allowed {
     &:disabled {
       cursor: not-allowed;
+    }
+  }
+  .disabled\:border-\[\#454545\] {
+    &:disabled {
+      border-color: #454545;
+    }
+  }
+  .disabled\:bg-\[\#2d2d30\] {
+    &:disabled {
+      background-color: #2d2d30;
+    }
+  }
+  .disabled\:text-\[\#888888\] {
+    &:disabled {
+      color: #888888;
     }
   }
   .disabled\:opacity-50 {

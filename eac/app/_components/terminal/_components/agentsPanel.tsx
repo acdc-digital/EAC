@@ -51,18 +51,20 @@ export function AgentsPanel({ className }: AgentsPanelProps) {
     // Could add tool-specific logic here
   };
 
-  // Flatten all agent tools into a single list with metadata
-  const allAgentTools = agents.flatMap(agent => {
-    console.log('Agent:', agent.name, 'Icon:', agent.icon);
-    return agent.tools.map(tool => ({
-      ...tool,
-      agentId: agent.id,
-      agentName: agent.name,
-      agentIcon: agent.icon,
-      type: 'agent' as const,
-      isActive: activeAgentId === agent.id
-    }));
-  });
+  // Flatten all agent tools into a single list with metadata (excluding premium extensions)
+  const allAgentTools = agents
+    .filter(agent => agent.id !== 'director' && agent.id !== 'cmo') // Filter out premium extensions
+    .flatMap(agent => {
+      console.log('Agent:', agent.name, 'Icon:', agent.icon);
+      return agent.tools.map(tool => ({
+        ...tool,
+        agentId: agent.id,
+        agentName: agent.name,
+        agentIcon: agent.icon,
+        type: 'agent' as const,
+        isActive: activeAgentId === agent.id
+      }));
+    });
 
   // Format MCP tools to match agent tools structure
   // const allMcpTools = (mcpTools || []).map(tool => ({

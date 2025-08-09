@@ -202,7 +202,7 @@ export { useEditorStore } from "../editor";
 
 // Legacy exports for backward compatibility
 export {
-    agentRegistry, executeInstructionsAgent,
+    agentRegistry, executeCMOAgent, executeInstructionsAgent,
     executeTwitterPostAgent, getAvailableAgents,
     getAvailableCommands
 } from "./registry";

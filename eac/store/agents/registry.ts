@@ -2,12 +2,13 @@
 // /Users/matthewsimon/Projects/eac/eac/store/agents/registry.ts
 
 import { BaseAgent } from './base';
+import { cmoAgent } from './cmoAgent';
+import { directorAgent } from './directorAgent';
 import { editorAgent } from './editorAgent';
 import { fileCreatorAgent } from './fileCreatorAgent';
 import { instructionsAgent } from './instructionsAgent';
 import { projectCreatorAgent } from './projectCreatorAgent';
 import { schedulingAgent } from './schedulingAgent';
-import { twitterAgent } from './twitterAgent';
 
 /**
  * Central registry for all available agents
@@ -25,8 +26,6 @@ export class AgentRegistry {
     console.log('🤖 Agent Registry: Initializing...');
     this.registerAgent(instructionsAgent);
     console.log('🤖 Registered:', instructionsAgent.id, instructionsAgent.name);
-    this.registerAgent(twitterAgent);
-    console.log('🤖 Registered:', twitterAgent.id, twitterAgent.name);
     this.registerAgent(schedulingAgent);
     console.log('🤖 Registered:', schedulingAgent.id, schedulingAgent.name);
     this.registerAgent(projectCreatorAgent);
@@ -35,6 +34,10 @@ export class AgentRegistry {
     console.log('🤖 Registered:', fileCreatorAgent.id, fileCreatorAgent.name);
     this.registerAgent(editorAgent);
     console.log('🤖 Registered:', editorAgent.id, editorAgent.name);
+    this.registerAgent(cmoAgent);
+    console.log('🤖 Registered:', cmoAgent.id, cmoAgent.name);
+    this.registerAgent(directorAgent);
+    console.log('🤖 Registered:', directorAgent.id, directorAgent.name);
     console.log('🤖 Total agents registered:', this.agents.size);
   }
   
@@ -207,5 +210,22 @@ export async function executeProjectCreatorAgent(
     'create-project-with-files',
     input,
     convexMutations
+  );
+}
+
+/**
+ * Legacy support function for CMO agent
+ */
+export async function executeCMOAgent(
+  input: string,
+  convexMutations: any,
+  sessionId?: string
+): Promise<string> {
+  return await agentRegistry.executeAgent(
+    'cmo',
+    'define-campaign',
+    input,
+    convexMutations,
+    sessionId
   );
 }

@@ -18,19 +18,24 @@ interface SessionsRowProps {
 
 export function SessionsRow({ className }: SessionsRowProps) {
   const { isAuthenticated } = useConvexAuth();
-  const { agents, activeAgentId } = useAgentStore();
+  const { agents, activeAgentId, setActiveAgent } = useAgentStore();
   const {
     sessions,
     activeSessionId,
     isSessionsPanelOpen,
     isAgentsPanelOpen,
+    isExtensionsPanelOpen,
+    activeExtensionId,
     setSessions,
     setActiveSession,
     createNewSession,
     toggleSessionsPanel,
     toggleAgentsPanel,
+    toggleExtensionsPanel,
     setSessionsPanelOpen,
     setAgentsPanelOpen,
+    setExtensionsPanelOpen,
+    setActiveExtension,
   } = useSessionStore();
   
   const { setSessionId } = useChatStore();
@@ -57,10 +62,17 @@ export function SessionsRow({ className }: SessionsRowProps) {
   const handleChatClick = () => {
     setSessionsPanelOpen(false);
     setAgentsPanelOpen(false);
+    setExtensionsPanelOpen(false);
   };
 
   const handleAgentsClick = () => {
-    toggleAgentsPanel();
+    if (isAgentsPanelOpen) {
+      setAgentsPanelOpen(false);
+    } else {
+      toggleAgentsPanel();
+      // Clear any active extension when opening agents panel
+      setActiveExtension(null);
+    }
   };
 
   const handleSessionClick = (sessionId: string) => {
@@ -101,7 +113,7 @@ export function SessionsRow({ className }: SessionsRowProps) {
           onClick={handleChatClick}
           className={cn(
             "flex items-center gap-1.5 px-2 py-1 text-xs",
-            !isSessionsPanelOpen && !isAgentsPanelOpen
+            !isSessionsPanelOpen && !isAgentsPanelOpen && !isExtensionsPanelOpen
               ? "text-[#6dd4b7] hover:text-[#4ec9b0]"
               : "text-[#ffffff] hover:text-[#cccccc]"
           )}
@@ -143,6 +155,20 @@ export function SessionsRow({ className }: SessionsRowProps) {
           Agents
         </button>
 
+        {/* Extensions Toggle Button */}
+        <button
+          onClick={toggleExtensionsPanel}
+          className={cn(
+            "flex items-center gap-1.5 px-2 py-1 text-xs",
+            isExtensionsPanelOpen
+              ? "text-[#6dd4b7] hover:text-[#4ec9b0]"
+              : "text-[#ffffff] hover:text-[#cccccc]"
+          )}
+          title="Extensions"
+        >
+          Extensions
+        </button>
+
         {/* New Session Button */}
         <button
           onClick={handleNewSession}
@@ -153,12 +179,19 @@ export function SessionsRow({ className }: SessionsRowProps) {
         </button>
       </div>
 
-      {/* Right Side - Active Agent & Thinking Indicator */}
+      {/* Right Side - Active Agent/Extension & Thinking Indicator */}
       <div className="flex items-center gap-3 px-3">
         {/* Active Agent Indicator */}
-        {activeAgentId && (
+        {activeAgentId && !activeExtensionId && (
           <span className="text-xs font-medium text-[#4fc3f7]">
             {agents.find(agent => agent.id === activeAgentId)?.name || 'Unknown Agent'}
+          </span>
+        )}
+        
+        {/* Active Extension Indicator */}
+        {activeExtensionId && (
+          <span className="text-xs font-medium text-[#ffcc02]">
+            Marketing Officer
           </span>
         )}
         

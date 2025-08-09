@@ -11,7 +11,7 @@ import { useTerminalStore } from "@/store/terminal";
 import { useSessionStore } from "@/store/terminal/session";
 import { useConvexAuth } from "convex/react";
 import { Bell, History, Settings, Terminal as TerminalIcon } from "lucide-react";
-import { AgentsPanel, ChatMessages, SessionsPanel, SessionsRow } from "./_components";
+import { AgentsPanel, ChatMessages, ExtensionsPanel, SessionsPanel, SessionsRow } from "./_components";
 import { HistoryTab } from "./historyTab";
 
 export function Terminal() {
@@ -24,7 +24,7 @@ export function Terminal() {
     alerts
   } = useTerminalStore();
   const { isAuthenticated } = useConvexAuth();
-  const { isSessionsPanelOpen, isAgentsPanelOpen } = useSessionStore();
+  const { isSessionsPanelOpen, isAgentsPanelOpen, isExtensionsPanelOpen } = useSessionStore();
 
   const handleResize = (size: number) => {
     try {
@@ -156,6 +156,8 @@ export function Terminal() {
                   <SessionsPanel />
                 ) : isAgentsPanelOpen ? (
                   <AgentsPanel />
+                ) : isExtensionsPanelOpen ? (
+                  <ExtensionsPanel />
                 ) : (
                   <ChatMessages />
                 )}
