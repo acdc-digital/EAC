@@ -18,7 +18,7 @@ interface AgentsPanelProps {
 
 export function AgentsPanel({ className }: AgentsPanelProps) {
   const { isAuthenticated } = useConvexAuth();
-  const { setAgentsPanelOpen } = useSessionStore();
+  const { setAgentsPanelOpen, activeExtensionId, setActiveExtension } = useSessionStore();
   const { agents, activeAgentId, setActiveAgent } = useAgentStore();
   const { availableTools: mcpTools } = useMCP();
   const [selectedToolId, setSelectedToolId] = useState<string | null>(null);
@@ -44,6 +44,12 @@ export function AgentsPanel({ className }: AgentsPanelProps) {
 
   const handleAgentSelect = (agentId: string) => {
     setActiveAgent(agentId);
+    
+    // Clear any active extension when selecting a regular agent
+    // BUT only if the agent being selected is NOT an extension agent (cmo/director)
+    if (activeExtensionId && agentId !== 'cmo' && agentId !== 'director') {
+      setActiveExtension(null);
+    }
   };
 
   const handleToolSelect = (toolId: string, isAgent: boolean = true) => {

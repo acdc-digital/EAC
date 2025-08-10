@@ -44,19 +44,20 @@ interface ExtensionsPanelProps {
 
 export function ExtensionsPanel({ className }: ExtensionsPanelProps) {
   const { activeExtensionId, setActiveExtension } = useSessionStore();
-  const { setActiveAgent } = useAgentStore();
+  const { activeAgentId, setActiveAgent } = useAgentStore();
 
   const handleExtensionSelect = (extensionId: string) => {
-    const newExtensionId = activeExtensionId === extensionId ? null : extensionId;
-    setActiveExtension(newExtensionId);
+    // When selecting an extension, activate it and set corresponding agent
+    setActiveExtension(extensionId);
     
-    // Activate corresponding agent when extension is selected
-    if (newExtensionId === 'marketing-officer') {
-      setActiveAgent('cmo');
-    } else if (newExtensionId === 'campaign-director') {
-      setActiveAgent('director');
-    } else {
-      setActiveAgent(null);
+    // Clear any regular agent selection that's not the extension agent
+    // This ensures mutual exclusivity
+    const extensionAgentId = extensionId === 'marketing-officer' ? 'cmo' : 
+                            extensionId === 'campaign-director' ? 'director' : null;
+    
+    // Set the corresponding extension agent
+    if (extensionAgentId) {
+      setActiveAgent(extensionAgentId);
     }
   };
 
@@ -65,13 +66,15 @@ export function ExtensionsPanel({ className }: ExtensionsPanelProps) {
     // TODO: Implement purchase flow
   };
 
-  const getExtensionIcon = (iconName?: string) => {
+  const getExtensionIcon = (iconName?: string, isActive: boolean = false) => {
+    const iconColor = isActive ? "text-[#ffcc02]" : "text-[#858585]";
+    
     switch (iconName) {
       case 'Bot':
-        return <Bot className="w-4 h-4 text-[#858585]" />;
+        return <Bot className={`w-4 h-4 ${iconColor}`} />;
       case 'AtSign':
       default:
-        return <AtSign className="w-4 h-4 text-[#858585]" />;
+        return <AtSign className={`w-4 h-4 ${iconColor}`} />;
     }
   };
 
@@ -96,26 +99,43 @@ export function ExtensionsPanel({ className }: ExtensionsPanelProps) {
                 key={extension.id}
                 className={cn(
                   "w-full flex items-center px-3 py-1.5 transition-all duration-200 hover:bg-[#2a2a2a] border-b border-[#333]",
-                  activeExtensionId === extension.id ? "border-l-2 border-l-[#ffcc02]" : ""
+                  activeExtensionId === extension.id 
+                    ? "border-l-2 border-l-[#ffcc02] bg-[#ffcc02]/10" 
+                    : ""
                 )}
               >
                 {/* Select Checkbox */}
                 <div className="flex-shrink-0 w-16 flex items-center justify-start">
                   <Checkbox
                     checked={activeExtensionId === extension.id}
-                    onCheckedChange={() => handleExtensionSelect(extension.id)}
+                    onCheckedChange={(checked) => {
+                      // If checking the box, select the extension
+                      // If unchecking the box, deselect the extension
+                      if (checked) {
+                        handleExtensionSelect(extension.id);
+                      } else {
+                        setActiveExtension(null);
+                        setActiveAgent(null);
+                      }
+                    }}
                     className="w-4 h-4"
                   />
                 </div>
                 
                 {/* Icon */}
                 <div className="flex-shrink-0 w-8 flex items-center justify-center">
-                  {getExtensionIcon(extension.icon)}
+                  {getExtensionIcon(extension.icon, activeExtensionId === extension.id)}
                 </div>
                 
                 {/* Extension Name */}
-                <div className="flex-shrink-0 w-32 text-xs text-[#cccccc]">
-                  {extension.name}
+                <div className="flex-shrink-0 w-32 text-xs">
+                  <span className={cn(
+                    activeExtensionId === extension.id 
+                      ? "text-[#ffcc02] font-medium" 
+                      : "text-[#cccccc]"
+                  )}>
+                    {extension.name}
+                  </span>
                 </div>
                 
                 {/* Description */}
@@ -127,11 +147,15 @@ export function ExtensionsPanel({ className }: ExtensionsPanelProps) {
                 
                 {/* Status Indicator */}
                 <div className="flex-shrink-0 w-20 flex items-center justify-center">
-                  <span
-                    className="px-2 py-1 text-[10px] rounded font-medium bg-[#2d2d2d] text-[#ffcc02]"
-                  >
-                    Premium
-                  </span>
+                  {activeExtensionId === extension.id ? (
+                    <span className="px-2 py-1 text-[10px] rounded font-medium bg-[#ffcc02]/20 text-[#ffcc02]">
+                      Active
+                    </span>
+                  ) : (
+                    <span className="px-2 py-1 text-[10px] rounded font-medium bg-[#2d2d2d] text-[#858585]">
+                      Premium
+                    </span>
+                  )}
                 </div>
               </div>
             ))}

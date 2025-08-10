@@ -92,6 +92,27 @@ export class DirectorAgent extends BaseAgent {
       return 'Campaign has been successfully generated and scheduled! Use `/director` to start a new campaign.';
     }
 
+    // Handle initial activation (empty input) - show campaign name prompt
+    if (!input || input.trim() === '') {
+      console.log('🔥 Director Agent: Initial activation, showing campaign name prompt');
+      if (convexMutations.storeChatMessage) {
+        await convexMutations.storeChatMessage({
+          role: 'assistant',
+          content: '🎬 **Campaign Director Agent Activated**\n\nI will help you orchestrate a comprehensive marketing campaign with 100+ posts across multiple platforms.\n\n**Step 1: Create Campaign Project**\n\nFirst, let\'s create a dedicated project folder for your campaign. This will organize all your generated content, schedules, and assets.\n\nWhat would you like to name your campaign project?',
+          sessionId,
+          interactiveComponent: {
+            type: 'file_name_input',
+            status: 'pending',
+            data: {
+              placeholder: 'Enter campaign name (e.g., "Q4 Product Launch", "Holiday Marketing 2025")',
+              fileType: 'project'
+            }
+          }
+        });
+      }
+      return 'Please enter a name for your campaign project.';
+    }
+
     // Step 1: Request campaign name and create project
     if (session.currentStep === 'campaign-name') {
       // Check if this is a campaign name input
@@ -118,15 +139,18 @@ export class DirectorAgent extends BaseAgent {
             if (convexMutations.storeChatMessage) {
               await convexMutations.storeChatMessage({
                 role: 'assistant',
-                content: `✅ Campaign project "${campaignName}" created successfully!\n\nNow, please select an instructions file that contains your campaign guidelines, brand voice, or marketing strategy.\n\nWhat you can include in your instructions file:\n- Brand voice and tone guidelines\n- Target audience information\n- Campaign objectives and KPIs\n- Content themes and messaging\n- Platform-specific requirements\n- Hashtag strategies\n- Visual guidelines\n\nSelect your instructions file:`,
+                content: `✅ Campaign project "${campaignName}" created successfully!\n\nNow, please select instruction files that contain your campaign guidelines, brand voice, or marketing strategy. You can select multiple files to combine different strategies and approaches.\n\n**What you can include in your instruction files:**\n- Brand voice and tone guidelines\n- Target audience information\n- Campaign objectives and KPIs\n- Content themes and messaging\n- Platform-specific requirements\n- Hashtag strategies\n- Visual guidelines\n- Competitor analysis\n- Industry insights\n\n**💡 Tip:** Select multiple instruction files to create more comprehensive and diverse content.\n\nSelect your instruction files:`,
                 sessionId,
                 interactiveComponent: {
-                  type: 'file_selector',
+                  type: 'multi_file_selector',
                   status: 'pending',
                   data: {
                     fileType: 'instructions',
                     filterByExtension: ['.md', '.txt'],
-                    placeholder: 'Select campaign instructions file...'
+                    placeholder: 'Search campaign instruction files...',
+                    title: 'Select Instruction Files',
+                    maxSelections: 5, // Allow up to 5 instruction files
+                    fileTypeFilter: ['markdown', 'document']
                   }
                 }
               });
@@ -160,9 +184,78 @@ export class DirectorAgent extends BaseAgent {
       }
     }
 
-    // Handle file selection input AFTER campaign name step
+    // Handle multiple instruction files selection (from multi-file selector)
+    if ((input.includes('Selected files:') || input.includes('Selected instruction files:')) && session.currentStep === 'instructions') {
+      console.log('🔥 Director Agent: Processing multiple instruction files selection');
+      
+      try {
+        const allFiles = await convexMutations.getAllFiles?.() || [];
+        console.log('🔥 Director Agent: Total files available:', allFiles.length);
+        console.log('🔥 Director Agent: Available file names:', allFiles.map((f: any) => f.name));
+        
+        // Extract file names from the input
+        const fileNamesMatch = input.match(/Selected.*files?:\s*(.+)/i);
+        if (!fileNamesMatch) {
+          return 'Could not parse file selection. Please try again.';
+        }
+        
+        const fileNamesStr = fileNamesMatch[1];
+        const fileNames = fileNamesStr.split(',').map(name => name.trim());
+        console.log('🔥 Director Agent: Parsed file names:', fileNames);
+        
+        // Find and combine all instruction files
+        const instructionFiles = [];
+        const combinedContent = [];
+        
+        for (const fileName of fileNames) {
+          let instructionFile = allFiles.find((f: any) => f.name === fileName);
+          if (!instructionFile && !fileName.includes('.')) {
+            // Try with .md extension
+            instructionFile = allFiles.find((f: any) => f.name === fileName + '.md');
+            console.log('🔥 Director Agent: Trying with .md extension:', fileName + '.md');
+          }
+          
+          if (instructionFile) {
+            instructionFiles.push(instructionFile);
+            combinedContent.push(`# Instructions from: ${instructionFile.name}\n\n${instructionFile.content}\n\n---\n`);
+            console.log('🔥 Director Agent: Added instruction file:', instructionFile.name);
+          } else {
+            console.log('🔥 Director Agent: File not found:', fileName);
+          }
+        }
+        
+        if (instructionFiles.length > 0) {
+          // Combine all instruction files into one comprehensive set of instructions
+          session.instructionsContent = combinedContent.join('\n');
+          session.instructionsFile = fileNames.join(', '); // Store all file names
+          session.currentStep = 'complete'; // Set to complete after generation
+          console.log('🔥 Director Agent: Combined', instructionFiles.length, 'instruction files');
+          console.log('🔥 Director Agent: Updated session step to complete');
+          
+          // Set default campaign settings based on instructions
+          session.campaignName = session.campaignProjectName || 'EAC Marketing Campaign';
+          session.duration = 4; // weeks
+          session.platforms = ['twitter', 'linkedin', 'instagram', 'facebook'];
+          session.postsPerDay = 3;
+          session.campaignGoals = `Brand awareness and lead generation based on ${instructionFiles.length} instruction files`;
+          
+          // Immediately generate campaign with combined instructions
+          const result = await this.generateCampaign(session, convexMutations, sessionId);
+          console.log('🔥 Director Agent: Campaign generation result:', result);
+          return result;
+        } else {
+          console.log('🔥 Director Agent: No valid instruction files found');
+          return `No valid instruction files found from: ${fileNames.join(', ')}. Please select valid instructions files.`;
+        }
+      } catch (error) {
+        console.error('🔥 Director Agent: Error loading instruction files:', error);
+        return 'Error loading instruction files. Please try again.';
+      }
+    }
+
+    // Handle single file selection input AFTER campaign name step (LEGACY SUPPORT)
     if (input.includes('Selected file:') && session.currentStep === 'instructions') {
-      console.log('🔥 Director Agent: Processing file selection:', input);
+      console.log('🔥 Director Agent: Processing single file selection (legacy):', input);
       console.log('🔥 Director Agent: Session step:', session.currentStep);
       
       const fileName = input.replace('Selected file:', '').trim();
@@ -192,7 +285,7 @@ export class DirectorAgent extends BaseAgent {
           console.log('🔥 Director Agent: Updated session step to complete');
           
           // Set default campaign settings based on instructions
-          session.campaignName = 'EAC Marketing Campaign';
+          session.campaignName = session.campaignProjectName || 'EAC Marketing Campaign';
           session.duration = 4; // weeks
           session.platforms = ['twitter', 'linkedin', 'instagram', 'facebook'];
           session.postsPerDay = 3;

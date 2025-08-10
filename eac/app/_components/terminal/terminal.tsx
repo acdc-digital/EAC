@@ -11,6 +11,7 @@ import { useTerminalStore } from "@/store/terminal";
 import { useSessionStore } from "@/store/terminal/session";
 import { useConvexAuth } from "convex/react";
 import { Bell, History, Settings, Terminal as TerminalIcon } from "lucide-react";
+import { useEffect } from "react";
 import { AgentsPanel, ChatMessages, ExtensionsPanel, SessionsPanel, SessionsRow } from "./_components";
 import { HistoryTab } from "./historyTab";
 
@@ -18,6 +19,7 @@ export function Terminal() {
   const { 
     isCollapsed, 
     toggleCollapse, 
+    setCollapsed,
     setSize,
     activeTab,
     setActiveTab,
@@ -25,6 +27,13 @@ export function Terminal() {
   } = useTerminalStore();
   const { isAuthenticated } = useConvexAuth();
   const { isSessionsPanelOpen, isAgentsPanelOpen, isExtensionsPanelOpen } = useSessionStore();
+
+  // Auto-collapse terminal when user signs out
+  useEffect(() => {
+    if (!isAuthenticated && !isCollapsed) {
+      setCollapsed(true);
+    }
+  }, [isAuthenticated, isCollapsed, setCollapsed]);
 
   const handleResize = (size: number) => {
     try {

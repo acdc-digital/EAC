@@ -70,8 +70,7 @@ export function SessionsRow({ className }: SessionsRowProps) {
       setAgentsPanelOpen(false);
     } else {
       toggleAgentsPanel();
-      // Clear any active extension when opening agents panel
-      setActiveExtension(null);
+      // Don't clear extension when opening agents panel - let them coexist
     }
   };
 
@@ -181,17 +180,19 @@ export function SessionsRow({ className }: SessionsRowProps) {
 
       {/* Right Side - Active Agent/Extension & Thinking Indicator */}
       <div className="flex items-center gap-3 px-3">
-        {/* Active Agent Indicator */}
+        {/* Active Agent Indicator - Show when agent is active and no extension */}
         {activeAgentId && !activeExtensionId && (
           <span className="text-xs font-medium text-[#4fc3f7]">
             {agents.find(agent => agent.id === activeAgentId)?.name || 'Unknown Agent'}
           </span>
         )}
         
-        {/* Active Extension Indicator */}
+        {/* Active Extension Indicator - Show when extension is active */}
         {activeExtensionId && (
           <span className="text-xs font-medium text-[#ffcc02]">
-            Marketing Officer
+            {activeExtensionId === 'marketing-officer' ? 'Marketing Officer' : 
+             activeExtensionId === 'campaign-director' ? 'Campaign Director' : 
+             'Extension'}
           </span>
         )}
         

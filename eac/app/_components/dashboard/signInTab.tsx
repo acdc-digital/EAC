@@ -11,17 +11,17 @@ export function SignInTab() {
     {
       icon: User,
       title: "Secure Authentication",
-      description: "Protected by Clerk's enterprise-grade security"
+      description: "Protected by enterprise-grade security"
     },
     {
       icon: Sparkles,
-      title: "Personalized Dashboard",
-      description: "Access your projects and tools in one place"
+      title: "Social Media Management",
+      description: "Schedule posts, track performance, and grow your audience"
     },
     {
       icon: Lock,
-      title: "Privacy First",
-      description: "Your data is encrypted and secure"
+      title: "Built for Solo Creators",
+      description: "Streamlined tools designed for individual entrepreneurs"
     }
   ];
 
@@ -49,10 +49,10 @@ export function SignInTab() {
             </div>
             
             <h1 className="text-2xl font-bold text-white mb-2 tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-[#c9c9c9]">
-              Welcome to EAC Dashboard
+              Welcome to EAC
             </h1>
             <p className="text-[#c9c9c9] text-sm leading-relaxed">
-              Your command center for projects, social media, and financial tools.
+              The Social Media Manager for solodevs, entrepreneurs, and content creators.
             </p>
           </div>
 

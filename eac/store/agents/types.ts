@@ -66,7 +66,7 @@ export interface ConvexMutations {
       color: 'blue' | 'green';
     };
     interactiveComponent?: {
-      type: 'project_selector' | 'file_name_input' | 'file_type_selector' | 'file_selector' | 'edit_instructions_input';
+      type: 'project_selector' | 'file_name_input' | 'file_type_selector' | 'file_selector' | 'edit_instructions_input' | 'multi_file_selector';
       data?: any;
       status: 'pending' | 'completed' | 'cancelled';
     };

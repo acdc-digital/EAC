@@ -27,6 +27,12 @@ const SocialMediaFormEditor = dynamic(() => import('@/app/_components/editor/_co
   loading: () => <div className="p-4 text-[#858585]">Loading social media editor...</div>
 });
 
+// Dynamic import for new Reddit post editor
+const NewRedditPostEditor = dynamic(() => import('@/app/_components/editor/_components/NewRedditPostEditor').then(mod => ({ default: mod.NewRedditPostEditor })), {
+  ssr: false,
+  loading: () => <div className="p-4 text-[#858585]">Loading Reddit editor...</div>
+});
+
 // Dynamic import for markdown editor with preview
 const MarkdownEditor = dynamic(() => import('../editor/_components/MarkdownEditor'), {
   ssr: false,
@@ -66,10 +72,10 @@ const UserProfile = dynamic(() => import('../user-profile/UserProfile').then(mod
   loading: () => <div className="p-4 text-[#858585]">Loading profile...</div>
 });
 
-// Dynamic import for Sign In component
-const SignInTab = dynamic(() => import('./signInTab').then(mod => ({ default: mod.SignInTab })), {
+// Dynamic import for Welcome Sign In Card
+const WelcomeSignInCard = dynamic(() => import('./WelcomeSignInCard').then(mod => ({ default: mod.WelcomeSignInCard })), {
   ssr: false,
-  loading: () => <div className="p-4 text-[#858585]">Loading sign in...</div>
+  loading: () => <div className="p-4 text-[#858585]">Loading welcome...</div>
 });
 
 // Dynamic import for Terminal component
@@ -681,11 +687,23 @@ export function DashEditor() {
           <div className="flex-1 flex overflow-hidden">
             {/* Code content with Tiptap or Edit Modules */}
             <div 
-              className="flex-1 overflow-scroll editor-scrollbar"
-              style={{
-                scrollbarWidth: 'thin',
-                scrollbarColor: '#454545 #2d2d2d'
-              }}
+              className={`flex-1 ${
+                activeTab && ['sign-in', 'user-profile', 'calendar'].includes(activeTab) 
+                  ? 'overflow-hidden h-full' 
+                  : 'overflow-scroll editor-scrollbar'
+              }`}
+              style={
+                activeTab && ['sign-in', 'user-profile', 'calendar'].includes(activeTab)
+                  ? { 
+                    overflow: 'hidden',
+                    scrollbarWidth: 'none',
+                    msOverflowStyle: 'none'
+                  } // Completely disable scrollbars for special tabs
+                  : {
+                    scrollbarWidth: 'thin',
+                    scrollbarColor: '#454545 #2d2d2d'
+                  }
+              }
             >
               <style jsx>{`
                 .editor-scrollbar::-webkit-scrollbar {
@@ -747,7 +765,7 @@ export function DashEditor() {
                       ) : isUserProfileModule ? (
                         <UserProfile />
                       ) : isSignInModule ? (
-                        <SignInTab />
+                        <WelcomeSignInCard />
                       ) : isPlatformInstructionsModule ? (
                         <PlatformInstructions platform={currentTab?.id?.split('-')[0]} />
                       ) : currentTab?.type === 'facebook' ? (
@@ -775,13 +793,21 @@ export function DashEditor() {
                           fileName={currentTab.name}
                         />
                       ) : currentTab?.type === 'reddit' ? (
-                        <SocialMediaFormEditor
-                          content={currentTabContent}
-                          onChange={handleContentChange}
-                          editable={isEditable}
-                          platform="reddit"
-                          fileName={currentTab.name}
-                        />
+                        // Feature flag to switch between old and new Reddit UI
+                        process.env.NEXT_PUBLIC_USE_NEW_REDDIT_UI === 'true' ? (
+                          <NewRedditPostEditor
+                            isVisible={true}
+                            onClose={() => {}}
+                          />
+                        ) : (
+                          <SocialMediaFormEditor
+                            content={currentTabContent}
+                            onChange={handleContentChange}
+                            editable={isEditable}
+                            platform="reddit"
+                            fileName={currentTab.name}
+                          />
+                        )
                       ) : isMarkdownFile ? (
                         <MarkdownEditor
                           key={currentTab?.id}
@@ -801,19 +827,16 @@ export function DashEditor() {
                       )}
                     </>
                   ) : (
-                    <div className="text-[#858585] text-center mt-8 p-4">
+                    <>
                       {isAuthenticated ? (
-                        <>
+                        <div className="text-[#858585] text-center mt-0 p-4">
                           <p>Dashboard ready</p>
                           <p className="text-xs mt-2">Open a file from the sidebar, create a new project, or check your user console panel</p>
-                        </>
+                        </div>
                       ) : (
-                        <>
-                          <p>Sign in to get started</p>
-                          <p className="text-xs mt-2">Click the user icon to access your personalized dashboard</p>
-                        </>
+                        <WelcomeSignInCard />
                       )}
-                    </div>
+                    </>
                   )}
                 </div>
               </div>

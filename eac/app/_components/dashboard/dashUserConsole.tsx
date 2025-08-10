@@ -5,71 +5,171 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { SignInButton, SignOutButton, useUser } from '@clerk/nextjs';
-import { useConvexAuth } from "convex/react";
+import { useTerminalStore } from "@/store/terminal";
+import { SignInButton, SignOutButton, useSignIn, useUser } from '@clerk/nextjs';
 import {
-    AtSign,
-    Calendar,
-    Copy,
-    LogIn,
-    Mail,
-    Shield,
-    User
+  ArrowLeft,
+  AtSign,
+  Calendar,
+  CheckCircle,
+  Copy,
+  Eye,
+  Mail,
+  Shield,
+  User
 } from "lucide-react";
+import { useState } from "react";
 
 export function DashUserConsole() {
-  const { user, isLoaded } = useUser();
-  const { isAuthenticated } = useConvexAuth();
+  const { isSignedIn, user, isLoaded } = useUser();
+  const { setCollapsed } = useTerminalStore();
+  const { signIn, isLoaded: signInLoaded, setActive } = useSignIn();
+  const [showCustomForm, setShowCustomForm] = useState(false);
+  const [signInMethod, setSignInMethod] = useState<'google' | 'email' | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
   };
 
-  // Show sign-in prompt when not authenticated
-  if (!isAuthenticated) {
+  // Custom authentication handlers
+  const handleGoogleSignIn = async () => {
+    if (!signInLoaded) return;
+    
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const result = await signIn.authenticateWithRedirect({
+        strategy: 'oauth_google',
+        redirectUrl: '/',
+        redirectUrlComplete: '/'
+      });
+    } catch (err: any) {
+      setError(err.errors?.[0]?.message || 'Google sign in failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!signInLoaded) return;
+    
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const result = await signIn.create({
+        identifier: email,
+        password,
+      });
+
+      if (result.status === 'complete') {
+        await setActive({ session: result.createdSessionId });
+      }
+    } catch (err: any) {
+      setError(err.errors?.[0]?.message || 'Sign in failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setShowCustomForm(false);
+    setSignInMethod(null);
+    setEmail('');
+    setPassword('');
+    setError('');
+  };
+
+  // Show loading state while auth is loading
+  if (!isLoaded) {
     return (
-      <div className="h-full bg-[#181818] text-[#cccccc] flex flex-col">
-        <div className="p-2">
-          <div className="flex items-center justify-between text-xs uppercase text-[#858585] px-2 py-1">
-            <span>User Console</span>
-          </div>
+      <div className="h-full bg-[#181818] text-[#cccccc] flex items-center justify-center">
+        <div className="text-xs text-[#858585]">Loading...</div>
+      </div>
+    );
+  }
 
-          {/* Sign In Section */}
-          <div className="space-y-1 mt-2">
-            <div className="rounded bg-[#1e1e1e] border border-[#2d2d2d]">
-              <div className="p-4 text-center">
-                <div className="w-12 h-12 bg-[#007acc]/10 rounded-full flex items-center justify-center mb-3 mx-auto">
-                  <User className="w-6 h-6 text-[#007acc]" />
-                </div>
-                
-                <h3 className="text-[#cccccc] font-medium text-sm mb-2">Sign in to continue</h3>
-                <p className="text-[#858585] text-xs mb-4 leading-relaxed">
-                  Access your personalized dashboard and account settings.
-                </p>
+  // Show inline sign-in when not authenticated
+  if (!isSignedIn) {
+    // Show custom email form
+    if (showCustomForm && signInMethod === 'email') {
+      return (
+        <div className="h-full bg-[#181818] text-[#cccccc] flex flex-col">
+          <div className="p-2">
+            <div className="flex items-center justify-between text-xs uppercase text-[#858585] px-2 py-1">
+              <button 
+                onClick={resetForm}
+                className="flex items-center gap-1 hover:text-[#cccccc] transition-colors"
+              >
+                <ArrowLeft className="w-3 h-3" />
+                <span>Back</span>
+              </button>
+              <span>Email Sign In</span>
+            </div>
 
-                <SignInButton mode="modal">
-                  <button className="w-full bg-[#007acc] hover:bg-[#005a9e] text-white border-0 text-xs py-2 px-3 rounded flex items-center justify-center gap-2">
-                    <LogIn className="w-3 h-3" />
-                    Sign In
-                  </button>
-                </SignInButton>
-
-                <div className="mt-4 space-y-1">
-                  <div className="flex items-center justify-center gap-2 text-[10px] text-[#858585]">
-                    <Shield className="w-2.5 h-2.5" />
-                    <span>Secure authentication</span>
+            {/* Custom Email Form */}
+            <div className="space-y-1 mt-2">
+              <div className="rounded bg-[#1e1e1e] border border-[#2d2d2d]">
+                <div className="p-2 space-y-2">
+                  <div className="flex items-center gap-2 px-1">
+                    <Mail className="w-3.5 h-3.5 text-[#858585]" />
+                    <span className="text-xs font-medium">Sign In with Email</span>
                   </div>
+                  
+                  {error && (
+                    <div className="text-[10px] text-red-400 px-1 py-1 bg-red-400/10 rounded">
+                      {error}
+                    </div>
+                  )}
+                  
+                  <form onSubmit={handleEmailSignIn} className="space-y-2">
+                    <div>
+                      <label className="text-[10px] text-[#858585] px-1 block mb-1">Email</label>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full bg-[#3c3c3c] border border-[#454545] text-[#cccccc] text-xs py-1.5 px-2 rounded"
+                        placeholder="Enter your email"
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="text-[10px] text-[#858585] px-1 block mb-1">Password</label>
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full bg-[#3c3c3c] border border-[#454545] text-[#cccccc] text-xs py-1.5 px-2 rounded"
+                        placeholder="Enter your password"
+                        required
+                      />
+                    </div>
+                    
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="w-full bg-[#007acc] hover:bg-[#005a9e] disabled:bg-[#454545] text-white text-xs py-1.5 px-2 rounded font-medium transition-colors"
+                    >
+                      {isLoading ? 'Signing in...' : 'Sign In'}
+                    </button>
+                  </form>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  // Loading state
-  if (!isLoaded) {
+    // Show main sign-in options
     return (
       <div className="h-full bg-[#181818] text-[#cccccc] flex flex-col">
         <div className="p-2">
@@ -77,10 +177,125 @@ export function DashUserConsole() {
             <span>User Console</span>
           </div>
 
+          {/* Custom Sign-In Form - Compact Panel Design */}
           <div className="space-y-1 mt-2">
+            {/* Authentication Methods */}
             <div className="rounded bg-[#1e1e1e] border border-[#2d2d2d]">
-              <div className="p-4 text-center">
-                <div className="text-[#858585] text-xs">Loading user information...</div>
+              <div className="p-2 space-y-2">
+                <div className="flex items-center gap-2 px-1">
+                  <User className="w-3.5 h-3.5 text-[#858585]" />
+                  <span className="text-xs font-medium">Sign In Methods</span>
+                </div>
+                
+                {error && (
+                  <div className="text-[10px] text-red-400 px-1 py-1 bg-red-400/10 rounded">
+                    {error}
+                  </div>
+                )}
+                
+                {/* Social Sign-In Options */}
+                <div className="space-y-1">
+                  <button 
+                    onClick={handleGoogleSignIn}
+                    disabled={isLoading}
+                    className="w-full flex items-center justify-between px-2 py-1.5 text-xs text-[#cccccc] bg-[#2d2d30] border border-[#454545] rounded hover:bg-[#3e3e42] disabled:bg-[#454545] transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 bg-white rounded-sm flex items-center justify-center">
+                        <span className="text-[8px] font-bold text-black">G</span>
+                      </div>
+                      <span>{isLoading ? 'Connecting...' : 'Continue with Google'}</span>
+                    </div>
+                  </button>
+                  
+                  <button 
+                    onClick={() => {
+                      setShowCustomForm(true);
+                      setSignInMethod('email');
+                    }}
+                    disabled={isLoading}
+                    className="w-full flex items-center justify-between px-2 py-1.5 text-xs text-[#cccccc] bg-[#2d2d30] border border-[#454545] rounded hover:bg-[#3e3e42] disabled:bg-[#454545] transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-3.5 h-3.5 text-[#858585]" />
+                      <span>Continue with Email</span>
+                    </div>
+                  </button>
+                </div>
+                
+                <div className="text-[10px] text-[#858585] px-1 mt-2">
+                  Choose your preferred authentication method
+                </div>
+              </div>
+            </div>
+            
+            {/* Quick Actions */}
+            <div className="rounded bg-[#1e1e1e] border border-[#2d2d2d]">
+              <div className="p-2">
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-xs text-[#858585]">Need an account?</span>
+                  <SignInButton mode="modal">
+                    <button className="text-xs text-[#007acc] hover:text-[#0099ff] underline-offset-2 hover:underline">
+                      Sign Up
+                    </button>
+                  </SignInButton>
+                </div>
+              </div>
+            </div>
+            
+            {/* Security Notice */}
+            <div className="rounded bg-[#1e1e1e] border border-[#2d2d2d]">
+              <div className="p-2">
+                <div className="flex items-center gap-2 px-1">
+                  <Shield className="w-3.5 h-3.5 text-green-400" />
+                  <span className="text-xs font-medium">Security</span>
+                </div>
+                
+                <div className="text-[10px] text-[#858585] px-1 mt-1">
+                  Protected by industry-standard encryption
+                </div>
+              </div>
+            </div>
+            
+            {/* Trust & Compliance */}
+            <div className="rounded bg-[#1e1e1e] border border-[#2d2d2d]">
+              <div className="p-2">
+                <div className="flex items-center gap-2 px-1 mb-2">
+                  <CheckCircle className="w-3.5 h-3.5 text-green-400" />
+                  <span className="text-xs font-medium">A Trusted Solution</span>
+                </div>
+                
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-[10px] text-[#858585]">SOC 2</span>
+                    <span className="text-[10px] text-green-400">Type II Compliant</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-[10px] text-[#858585]">HIPAA</span>
+                    <span className="text-[10px] text-green-400">Compliant</span>
+                  </div>
+                  
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-[10px] text-[#858585]">GDPR</span>
+                    <span className="text-[10px] text-green-400">Verified</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Data Protection */}
+            <div className="rounded bg-[#1e1e1e] border border-[#2d2d2d]">
+              <div className="p-2">
+                <div className="flex items-center gap-2 px-1 mb-1">
+                  <Eye className="w-3.5 h-3.5 text-green-400" />
+                  <span className="text-xs font-medium">Privacy</span>
+                </div>
+                
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[10px] text-[#858585]">Personal Data</span>
+                  <span className="text-[10px] text-green-400">Encrypted</span>
+                </div>
               </div>
             </div>
           </div>

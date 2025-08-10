@@ -11,8 +11,8 @@ import { useAgentStore, useSidebarStore } from "@/store";
 import { useEditorStore } from "@/store/editor";
 import { AuthLoading, useConvexAuth } from "convex/react";
 import {
-  AlertCircle,
-  Copyright
+    AlertCircle,
+    Copyright
 } from "lucide-react";
 import { useEffect } from "react";
 import { DashActivityBar } from "./_components/dashboard/dashActivityBar";
@@ -39,9 +39,10 @@ export default function HomePage() {
     initializeHistory();
   }, []);
 
-  // Check if sign-in tab is currently active
+  // Check if sign-in tab is currently active or if no tab is active (welcome page)
   const currentTab = openTabs.find(tab => tab.id === activeTab);
   const isSignInTabActive = currentTab?.type === 'sign-in';
+  const isWelcomePageActive = !activeTab || !currentTab; // No active tab means welcome page is shown
 
   // Set active panel based on authentication state - no more auto-opening tabs
   useEffect(() => {
@@ -74,7 +75,7 @@ export default function HomePage() {
         {/* <FileSync /> */}
 
         {/* Title Bar - 32px */}
-        <header className={`h-8 bg-[#181818] border-b border-[#2d2d2d] flex items-center px-0 select-none ${!isAuthenticated && !isSignInTabActive ? 'opacity-50' : ''}`}>
+        <header className={`h-8 bg-[#181818] border-b border-[#2d2d2d] flex items-center px-0 select-none ${!isAuthenticated && !isSignInTabActive && !isWelcomePageActive ? 'opacity-50' : ''}`}>
           {/* Title */}
           <div className="flex-1 flex justify-start ml-2">
             <span className="text-xs text-[#858585]">
@@ -84,7 +85,7 @@ export default function HomePage() {
         </header>
 
         {/* Main Content Area */}
-        <div className={`flex-1 flex overflow-hidden ${!isAuthenticated && !isSignInTabActive ? 'opacity-50' : ''}`}>
+        <div className={`flex-1 flex overflow-hidden ${!isAuthenticated && !isSignInTabActive && !isWelcomePageActive ? 'opacity-50' : ''}`}>
           {/* Activity Bar - Only user icon is active when not authenticated */}
           <DashActivityBar
             activePanel={activePanel}
@@ -101,7 +102,7 @@ export default function HomePage() {
         </div>
 
         {/* Status Bar - 22px */}
-        <footer className={`h-[22px] bg-[#2d2d2d] text-[#cccccc] text-xs flex items-center px-2 justify-between ${!isAuthenticated && !isSignInTabActive ? 'opacity-50' : ''}`}>
+        <footer className={`h-[22px] bg-[#2d2d2d] text-[#cccccc] text-xs flex items-center px-2 justify-between ${!isAuthenticated && !isSignInTabActive && !isWelcomePageActive ? 'opacity-50' : ''}`}>
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-1">
               <Copyright className="w-3 h-3" />

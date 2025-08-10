@@ -18,6 +18,7 @@ import { FileNameInput } from "./fileNameInput";
 import { FileSelector } from "./fileSelector";
 import { FileTypeSelector } from "./fileTypeSelector";
 import { MarkdownRenderer } from "./markdownRenderer";
+import { MultiFileSelector } from "./multiFileSelector";
 import { ProjectNameInput } from "./projectNameInput";
 import { ProjectSelector } from "./projectSelector";
 
@@ -691,7 +692,7 @@ Please start a new session to continue chatting.`,
             const isAgentProcessMessage = hasProcessIndicator && msg.role === 'assistant' && hasProcessIndicator.type === 'waiting';
             
             return (
-              <div key={index} className="space-y-1">
+              <div key={msg._id || `msg-${index}`} className="space-y-1">
                 {msg.role === 'user' && (
                   <div className={`text-[#007acc] ${isUserProcessMessage ? 'border-l-4 border-[#0078d4] pl-3' : ''}`}>
                     <span className="text-[#007acc]">$ user:</span>
@@ -1043,6 +1044,108 @@ Please start a new session to continue chatting.`,
                                 });
                               } catch (error) {
                                 console.error('Error cancelling edit instructions:', error);
+                              }
+                            }}
+                            className="mb-2"
+                          />
+                        )}
+
+                        {(msg.interactiveComponent.type as any) === 'multi_file_selector' && (
+                          <MultiFileSelector
+                            disabled={msg.interactiveComponent.status === 'completed'}
+                            selectedFiles={msg.interactiveComponent.status === 'completed' ? msg.interactiveComponent.result?.selectedFiles : undefined}
+                            title={msg.interactiveComponent.data?.title || "Select instruction files"}
+                            placeholder={msg.interactiveComponent.data?.placeholder || "Search instruction files..."}
+                            maxSelections={msg.interactiveComponent.data?.maxSelections || 5}
+                            fileTypeFilter={msg.interactiveComponent.data?.fileTypeFilter || ['markdown', 'document']}
+                            onFilesSelected={async (files) => {
+                              try {
+                                console.log('🔥 [MultiFileSelector] Files selected:', files);
+                                
+                                // Update the component status to completed
+                                await updateInteractiveComponent({
+                                  messageId: msg._id,
+                                  status: 'completed',
+                                  result: { selectedFiles: files },
+                                });
+
+                                // Send user message showing the selection
+                                const fileNames = files.map((f: any) => f.name).join(', ');
+                                await storeChatMessage({
+                                  role: 'user',
+                                  content: `Selected instruction files: ${fileNames}`,
+                                  sessionId: sessionId,
+                                  processIndicator: {
+                                    type: 'continuing',
+                                    processType: 'multi_file_selection',
+                                    color: 'blue',
+                                  },
+                                });
+
+                                // Continue the process based on the active agent
+                                const convexMutations = createConvexMutations();
+                                const activeAgent = agents.find(a => a.id === activeAgentId);
+                                
+                                if (activeAgent && activeAgentId === 'director') {
+                                  console.log('🔥 [MultiFileSelector] Found director agent, processing campaign instructions');
+                                  
+                                  try {
+                                    // Pass the selected files to the director agent directly (not as a tool call)
+                                    const selectionMessage = `Selected files: ${fileNames}`;
+                                    const result = await executeAgentTool(
+                                      activeAgentId, 
+                                      'orchestrate-campaign', // Use the tool ID instead of command
+                                      selectionMessage, 
+                                      convexMutations, 
+                                      sessionId
+                                    );
+                                    
+                                    console.log('🔥 [MultiFileSelector] Director agent execution result:', result);
+                                    
+                                    // Store the director agent's response
+                                    await storeChatMessage({
+                                      role: 'assistant',
+                                      content: result,
+                                      sessionId,
+                                      operation: {
+                                        type: 'tool_executed',
+                                        details: {
+                                          selectedFiles: files,
+                                          agentType: 'director',
+                                        },
+                                      },
+                                    });
+                                  } catch (error) {
+                                    console.error('❌ [MultiFileSelector] Error executing director agent:', error);
+                                    await storeChatMessage({
+                                      role: 'assistant',
+                                      content: '❌ Error processing instruction files. Please try again.',
+                                      sessionId,
+                                    });
+                                  }
+                                }
+                              } catch (error) {
+                                console.error('Error handling multi-file selection:', error);
+                                await storeChatMessage({
+                                  role: 'assistant',
+                                  content: '❌ Error processing file selection. Please try again.',
+                                  sessionId,
+                                });
+                              }
+                            }}
+                            onCancel={async () => {
+                              try {
+                                await updateInteractiveComponent({
+                                  messageId: msg._id,
+                                  status: 'cancelled',
+                                });
+                                await storeChatMessage({
+                                  role: 'assistant',
+                                  content: '❌ File selection cancelled. You can start a new campaign request anytime.',
+                                  sessionId,
+                                });
+                              } catch (error) {
+                                console.error('Error cancelling multi-file selection:', error);
                               }
                             }}
                             className="mb-2"
