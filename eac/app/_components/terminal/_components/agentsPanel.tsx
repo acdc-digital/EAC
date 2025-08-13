@@ -55,7 +55,14 @@ export function AgentsPanel({ className }: AgentsPanelProps) {
       return;
     }
     
-    setActiveAgent(agentId);
+    // Handle auto mode selection
+    if (agentId === 'auto') {
+      setActiveAgent('auto');
+      console.log('🤖 Auto mode enabled - intelligent routing active');
+    } else {
+      setActiveAgent(agentId);
+      console.log('🤖 Manual agent selected:', agentId);
+    }
     
     // Clear any active extension when selecting a regular agent
     // BUT only if the agent being selected is NOT an extension agent (cmo/director)
@@ -86,6 +93,21 @@ export function AgentsPanel({ className }: AgentsPanelProps) {
       }));
     });
 
+  // Add Auto option at the beginning for intelligent routing
+  const autoOption = {
+    id: 'auto-routing',
+    name: 'Auto Routing',
+    command: '/auto',
+    description: 'Intelligently routes to the best agent for your request',
+    agentId: 'auto',
+    agentName: 'Auto',
+    agentIcon: 'Bot',
+    type: 'agent' as const,
+    isActive: activeAgentId === 'auto',
+    disabled: false,
+    disabledReason: undefined
+  };
+
   // Format MCP tools to match agent tools structure
   // const allMcpTools = (mcpTools || []).map(tool => ({
   //   id: tool.name,
@@ -99,7 +121,7 @@ export function AgentsPanel({ className }: AgentsPanelProps) {
   // }));
 
   // Temporarily comment out MCP tools from terminal selection
-  const allTools = [...allAgentTools]; // ...allMcpTools];
+  const allTools = [autoOption, ...allAgentTools]; // ...allMcpTools];
 
   if (!isAuthenticated) {
     return (

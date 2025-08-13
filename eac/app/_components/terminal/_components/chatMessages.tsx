@@ -86,7 +86,7 @@ export function ChatMessages() {
   } = useMCP();
   
   // Agent execution and mutations
-  const { agents, activeAgentId, setActiveAgent, executeAgentTool, refreshAgents } = useAgentStore();
+  const { agents, activeAgentId, setActiveAgent, executeAgentTool, refreshAgents, getPostOnboardingGuidance, showPostOnboardingGuidance } = useAgentStore();
   
   // Onboarding state
   const {
@@ -160,9 +160,43 @@ export function ChatMessages() {
       messagesLength: messages?.length
     });
     
-    // Skip if onboarding is already complete
+    // Check for post-onboarding guidance
+    if (isOnboardingComplete && isLoaded && user && sessionId) {
+      const guidance = getPostOnboardingGuidance();
+      if (guidance.shouldShow && guidance.message) {
+        console.log("🎉 Showing post-onboarding guidance...");
+        
+        // Add the guidance message to chat
+        storeChatMessage({
+          role: 'assistant',
+          content: guidance.message,
+          sessionId,
+          operation: {
+            type: 'tool_executed',
+            details: {
+              tool: 'parent-orchestrator',
+              command: '/guide',
+              result: 'Post-onboarding guidance provided'
+            }
+          }
+        });
+        
+        // Mark as shown
+        guidance.dismiss();
+        return;
+      }
+    }
+    
+    // Skip if onboarding is already complete (but no guidance needed)
     if (isOnboardingComplete) {
       console.log("✅ Onboarding already complete, skipping...");
+      
+      // If onboarding is complete but no agent is selected, default to auto mode
+      if (!activeAgentId) {
+        console.log("🎯 Setting auto mode as default for onboarded user");
+        setActiveAgent('auto');
+      }
+      
       return;
     }
     
@@ -342,9 +376,10 @@ Welcome to EAC! Your personalized workspace is ready.`,
       // Complete onboarding
       completeOnboarding();
       
-      // Clear the onboarding agent selection if it's currently active
+      // Switch to auto mode after onboarding completion
       if (activeAgentId === 'onboarding') {
-        setActiveAgent(null);
+        setActiveAgent('auto');
+        console.log('🎯 Onboarding complete - switching to auto mode');
       }
       
       // Refresh agents to update disabled states
@@ -397,9 +432,10 @@ Welcome to EAC! Your workspace is ready with baseline brand guidelines.`,
           
           completeOnboarding();
           
-          // Clear the onboarding agent selection if it's currently active
+          // Switch to auto mode after onboarding completion
           if (activeAgentId === 'onboarding') {
-            setActiveAgent(null);
+            setActiveAgent('auto');
+            console.log('🎯 Onboarding complete - switching to auto mode');
           }
           
           // Refresh agents to update disabled states
@@ -753,10 +789,167 @@ Please start a new session to continue chatting.`,
         }
       }
       
+      // Check for intelligent routing to parent orchestrator
+      if (isOnboardingComplete && (
+        messageContent.includes('/guide') || 
+        messageContent.includes('/workflow') || 
+        messageContent.includes('/status') || 
+        messageContent.includes('/help') ||
+        messageContent.includes('what should i do') ||
+        messageContent.includes('what next') ||
+        messageContent.includes('help me')
+      )) {
+        console.log('🎯 Routing to parent orchestrator for:', messageContent);
+        try {
+          // Create convex mutations for the orchestrator
+          const convexMutations = createConvexMutations();
+          
+          // Store user message first
+          await storeChatMessage({
+            role: "user",
+            content: messageContent,
+            sessionId,
+          });
+          
+          // Execute intelligent routing via parent orchestrator
+          const result = await executeAgentTool(
+            'parent-orchestrator',
+            'routing', // Special routing identifier - registry handles this case
+            messageContent,
+            convexMutations,
+            sessionId
+          );
+          
+          // Store the orchestrator response
+          await storeChatMessage({
+            role: "assistant",
+            content: result,
+            sessionId,
+            operation: {
+              type: 'tool_executed',
+              details: {
+                tool: 'parent-orchestrator',
+                command: messageContent.startsWith('/') ? messageContent.split(' ')[0] : '/guide',
+                result: 'Orchestration guidance provided'
+              }
+            }
+          });
+          
+          return;
+        } catch (error) {
+          console.error('❌ Parent orchestrator execution failed:', error);
+          
+          // Check if this is an overloaded error
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          const isOverloadError = errorMessage.includes('Overloaded') || errorMessage.includes('overloaded_error');
+          
+          if (isOverloadError) {
+            // Handle overloaded error gracefully for orchestrator
+            await storeChatMessage({
+              role: "assistant",
+              content: `⏳ **EAC Assistant Temporarily Busy**
+
+I'm experiencing high demand right now, but I can still help you with simpler tasks.
+
+**Quick alternatives while I recover:**
+- Check available agents in the 🤖 panel 
+- Use direct agent commands (they may work faster):
+  - \`/twitter [content]\` - Create social posts
+  - \`/create-project [name]\` - Start new projects
+  - \`/instructions [topic]\` - Generate guidelines
+
+**Your request:** "${messageContent}"
+
+I'll be back to full capacity shortly! 🚀`,
+              sessionId,
+              operation: {
+                type: 'error',
+                details: { 
+                  error: 'Orchestrator overloaded - try direct agent commands',
+                  originalMessage: messageContent,
+                  retryable: true,
+                  suggestions: ['Use agent panel', 'Try direct commands', 'Wait and retry']
+                }
+              }
+            });
+          } else {
+            // Fall through to regular chat if orchestrator fails with other errors
+            await storeChatMessage({
+              role: "assistant",
+              content: `❌ **EAC Assistant Unavailable**
+
+I encountered an issue while processing your request. Let me try a different approach.
+
+**Alternative options:**
+- Use the 🤖 agents panel to activate specific tools
+- Try direct commands like \`/twitter\`, \`/create-project\`, or \`/instructions\`
+- Ask me simpler questions that don't require complex routing
+
+**Error:** ${errorMessage}
+
+Would you like me to help you find the right tool for your task?`,
+              sessionId,
+              operation: {
+                type: 'error',
+                details: { 
+                  error: errorMessage,
+                  fallbackSuggested: true,
+                  originalMessage: messageContent
+                }
+              }
+            });
+          }
+          
+          return;
+        }
+      }
+      
       // Check if this is an agent command when an agent is active
-      // BUT only route to editor agent if it has a selected file and is waiting for edit instructions
+      // Handle auto mode vs specific agent selection
       if (activeAgentId && !messageContent.startsWith('/')) {
-        console.log('🤖 Checking if should route to active agent:', activeAgentId);
+        console.log('🤖 Checking active agent mode:', activeAgentId);
+        
+        // Auto mode - use intelligent routing via parent orchestrator
+        if (activeAgentId === 'auto') {
+          console.log('🎯 Auto mode active - routing to parent orchestrator for intelligent routing');
+          
+          // Execute intelligent routing via parent orchestrator
+          const result = await executeAgentTool(
+            'parent-orchestrator',
+            'routing', // Special routing identifier - registry handles this case
+            messageContent
+          );
+          
+          // Store the message pair
+          const convexMutations = createConvexMutations();
+          if (convexMutations.storeChatMessage) {
+            await convexMutations.storeChatMessage({
+              role: 'user',
+              content: messageContent,
+              metadata: {
+                tool: 'parent-orchestrator',
+                timestamp: Date.now(),
+                sessionId: sessionId,
+              },
+            });
+            
+            await convexMutations.storeChatMessage({
+              role: 'assistant', 
+              content: result,
+              metadata: {
+                tool: 'parent-orchestrator',
+                timestamp: Date.now(),
+                sessionId: sessionId,
+              },
+            });
+          }
+          
+          setMessage("");
+          return;
+        }
+        
+        // Specific agent mode - route directly to selected agent
+        console.log('🤖 Specific agent mode - routing to:', activeAgentId);
         
         let shouldRouteToAgent = true;
         
@@ -975,7 +1168,60 @@ Please start a new session to continue chatting.`,
         }
         
         // Always use streaming thinking for all messages (thinking enabled by default)
-        await sendMessageWithStreaming(contextualMessage, messageContent);
+        try {
+          await sendMessageWithStreaming(contextualMessage, messageContent);
+        } catch (error) {
+          console.error('❌ Chat message failed:', error);
+          
+          // Check if this is an overloaded error
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          const isOverloadError = errorMessage.includes('Overloaded') || errorMessage.includes('overloaded_error');
+          
+          if (isOverloadError) {
+            // Handle overloaded error gracefully
+            await storeChatMessage({
+              role: "assistant",
+              content: `⏳ **System Temporarily Busy**
+
+The AI system is experiencing high demand right now. Your message was received, but processing may be delayed.
+
+**What you can do:**
+- Wait a moment and try again
+- Use simpler commands for faster processing
+- Try using agent commands directly (e.g., \`/guide\`, \`/status\`)
+
+**Your message:** "${messageContent}"
+
+The system will be back to normal capacity shortly. Thank you for your patience! 🙏`,
+              sessionId,
+              operation: {
+                type: 'error',
+                details: { 
+                  error: 'System overloaded - temporary delay',
+                  originalMessage: messageContent,
+                  retryable: true
+                }
+              }
+            });
+          } else {
+            // Handle other errors
+            await storeChatMessage({
+              role: "assistant", 
+              content: `❌ **Message Failed**
+
+Sorry, there was an issue processing your message: "${messageContent}"
+
+**Error:** ${errorMessage}
+
+Please try again or use a different approach.`,
+              sessionId,
+              operation: {
+                type: 'error',
+                details: { error: errorMessage, originalMessage: messageContent }
+              }
+            });
+          }
+        }
       }
     }
   };

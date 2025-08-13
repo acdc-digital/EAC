@@ -1,8 +1,10 @@
-// Agent Store - Refactored to use Modular Architecture
-// /Users/matthewsimon/Projects/eac/eac/store/agents/index-new.ts
+// Agent Store - Enhanced with Orchestration Integration
+// /Users/matthewsimon/Projects/eac/eac/store/agents/index.ts
 
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
+import { useAgentContextStore } from "./context";
+import { useOrchestrationStore } from "./orchestration";
 import {
     agentRegistry,
     getAvailableAgents
@@ -81,7 +83,19 @@ export const useAgentStore = create<AgentState>()(
             // Add execution to state
             get().addExecution(execution);
 
+            // Track execution in context store
+            const contextStore = useAgentContextStore.getState();
+            const executionId = contextStore.trackExecution({
+              agentId,
+              toolId,
+              command: agentRegistry.getAgent(agentId)?.tools.find(t => t.id === toolId)?.command || '',
+              input,
+              status: "running",
+              sessionId,
+            });
+
             let result: string;
+            const startTime = Date.now();
 
             // Use the modular agent registry to execute
             try {
@@ -92,9 +106,20 @@ export const useAgentStore = create<AgentState>()(
                 convexMutations || {},
                 sessionId
               );
+
+              const responseTime = Date.now() - startTime;
+              contextStore.completeExecution(executionId, result, responseTime);
+              contextStore.addRecentAction(agentId, `${toolId} executed`, true);
+
             } catch (error) {
               console.error("❌ Agent execution failed:", error);
-              result = `❌ Agent execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
+              const responseTime = Date.now() - startTime;
+              const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+              
+              contextStore.failExecution(executionId, errorMsg, responseTime);
+              contextStore.addRecentAction(agentId, `${toolId} failed`, false);
+              
+              result = `❌ Agent execution failed: ${errorMsg}`;
             }
 
             // Update execution status
@@ -169,6 +194,10 @@ export const useAgentStore = create<AgentState>()(
           const freshAgents = getAvailableAgents();
           console.log('🔄 Agent Store: Refreshed agents:', freshAgents.map(a => ({ id: a.id, name: a.name })));
           set({ agents: freshAgents });
+          
+          // Check for post-onboarding guidance after agent refresh
+          const orchestrationStore = useOrchestrationStore.getState();
+          orchestrationStore.checkOnboardingCompletion();
         },
 
         clearError: () => {
@@ -177,6 +206,51 @@ export const useAgentStore = create<AgentState>()(
 
         clearExecutions: () => {
           set({ executions: [] });
+        },
+
+        // Enhanced orchestration methods
+        executeIntelligentRouting: async (
+          input: string,
+          convexMutations?: ConvexMutations,
+          sessionId?: string
+        ) => {
+          if (!convexMutations) {
+            throw new Error('ConvexMutations required for intelligent routing');
+          }
+          const orchestrationStore = useOrchestrationStore.getState();
+          return orchestrationStore.executeIntelligentRouting(
+            input,
+            convexMutations
+          );
+        },
+
+        createWorkflow: async (
+          goal: string,
+          convexMutations?: ConvexMutations,
+          sessionId?: string
+        ) => {
+          if (!convexMutations) {
+            throw new Error('ConvexMutations required for workflow creation');
+          }
+          const orchestrationStore = useOrchestrationStore.getState();
+          return orchestrationStore.createAndExecuteWorkflow(
+            goal,
+            convexMutations
+          );
+        },
+
+        getPostOnboardingGuidance: () => {
+          const orchestrationStore = useOrchestrationStore.getState();
+          return {
+            shouldShow: orchestrationStore.isPostOnboardingMode,
+            message: orchestrationStore.postOnboardingMessage,
+            dismiss: orchestrationStore.dismissPostOnboardingGuidance,
+          };
+        },
+
+        showPostOnboardingGuidance: () => {
+          const orchestrationStore = useOrchestrationStore.getState();
+          orchestrationStore.showPostOnboardingGuidance();
         },
       }),
       {

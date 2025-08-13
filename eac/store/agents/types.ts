@@ -178,4 +178,14 @@ export interface AgentState {
   setLoading: (loading: boolean) => void;
   reset: () => void;
   refreshAgents: () => void;
+  
+  // Enhanced orchestration methods
+  executeIntelligentRouting: (input: string, convexMutations?: ConvexMutations, sessionId?: string) => Promise<string>;
+  createWorkflow: (goal: string, convexMutations?: ConvexMutations, sessionId?: string) => Promise<string>;
+  getPostOnboardingGuidance: () => {
+    shouldShow: boolean;
+    message: string | null;
+    dismiss: () => void;
+  };
+  showPostOnboardingGuidance: () => void;
 }

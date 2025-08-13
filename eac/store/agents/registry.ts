@@ -8,6 +8,7 @@ import { editorAgent } from './editorAgent';
 import { fileCreatorAgent } from './fileCreatorAgent';
 import { instructionsAgent } from './instructionsAgent';
 import { onboardingAgent } from './onboardingAgent';
+import { parentOrchestratorAgent } from './parentOrchestratorAgent';
 import { projectCreatorAgent } from './projectCreatorAgent';
 import { schedulingAgent } from './schedulingAgent';
 
@@ -27,6 +28,8 @@ export class AgentRegistry {
     console.log('🤖 Agent Registry: Initializing...');
     this.registerAgent(onboardingAgent);
     console.log('🤖 Registered:', onboardingAgent.id, onboardingAgent.name);
+    this.registerAgent(parentOrchestratorAgent);
+    console.log('🤖 Registered:', parentOrchestratorAgent.id, parentOrchestratorAgent.name);
     this.registerAgent(instructionsAgent);
     console.log('🤖 Registered:', instructionsAgent.id, instructionsAgent.name);
     this.registerAgent(schedulingAgent);
@@ -107,6 +110,17 @@ export class AgentRegistry {
     const agent = this.getAgent(agentId);
     if (!agent) {
       throw new Error(`Agent not found: ${agentId}`);
+    }
+
+    // Special case for parent orchestrator - it has no tools and routes intelligently
+    if (agentId === 'parent-orchestrator') {
+      // Call the orchestrator's routing method directly
+      const orchestrator = agent as any;
+      if (orchestrator.handleIntelligentRouting) {
+        return await orchestrator.handleIntelligentRouting(input, convexMutations, sessionId);
+      }
+      // Fallback to execute method
+      return await agent.execute(null as any, input, convexMutations, sessionId);
     }
 
     const tool = agent.tools.find(t => t.id === toolId);

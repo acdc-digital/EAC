@@ -519,7 +519,17 @@ Based on the input, I'll determine the appropriate file type and proceed to the 
       /create.*a.*new.*file/,
       /create.*new.*file/,
       /make.*a.*new.*file/,
-      /add.*a.*new.*file/
+      /add.*a.*new.*file/,
+      // Add patterns for requests with "help"
+      /help.*create.*file/,
+      /help.*make.*file/,
+      /help.*with.*file/,
+      /help.*new.*file/,
+      // General file creation patterns
+      /want.*create.*file/,
+      /need.*create.*file/,
+      /would.*like.*create.*file/,
+      /can.*create.*file/
     ];
     
     const isMatch = newFilePatterns.some(pattern => {
@@ -596,11 +606,13 @@ Based on the input, I'll determine the appropriate file type and proceed to the 
    */
   private isHelpRequest(input: string): boolean {
     const helpPatterns = [
-      /help/,
-      /how.*work/,
-      /what.*do/,
-      /commands/,
-      /options/
+      /^help$/,                    // Just "help"
+      /^help me$/,                 // Just "help me"
+      /^how.*work\??$/,           // "how does this work?"
+      /^what.*do\??$/,            // "what do you do?"
+      /^commands\??$/,            // "commands?"
+      /^options\??$/,             // "options?"
+      /^file types\??$/           // "file types?"
     ];
     return helpPatterns.some(pattern => pattern.test(input));
   }
