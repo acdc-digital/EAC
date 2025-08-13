@@ -10,4 +10,5 @@ export { SessionsPanel } from './sessionsPanel';
 export { SessionsRow } from './sessionsRow';
 export { ToolSelector } from './toolSelector';
 export { ToolsToggle } from './toolsToggle';
+export { UrlInput } from './urlInput';
 

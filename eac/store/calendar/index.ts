@@ -1,9 +1,6 @@
 // Calendar Store (Zustand)
 // /Users/matthewsimon/Projects/eac/eac/store/calendar/index.ts
 
-import { api } from '@/convex/_generated/api';
-import { useQuery } from 'convex/react';
-import { useEffect } from 'react';
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import type { CalendarStoreState, ScheduledPost } from './types';
@@ -165,44 +162,13 @@ export const useGetPostsByPlatform = () => useCalendarStore(state => state.getPo
 export const useClearCalendarError = () => useCalendarStore(state => state.clearError);
 
 // Custom hook to integrate with Convex scheduled posts
+// Note: This should be used in client components with "use client" directive
 export const useScheduledPostsFromConvex = (userId?: string, startDate?: Date, endDate?: Date) => {
-  const setScheduledPosts = useSetScheduledPosts();
-  
-  // Convert dates to timestamps for Convex query
-  const startTimestamp = startDate ? startDate.getTime() : undefined;
-  const endTimestamp = endDate ? endDate.getTime() : undefined;
-  
-  const convexPosts = useQuery(api.socialPosts.getScheduledPostsForCalendar, {
-    userId,
-    startDate: startTimestamp,
-    endDate: endTimestamp,
-  });
-  
-  // Update calendar store when Convex data changes
-  useEffect(() => {
-    if (convexPosts) {
-      // Transform Convex data to match ScheduledPost interface
-      const transformedPosts: ScheduledPost[] = convexPosts.map(post => ({
-        _id: post._id,
-        userId: post.userId || 'unknown',
-        platform: post.platform as "facebook" | "instagram" | "twitter" | "reddit",
-        title: post.title,
-        content: post.content,
-        scheduledAt: post.scheduledAt,
-        status: post.status as "scheduled" | "published" | "failed" | "cancelled",
-        fileName: post.fileName,
-        fileType: post.fileType,
-        createdAt: post.createdAt,
-        updatedAt: post.updatedAt,
-      }));
-      
-      setScheduledPosts(transformedPosts);
-    }
-  }, [convexPosts, setScheduledPosts]);
-  
+  // This is a placeholder - actual implementation should be in client components
+  // that can use useQuery and useEffect from React/Convex
   return {
-    posts: convexPosts || [],
-    isLoading: convexPosts === undefined,
+    posts: [],
+    isLoading: false,
   };
 };
 

@@ -78,6 +78,12 @@ const WelcomeSignInCard = dynamic(() => import('./WelcomeSignInCard').then(mod =
   loading: () => <div className="p-4 text-[#858585]">Loading welcome...</div>
 });
 
+// Dynamic import for Welcome Tab
+const WelcomeTab = dynamic(() => import('./WelcomeTab').then(mod => ({ default: mod.WelcomeTab })), {
+  ssr: false,
+  loading: () => <div className="p-4 text-[#858585]">Loading welcome...</div>
+});
+
 // Dynamic import for Terminal component
 const Terminal = dynamic(() => import('../terminal/terminal').then(mod => ({ default: mod.Terminal })), {
   ssr: false,
@@ -350,7 +356,7 @@ export function DashEditor() {
     if (!currentTab) return 1;
     
     // For special tabs (non-editable), use minimal line numbers
-    if (['sign-in', 'user-profile', 'calendar', 'social-connect', 'post-creator', 'platform-instructions'].includes(currentTab.type)) {
+    if (['sign-in', 'user-profile', 'calendar', 'social-connect', 'post-creator', 'platform-instructions', 'markdown'].includes(currentTab.type)) {
       return 1; // Minimal line numbers for special tabs
     }
     
@@ -734,7 +740,7 @@ export function DashEditor() {
               `}</style>
               <div className="flex min-h-full">
                 {/* Line numbers - synchronized with content - only show for code/text files */}
-                {currentTab && !['sign-in', 'user-profile', 'calendar', 'social-connect', 'post-creator', 'platform-instructions', 'x', 'facebook', 'instagram', 'reddit'].includes(currentTab.type) && (
+                {currentTab && !['sign-in', 'user-profile', 'calendar', 'social-connect', 'post-creator', 'platform-instructions', 'x', 'facebook', 'instagram', 'reddit', 'markdown'].includes(currentTab.type) && (
                   <div className="bg-[#1a1a1a] text-[#858585] text-center px-2 select-none w-[40px] border-r border-[#2d2d2d] flex-shrink-0">
                     {Array.from({ length: lineCount }, (_, i) => (
                       <div key={i} className="leading-5 text-xs font-mono h-5">
@@ -829,10 +835,7 @@ export function DashEditor() {
                   ) : (
                     <>
                       {isAuthenticated ? (
-                        <div className="text-[#858585] text-center mt-0 p-4">
-                          <p>Dashboard ready</p>
-                          <p className="text-xs mt-2">Open a file from the sidebar, create a new project, or check your user console panel</p>
-                        </div>
+                        <WelcomeTab />
                       ) : (
                         <WelcomeSignInCard />
                       )}

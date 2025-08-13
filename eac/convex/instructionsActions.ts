@@ -75,7 +75,7 @@ export const generateInstructionsWithWebSearch = action({
       }
       
       // Check if we're hitting rate limits - if so, use fallback
-      const useAPIFallback = true; // Set to true to test streaming without API calls
+      const useAPIFallback = false; // Set to false to use real AI generation with personalized prompts
       
       if (useAPIFallback) {
         console.log("🔄 Using fallback mode to demonstrate streaming...");
@@ -333,7 +333,71 @@ This guide provides comprehensive instructions for ${cleanTopic}. Whether you're
       }
       
       const today = new Date().toISOString().split('T')[0];
-      const structurePrompt = `Create a practical instruction document for: "${topic}"
+      
+      // Parse the topic to extract URL and onboarding data
+      const topicMatch = topic.match(/Social Media Brand Guidelines for (.+?) - Interest: (.+?), Content: (.+?), Audience: (.+?), Goals: (.+?), Voice: (.+?)$/);
+      
+      let structurePrompt: string;
+      
+      if (topicMatch) {
+        const [, url, interest, content, audience, goals, voice] = topicMatch;
+        
+        structurePrompt = `You are a social media brand strategist creating personalized brand guidelines for a client.
+
+**CLIENT PROFILE:**
+- **Website/Business**: ${url}
+- **Interest/Motivation**: ${interest}
+- **Content They Want to Share**: ${content}
+- **Target Audience**: ${audience}
+- **Business Goals**: ${goals}
+- **Brand Voice/Personality**: ${voice}
+
+**TASK**: Create comprehensive, personalized social media brand guidelines that help this specific client build an authentic presence that aligns with their unique situation.
+
+**RESEARCH REQUIRED**: Use web search to analyze their website (${url}) to understand:
+- Their current brand positioning
+- Industry context and competitors
+- Visual style and messaging
+- Products/services offered
+- Current social media presence (if any)
+
+**OUTPUT FORMAT** (Markdown):
+# Social Media Brand Guidelines for [Business Name]
+
+## Brand Analysis & Overview
+[Based on website research and client profile]
+
+## Target Audience Strategy
+[Specific to their stated audience: ${audience}]
+
+## Content Strategy
+[Built around what they want to share: ${content}]
+
+## Brand Voice & Messaging
+[Aligned with their personality: ${voice}]
+
+## Visual Identity Guidelines
+[Based on website analysis]
+
+## Content Calendar Recommendations
+[Specific to their goals: ${goals}]
+
+## Platform-Specific Strategies
+[Tailored recommendations for each platform]
+
+## Engagement & Community Building
+[Based on their motivation: ${interest}]
+
+## Metrics & Success Indicators
+[Aligned with their business goals]
+
+## Next Steps & Implementation
+[Practical action items]
+
+Make this highly specific and actionable for THIS client, not generic advice. Use their actual responses and website research to create truly personalized recommendations.`;
+      } else {
+        // Fallback for non-onboarding topics
+        structurePrompt = `Create a practical instruction document for: "${topic}"
 
 Format as Markdown with:
 1. **Overview** - What this is and why it matters
@@ -344,6 +408,7 @@ Format as Markdown with:
 6. **Resources** - Useful links and tools
 
 Use web search for current information. Keep it practical and actionable.`;
+      }
 
       // Build tools array conditionally
       const tools = [];

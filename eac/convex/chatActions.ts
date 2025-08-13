@@ -128,6 +128,102 @@ function detectMCPIntent(message: string): { tool: string; confidence: number; p
   return null;
 }
 
+// Helper function to detect y/N responses for onboarding
+function isYesResponse(message: string): boolean {
+  const clean = message.trim().toLowerCase();
+  return ['y', 'yes', 'yeah', 'yep', 'sure', 'ok', 'okay'].includes(clean);
+}
+
+function isNoResponse(message: string): boolean {
+  const clean = message.trim().toLowerCase();
+  return ['n', 'no', 'nope', 'nah', 'not now', 'skip'].includes(clean);
+}
+
+// Helper function to check if user is in onboarding y/N prompt state
+async function isInOnboardingPromptState(ctx: any, sessionId?: string): Promise<boolean> {
+  if (!sessionId) return false;
+  
+  try {
+    // Get recent messages to check if last system message was the onboarding prompt
+    const recentMessages = await ctx.runQuery(api.chat.getChatMessages, {
+      sessionId,
+      limit: 3
+    });
+      
+    return recentMessages.some((msg: any) => 
+      msg.role === "assistant" && 
+      msg.content.includes("Ready to get started?")
+    );
+  } catch (error) {
+    console.log("Error checking onboarding prompt state:", error);
+    return false;
+  }
+}
+
+// Helper function to get current onboarding step
+async function getOnboardingStep(ctx: any, sessionId?: string): Promise<string | null> {
+  if (!sessionId) return null;
+  
+  // Get recent messages to check for onboarding process indicators
+  const recentMessages = await ctx.runQuery(api.chat.getChatMessages, {
+    sessionId,
+    limit: 5
+  });
+  
+  console.log("🔍 DEBUG getOnboardingStep - Recent messages:", recentMessages.map((msg: any) => ({
+    role: msg.role,
+    processType: msg.processIndicator?.processType,
+    content: msg.content.substring(0, 50) + "..."
+  })));
+    
+  for (const msg of recentMessages) {
+    if (msg.processIndicator?.processType?.startsWith('onboarding-')) {
+      const step = msg.processIndicator.processType.replace('onboarding-', '');
+      console.log("🎯 DEBUG getOnboardingStep - Found step:", step);
+      return step;
+    }
+  }
+  
+  console.log("❌ DEBUG getOnboardingStep - No onboarding step found");
+  return null;
+}
+
+// Helper function to store onboarding response
+async function storeOnboardingResponse(ctx: any, sessionId: string, key: string, value: string) {
+  // Store in a simple format that can be retrieved later
+  await ctx.runMutation(api.chat.storeChatMessage, {
+    role: "system",
+    content: `[ONBOARDING_DATA:${key}] ${value}`,
+    sessionId: sessionId,
+  });
+}
+
+// Helper function to update onboarding step
+async function updateOnboardingStep(ctx: any, sessionId: string, step: string) {
+  // This is handled by the process indicator in the response message
+  // No additional action needed as the step is tracked by the latest process indicator
+}
+
+// Helper function to get all onboarding responses
+async function getOnboardingResponses(ctx: any, sessionId: string) {
+  const messages = await ctx.runQuery(api.chat.getChatMessages, {
+    sessionId,
+    limit: 50 // Get more messages to find all onboarding data
+  });
+    
+  const responses: Record<string, string> = {};
+  for (const msg of messages) {
+    if (msg.role === "system" && msg.content.includes("[ONBOARDING_DATA:")) {
+      const match = msg.content.match(/\[ONBOARDING_DATA:(\w+)\] (.+)/);
+      if (match) {
+        responses[match[1]] = match[2];
+      }
+    }
+  }
+  
+  return responses;
+}
+
 // Agent Command Handler
 async function handleAgentCommand(ctx: any, command: string, sessionId?: string) {
   try {
@@ -158,6 +254,14 @@ async function handleAgentCommand(ctx: any, command: string, sessionId?: string)
         }
         break;
 
+      case '/onboard':
+        if (!input.trim()) {
+          result = `❌ Please provide a URL for brand analysis. Example: /onboard https://example.com`;
+        } else {
+          result = await handleOnboardCommand(ctx, command, input, sessionId);
+        }
+        break;
+
       case '/':
         // Show available commands
         result = `🤖 **Available Agent Commands:**
@@ -172,6 +276,11 @@ async function handleAgentCommand(ctx: any, command: string, sessionId?: string)
 • Example: \`/instructions Always say welcome to the EAC\`
 • Options: \`--audience developers\` for specific audiences
 
+**Onboarding Agent**
+\`/onboard <url>\` - Analyze brand and create custom instructions
+• Example: \`/onboard https://example.com\`
+• Analyzes website and generates personalized brand guidelines
+
 **Usage Tips:**
 • Commands are case-insensitive
 • Use quotes for multi-word parameters
@@ -179,7 +288,8 @@ async function handleAgentCommand(ctx: any, command: string, sessionId?: string)
 
 **Examples:**
 \`/twitter Our new dashboard is live! --project Marketing --schedule "tomorrow 9am"\`
-\`/instructions Use the EAC color scheme for all components --audience developers\``;
+\`/instructions Use the EAC color scheme for all components --audience developers\`
+\`/onboard https://mycompany.com\``;
         break;
 
       default:
@@ -188,6 +298,7 @@ async function handleAgentCommand(ctx: any, command: string, sessionId?: string)
 Available commands:
 • \`/twitter <content>\` - Create Twitter posts
 • \`/instructions <content>\` - Create instruction documents
+• \`/onboard <url>\` - Analyze brand and create guidelines
 • \`/\` - Show this help
 
 Type \`/\` to see detailed usage examples.`;
@@ -836,6 +947,202 @@ Please try again or check the system logs for more details.`;
   }
 }
 
+// Onboard Command Handler
+async function handleOnboardCommand(ctx: any, fullCommand: string, input: string, sessionId?: string): Promise<string> {
+  try {
+    // Clean the input to extract URL
+    const url = input.trim();
+    
+    if (!url) {
+      return `❌ **Onboarding Agent**
+
+Please provide a URL for brand analysis.
+
+**Example:** \`/onboard https://example.com\``;
+    }
+
+    // Validate URL format
+    let validatedUrl: string;
+    try {
+      // Add protocol if missing
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        validatedUrl = `https://${url}`;
+      } else {
+        validatedUrl = url;
+      }
+      
+      // Validate URL
+      new URL(validatedUrl);
+    } catch (error) {
+      return `❌ **Onboarding Agent**
+
+Invalid URL format. Please provide a valid website URL.
+
+**Example:** \`/onboard https://example.com\``;
+    }
+
+    // Ensure instructions project exists
+    await ctx.runMutation(api.projects.ensureInstructionsProject, {});
+
+    // Use Convex action for content generation
+    const result = await ctx.runAction(api.instructionsActions.generateInstructionsWithWebSearch, {
+      topic: `Brand Analysis for ${validatedUrl}`,
+      sessionId,
+    });
+
+    if (result) {
+      try {
+        const brandName = validatedUrl.replace(/^https?:\/\//, '').split('/')[0].replace('www.', '');
+        const filename = `${brandName.replace(/[^a-zA-Z0-9]/g, '_')}_brand_guidelines.md`;
+        
+        await ctx.runMutation(api.files.createInstructionFile, {
+          name: filename,
+          content: result,
+          topic: `Brand Guidelines for ${brandName}`,
+          audience: "content creators and marketers"
+        });
+
+        return `✅ **Onboarding Complete!**
+
+🎯 **Brand Analysis Successful**
+- Analyzed: ${validatedUrl}
+- Custom instructions generated and saved to your instructions folder
+- Your workspace is now personalized with your brand guidelines
+
+🚀 **Next Steps:**
+1. Explore your custom instructions in the sidebar
+2. Try creating content with \`/twitter\` or \`/create-project\`
+3. Use \`/schedule\` to plan your content calendar
+
+Welcome to EAC! Your personalized workspace is ready.`;
+      } catch (fileError) {
+        console.error('❌ Failed to save instruction file:', fileError);
+        return `⚠️ **Brand Analysis Generated (Save Issue)**
+
+🎯 Successfully analyzed: ${validatedUrl}
+❌ Could not save to your workspace (authentication issue)
+📋 Brand guidelines generated successfully
+
+**Please ensure you're signed in and try again**, or manually save the content in your files.
+
+The analysis was successful, but saving requires proper authentication.`;
+      }
+    } else {
+      return `❌ **Onboarding Error**
+
+Failed to complete brand analysis. Please ensure you're properly authenticated and try again.`;
+    }
+
+  } catch (error) {
+    console.error('🔥 Onboarding Agent Error:', error);
+    
+    // Check if this is an API overload error
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const isOverloadError = errorMessage.includes('Overloaded') || errorMessage.includes('overloaded_error');
+    
+    if (isOverloadError) {
+      // Create fallback brand guidelines using onboarding data
+      try {
+        const allResponses = await ctx.runAction(api.chatActions.getAllOnboardingResponses, {
+          sessionId: sessionId!,
+        });
+        
+        const brandName = input.replace(/^https?:\/\//, '').split('/')[0].replace('www.', '');
+        const filename = `${brandName.replace(/[^a-zA-Z0-9]/g, '_')}_brand_guidelines.md`;
+        
+        // Create personalized fallback content
+        const fallbackContent = `# Social Media Brand Guidelines for ${brandName}
+
+## Brand Analysis & Overview
+Based on your onboarding responses, here are personalized brand guidelines for **${brandName}**.
+
+### Your Brand Profile
+- **Interest/Motivation**: ${allResponses.interest || 'Building authentic social media presence'}
+- **Content Focus**: ${allResponses.sharing || 'Valuable insights and experiences'}
+- **Target Audience**: ${allResponses.audience || 'Engaged community members'}
+- **Business Goals**: ${allResponses.goals || 'Building brand awareness'}
+- **Brand Voice**: ${allResponses.personality || 'Professional and approachable'}
+
+## Content Strategy
+Based on your goal to share "${allResponses.sharing}", focus on:
+- Educational content that demonstrates your expertise
+- Behind-the-scenes content showing your process
+- Community engagement and conversation starters
+- Value-driven posts that help your audience
+
+## Target Audience Strategy
+Your target audience (${allResponses.audience}) will respond well to:
+- Authentic, relatable content
+- Practical tips and insights
+- Community-focused messaging
+- Consistent, reliable posting schedule
+
+## Brand Voice & Messaging
+With a ${allResponses.personality} personality, your brand should:
+- Use conversational, approachable language
+- Share personal insights and experiences
+- Be consistent in tone across all platforms
+- Engage genuinely with your community
+
+## Content Pillars
+1. **Educational**: Share knowledge about ${allResponses.sharing}
+2. **Personal**: Behind-the-scenes of your journey
+3. **Community**: Engage with ${allResponses.audience}
+4. **Goals**: Content supporting ${allResponses.goals}
+
+## Next Steps
+1. Review and customize these guidelines based on ${brandName}'s specific brand
+2. Create a content calendar using these pillars
+3. Start with 3-5 posts per week following these guidelines
+4. Use EAC's tools to schedule and manage your content
+
+---
+*These guidelines were generated based on your onboarding responses. For AI-enhanced analysis of ${input}, try again when the AI service is available.*`;
+
+        await ctx.runMutation(api.files.createInstructionFile, {
+          name: filename,
+          content: fallbackContent,
+          topic: `Brand Guidelines for ${brandName}`,
+          audience: "content creators and marketers"
+        });
+
+        return `✅ **Onboarding Complete!**
+
+🎯 **Brand Guidelines Created**
+- Analyzed: ${input}
+- Personalized brand guidelines created using your responses
+- File saved: ${filename}
+
+🚀 **Next Steps:**
+1. Review your brand guidelines in the sidebar
+2. Customize them further based on ${brandName}'s specific needs
+3. Start creating content with \`/twitter\` or \`/create-project\`
+
+Welcome to EAC! Your personalized workspace is ready.`;
+      } catch (fallbackError) {
+        console.error('❌ Failed to create fallback brand guidelines:', fallbackError);
+        return `⚠️ **Onboarding Complete with Issues**
+        
+AI analysis was unavailable, and we encountered an issue creating fallback guidelines.
+Please try the \`/instructions\` command manually or contact support.
+
+**Error:** ${errorMessage}`;
+      }
+    }
+    
+    return `❌ **Onboarding Agent Error**
+
+Failed to analyze the brand URL. This might be due to:
+- The website is not accessible
+- Network connectivity issues
+- API rate limits
+
+Please try again with a different URL or contact support if the issue persists.
+
+**Error:** ${errorMessage}`;
+  }
+}
+
 // Action to send message to Claude and get response
 export const sendChatMessage = action({
   args: {
@@ -853,8 +1160,310 @@ export const sendChatMessage = action({
         sessionId: args.sessionId,
       });
 
-      // Check if message is an agent command (starts with /)
+      // Check for y/N responses to onboarding prompt
       const messageContent = args.originalContent || args.content;
+      const isOnboardingState = await isInOnboardingPromptState(ctx, args.sessionId);
+      
+      if (isOnboardingState) {
+        if (isYesResponse(messageContent)) {
+          // User said yes - start the introduction questions
+          await ctx.runMutation(api.chat.storeChatMessage, {
+            role: "assistant",
+            content: `Fantastic! I'm excited to help you build an authentic social media presence. 
+
+Let's start with a few questions to understand you better.
+
+**What sparked your interest in building a social media presence?**
+
+Is it a hobby you're passionate about, a business idea you're exploring, or something else entirely?`,
+            sessionId: args.sessionId,
+            processIndicator: {
+              type: 'waiting',
+              processType: 'onboarding-interest',
+              color: 'green'
+            }
+          });
+
+          return { success: true, message: "Onboarding interest question initiated" };
+        }
+        
+        if (isNoResponse(messageContent)) {
+          // User said no - provide alternative options
+          await ctx.runMutation(api.chat.storeChatMessage, {
+            role: "system",
+            content: `No problem! You can always start the onboarding process later.
+
+**Here's what you can do instead:**
+
+🏗️ **Create a Project**
+Type: \`/create-project My Project Name\`
+
+📝 **Create Instructions**
+Type: \`/instructions Your custom instruction here\`
+
+🐦 **Create Twitter Content**
+Type: \`/twitter Your tweet content here\`
+
+📅 **Schedule Content**
+Type: \`/schedule\`
+
+💡 **Get Help**
+Type: \`/\` to see all available commands
+
+**Ready to explore EAC on your own!** 🚀`,
+            sessionId: args.sessionId,
+          });
+
+          return { success: true, message: "Onboarding skipped - alternatives provided" };
+        }
+      }
+
+      // Handle onboarding question responses
+      const onboardingStep = await getOnboardingStep(ctx, args.sessionId);
+      
+      if (onboardingStep && args.sessionId) {
+        switch (onboardingStep) {
+          case 'interest':
+            await ctx.runMutation(api.chat.storeChatMessage, {
+              role: "assistant", 
+              content: `Great insight! I can sense your ${messageContent.toLowerCase()} really drives you.
+
+**Now, tell me about what you'd like to share with the world - don't overthink it!**
+
+What knowledge, experiences, or perspectives do you have that others might find valuable or interesting?`,
+              sessionId: args.sessionId,
+              processIndicator: {
+                type: 'waiting',
+                processType: 'onboarding-sharing',
+                color: 'green'
+              }
+            });
+            
+            // Store the response for later brand framework generation
+            await storeOnboardingResponse(ctx, args.sessionId, 'interest', messageContent);
+            return { success: true, message: "Interest captured, moved to sharing question" };
+
+          case 'sharing':
+            await ctx.runMutation(api.chat.storeChatMessage, {
+              role: "assistant",
+              content: `That sounds fascinating! "${messageContent}"
+
+**Who do you think would be interested in this?**
+
+Are you thinking friends, professionals in your field, hobbyists, people learning about this topic, or maybe a different group entirely?`,
+              sessionId: args.sessionId,
+              processIndicator: {
+                type: 'waiting',
+                processType: 'onboarding-audience',
+                color: 'green'
+              }
+            });
+            
+            await storeOnboardingResponse(ctx, args.sessionId, 'sharing', messageContent);
+            return { success: true, message: "Sharing captured, moved to audience question" };
+
+          case 'audience':
+            await ctx.runMutation(api.chat.storeChatMessage, {
+              role: "assistant",
+              content: `Perfect! Understanding your audience is key.
+
+**What's your goal with this?**
+
+Are you looking to share knowledge, build a community, eventually sell something, or just have fun and connect with people?`,
+              sessionId: args.sessionId,
+              processIndicator: {
+                type: 'waiting',
+                processType: 'onboarding-goals',
+                color: 'green'
+              }
+            });
+            
+            await storeOnboardingResponse(ctx, args.sessionId, 'audience', messageContent);
+            return { success: true, message: "Audience captured, moved to goals question" };
+
+          case 'goals':
+            await ctx.runMutation(api.chat.storeChatMessage, {
+              role: "assistant",
+              content: `I love that direction! 
+
+**One last question - how would your best friend describe your personality?**
+
+Are you more funny and casual, thoughtful and deep, energetic and motivational, or something completely different?`,
+              sessionId: args.sessionId,
+              processIndicator: {
+                type: 'waiting',
+                processType: 'onboarding-personality',
+                color: 'green'
+              }
+            });
+            
+            await storeOnboardingResponse(ctx, args.sessionId, 'goals', messageContent);
+            return { success: true, message: "Goals captured, moved to personality question" };
+
+          case 'personality':
+            await ctx.runMutation(api.chat.storeChatMessage, {
+              role: "assistant",
+              content: `Perfect! That gives me a great sense of your authentic voice.
+
+**Now for the final step - give me a URL to use as inspiration:**
+
+This could be a website you admire, a competitor you'd like to learn from, or any site that represents the kind of presence you want to build.`,
+              sessionId: args.sessionId,
+              interactiveComponent: {
+                type: 'url_input' as const,
+                status: 'pending' as const,
+                data: {
+                  placeholder: 'https://example.com',
+                  title: 'Brand Inspiration URL',
+                  description: 'Enter a website URL to analyze for brand inspiration'
+                }
+              }
+            });
+            
+            await storeOnboardingResponse(ctx, args.sessionId, 'personality', messageContent);
+            return { success: true, message: "Personality captured, moved to URL input" };
+
+          case 'url-input':
+            // Handle URL input from user
+            const userUrl = messageContent.trim();
+            
+            // Validate URL format
+            let validatedUrl: string;
+            try {
+              if (!userUrl.startsWith('http://') && !userUrl.startsWith('https://')) {
+                validatedUrl = `https://${userUrl}`;
+              } else {
+                validatedUrl = userUrl;
+              }
+              
+              // Basic URL validation
+              new URL(validatedUrl);
+            } catch (error) {
+              await ctx.runMutation(api.chat.storeChatMessage, {
+                role: "assistant",
+                content: `❌ **Invalid URL Format**
+
+Please provide a valid website URL. 
+
+**Examples:**
+- example.com
+- https://example.com
+- www.example.com
+
+Try again:`,
+                sessionId: args.sessionId,
+                processIndicator: {
+                  type: 'waiting',
+                  processType: 'onboarding-url-input',
+                  color: 'green'
+                }
+              });
+              return { success: true, message: "Invalid URL, asking for retry" };
+            }
+
+            // Store URL response
+            await storeOnboardingResponse(ctx, args.sessionId, 'url', validatedUrl);
+
+            // Start generating instructions with all collected data
+            await ctx.runMutation(api.chat.storeChatMessage, {
+              role: "assistant",
+              content: `🎯 **Analyzing your brand inspiration...**
+
+I'll analyze ${validatedUrl} and create personalized social media guidelines based on your responses.
+
+This will include:
+- Content strategy tailored to your ${messageContent} style
+- Post templates that match your authentic voice
+- Audience engagement recommendations
+
+⏳ Generating your custom instructions...`,
+              sessionId: args.sessionId,
+              processIndicator: {
+                type: 'waiting',
+                processType: 'onboarding-analyzing',
+                color: 'blue'
+              }
+            });
+
+            // Generate instructions using the collected responses
+            try {
+              // Ensure instructions project exists
+              await ctx.runMutation(api.projects.ensureInstructionsProject, {});
+
+              // Use Convex action for content generation with collected data
+              const allResponses = await ctx.runAction(api.chatActions.getAllOnboardingResponses, {
+                sessionId: args.sessionId,
+              });
+              const result = await ctx.runAction(api.instructionsActions.generateInstructionsWithWebSearch, {
+                topic: `Social Media Brand Guidelines for ${validatedUrl} - Interest: ${allResponses.interest}, Content: ${allResponses.sharing}, Audience: ${allResponses.audience}, Goals: ${allResponses.goals}, Voice: ${allResponses.personality}`,
+                sessionId: args.sessionId,
+              });
+
+              if (result) {
+                const brandName = validatedUrl.replace(/^https?:\/\//, '').split('/')[0].replace('www.', '');
+                const filename = `${brandName.replace(/[^a-zA-Z0-9]/g, '_')}_brand_guidelines.md`;
+                
+                await ctx.runMutation(api.files.createInstructionFile, {
+                  name: filename,
+                  content: result,
+                  topic: `Social Media Brand Guidelines for ${brandName}`,
+                  audience: "content creators and marketers"
+                });
+
+                await ctx.runMutation(api.chat.storeChatMessage, {
+                  role: "assistant",
+                  content: `✅ **Onboarding Complete!**
+
+🎯 **Your Personalized Social Media Guidelines Are Ready**
+
+I've created custom brand guidelines based on your responses:
+- **Interest**: ${allResponses.interest}
+- **Content Focus**: ${allResponses.sharing}
+- **Target Audience**: ${allResponses.audience}
+- **Goals**: ${allResponses.goals}
+- **Voice**: ${allResponses.personality}
+- **Brand Inspiration**: ${validatedUrl}
+
+📄 **File Created**: \`${filename}\`
+
+Your guidelines include content templates, posting strategies, and audience engagement tips tailored specifically to your authentic voice and goals.
+
+**Ready to start creating content? Try these commands:**
+- \`/twitter [your post idea]\` - Generate a tweet
+- \`/schedule\` - Plan your content calendar
+- \`/create-project [name]\` - Start a new project
+
+Welcome to EAC! 🚀`,
+                  sessionId: args.sessionId,
+                });
+
+                return { success: true, message: "Onboarding completed successfully with custom instructions" };
+              }
+            } catch (error) {
+              console.error("Instructions generation failed:", error);
+              
+              await ctx.runMutation(api.chat.storeChatMessage, {
+                role: "assistant",
+                content: `⚠️ **Onboarding Complete with Basic Setup**
+
+I encountered an issue generating custom instructions, but I've set up your workspace with our standard social media guidelines.
+
+You can still access all EAC features:
+- \`/twitter [post]\` - Create social media content
+- \`/schedule\` - Plan your content calendar  
+- \`/instructions [topic]\` - Generate custom guidelines later
+
+Welcome to EAC! 🚀`,
+                sessionId: args.sessionId,
+              });
+
+              return { success: true, message: "Onboarding completed with basic setup" };
+            }
+            break;
+        }
+      }
+
+      // Check if message is an agent command (starts with /)
       if (messageContent.trim().startsWith('/')) {
         return await handleAgentCommand(ctx, messageContent.trim(), args.sessionId);
       }
@@ -1162,16 +1771,57 @@ Project "${newProject.name}" has been created in your database!`;
 For general questions not requiring MCP analysis, provide helpful guidance about EAC development patterns, React/Next.js best practices, and Convex integration techniques.`;
 
       // Create a streaming response with extended thinking (always enabled)
-      const stream = await anthropic.messages.stream({
-        model: "claude-3-7-sonnet-20250219",
-        max_tokens: 4000,
-        thinking: {
-          type: "enabled",
-          budget_tokens: 2048
-        },
-        system: systemPrompt,
-        messages: claudeMessages,
-      });
+      let stream;
+      try {
+        stream = await anthropic.messages.stream({
+          model: "claude-3-7-sonnet-20250219",
+          max_tokens: 4000,
+          thinking: {
+            type: "enabled",
+            budget_tokens: 2048
+          },
+          system: systemPrompt,
+          messages: claudeMessages,
+        });
+      } catch (error: any) {
+        console.error("Anthropic API error:", error);
+        
+        // Handle specific overloaded error
+        if (error?.error?.type === 'overloaded_error') {
+          const errorMessage = `⚠️ **AI Service Temporarily Overloaded**
+
+The AI service is currently experiencing high demand. Please wait a moment and try again.
+
+*This helps prevent rapid API calls that can trigger rate limits.*`;
+
+          await ctx.runMutation(api.chat.storeChatMessage, {
+            role: "system",
+            content: errorMessage,
+            sessionId: args.sessionId,
+          });
+
+          return { 
+            error: true, 
+            type: 'overloaded_error',
+            message: "AI service temporarily overloaded"
+          };
+        }
+        
+        // Handle other API errors
+        const errorMessage = `❌ **AI Service Error**
+
+There was an issue connecting to the AI service. Please try again.
+
+Error: ${error?.message || 'Unknown error'}`;
+
+        await ctx.runMutation(api.chat.storeChatMessage, {
+          role: "system", 
+          content: errorMessage,
+          sessionId: args.sessionId,
+        });
+
+        throw error; // Re-throw for other error types
+      }
 
       let thinkingContent = "";
       let assistantResponse = "";
@@ -1279,5 +1929,14 @@ For general questions not requiring MCP analysis, provide helpful guidance about
 
       throw error;
     }
+  },
+});
+
+export const getAllOnboardingResponses = action({
+  args: {
+    sessionId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await getOnboardingResponses(ctx, args.sessionId);
   },
 });

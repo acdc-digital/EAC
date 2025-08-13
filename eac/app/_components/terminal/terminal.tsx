@@ -11,7 +11,7 @@ import { useTerminalStore } from "@/store/terminal";
 import { useSessionStore } from "@/store/terminal/session";
 import { useConvexAuth } from "convex/react";
 import { Bell, History, Settings, Terminal as TerminalIcon } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { AgentsPanel, ChatMessages, ExtensionsPanel, SessionsPanel, SessionsRow } from "./_components";
 import { HistoryTab } from "./historyTab";
 
@@ -28,12 +28,26 @@ export function Terminal() {
   const { isAuthenticated } = useConvexAuth();
   const { isSessionsPanelOpen, isAgentsPanelOpen, isExtensionsPanelOpen } = useSessionStore();
 
-  // Auto-collapse terminal when user signs out
+  // Track if we've already handled the initial authentication state
+  const hasHandledInitialAuth = useRef(false);
+  const previousAuthState = useRef(isAuthenticated);
+
+  // Auto-open terminal only on initial authentication, allow manual control afterwards
   useEffect(() => {
-    if (!isAuthenticated && !isCollapsed) {
+    // Only handle the transition from unauthenticated to authenticated
+    if (!previousAuthState.current && isAuthenticated && !hasHandledInitialAuth.current) {
+      // First time signing in - auto-open terminal
+      setCollapsed(false);
+      hasHandledInitialAuth.current = true;
+    } else if (!isAuthenticated && previousAuthState.current) {
+      // User signed out - close terminal and reset the flag
       setCollapsed(true);
+      hasHandledInitialAuth.current = false;
     }
-  }, [isAuthenticated, isCollapsed, setCollapsed]);
+    
+    // Update the previous state
+    previousAuthState.current = isAuthenticated;
+  }, [isAuthenticated, setCollapsed]);
 
   const handleResize = (size: number) => {
     try {

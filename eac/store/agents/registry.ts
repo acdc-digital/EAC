@@ -7,6 +7,7 @@ import { directorAgent } from './directorAgent';
 import { editorAgent } from './editorAgent';
 import { fileCreatorAgent } from './fileCreatorAgent';
 import { instructionsAgent } from './instructionsAgent';
+import { onboardingAgent } from './onboardingAgent';
 import { projectCreatorAgent } from './projectCreatorAgent';
 import { schedulingAgent } from './schedulingAgent';
 
@@ -24,6 +25,8 @@ export class AgentRegistry {
 
   constructor() {
     console.log('🤖 Agent Registry: Initializing...');
+    this.registerAgent(onboardingAgent);
+    console.log('🤖 Registered:', onboardingAgent.id, onboardingAgent.name);
     this.registerAgent(instructionsAgent);
     console.log('🤖 Registered:', instructionsAgent.id, instructionsAgent.name);
     this.registerAgent(schedulingAgent);

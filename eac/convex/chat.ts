@@ -72,7 +72,7 @@ export const storeChatMessage = mutation({
       color: v.union(v.literal("blue"), v.literal("green")),
     })),
     interactiveComponent: v.optional(v.object({
-      type: v.union(v.literal("project_selector"), v.literal("file_name_input"), v.literal("file_type_selector"), v.literal("file_selector"), v.literal("edit_instructions_input"), v.literal("multi_file_selector")),
+      type: v.union(v.literal("project_selector"), v.literal("file_name_input"), v.literal("file_type_selector"), v.literal("file_selector"), v.literal("edit_instructions_input"), v.literal("multi_file_selector"), v.literal("url_input")),
       data: v.optional(v.any()),
       status: v.union(v.literal("pending"), v.literal("completed"), v.literal("cancelled")),
       result: v.optional(v.any()),
@@ -483,5 +483,22 @@ export const deleteSession = mutation({
     // but they won't be shown in the UI since the session is marked as deleted
     
     return { success: true, deletedSessionId: args.sessionId };
+  },
+});
+
+// Query to get total message count for a user (for new user detection)
+export const getUserMessageCount = query({
+  args: {
+    userId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Get total messages for this user across all sessions
+    const sessions = await ctx.db
+      .query("chatSessions")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+    
+    const totalMessages = sessions.reduce((sum, session) => sum + session.messageCount, 0);
+    return totalMessages;
   },
 });

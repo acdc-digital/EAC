@@ -7,7 +7,9 @@ import { api } from "@/convex/_generated/api";
 import { useChat } from "@/lib/hooks/useChat";
 import { useInstructionContext, useInstructions } from "@/lib/hooks/useInstructions";
 import { useMCP } from "@/lib/hooks/useMCP";
+import { useNewUserDetection } from "@/lib/hooks/useNewUserDetection";
 import { useAgentStore, useEditorStore } from "@/store";
+import { useOnboardingStore } from "@/store/onboarding";
 import { useChatStore } from "@/store/terminal/chat";
 import { useSessionStore } from "@/store/terminal/session";
 import { useUser } from "@clerk/nextjs";
@@ -21,17 +23,29 @@ import { MarkdownRenderer } from "./markdownRenderer";
 import { MultiFileSelector } from "./multiFileSelector";
 import { ProjectNameInput } from "./projectNameInput";
 import { ProjectSelector } from "./projectSelector";
+import { UrlInput } from "./urlInput";
+
+// Development imports
+const TestOnboarding = process.env.NODE_ENV === 'development' 
+  ? require('./testOnboarding').TestOnboarding 
+  : null;
 
 export function ChatMessages() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const processedOperations = useRef<Set<string>>(new Set());
+  const lastSubmitTime = useRef(0); // For rate limiting
   const [message, setMessage] = useState("");
   const [activeAgentProcess, setActiveAgentProcess] = useState<{
     agentId: string;
     processType: string;
     timestamp: number;
   } | null>(null);
+
+  // Debug logging to check if component is mounting
+  useEffect(() => {
+    console.log('🎯 ChatMessages component mounted');
+  }, []);
 
   // Debug logging for activeAgentProcess changes
   useEffect(() => {
@@ -40,6 +54,7 @@ export function ChatMessages() {
 
   
   const { user, isLoaded } = useUser();
+  const { isNewUser, forceNewUserState } = useNewUserDetection();
   const { initializeUserSession, addTerminalFeedback, setSessionId } = useChatStore();
   const { activeSessionId } = useSessionStore();
   const { 
@@ -72,6 +87,23 @@ export function ChatMessages() {
   
   // Agent execution and mutations
   const { agents, activeAgentId, setActiveAgent, executeAgentTool } = useAgentStore();
+  
+  // Onboarding state
+  const {
+    isOnboardingComplete,
+    hasShownWelcome,
+    isOnboardingActive,
+    currentStep,
+    responses,
+    setOnboardingActive,
+    setCurrentStep,
+    setHasShownWelcome,
+    setResponse,
+    completeOnboarding,
+    resetOnboarding,
+    setCurrentUser,
+  } = useOnboardingStore();
+  
   const createInstruction = useMutation(api.files.createInstructionFile);
   const ensureInstructionsProject = useMutation(api.projects.ensureInstructionsProject);
   const upsertPost = useMutation(api.socialPosts.upsertPost);
@@ -82,12 +114,14 @@ export function ChatMessages() {
   const getAllUserFiles = useQuery(api.files.getAllUserFiles, {});
   const updateInteractiveComponent = useMutation(api.chat.updateInteractiveComponent);
   const editFileWithAI = useAction(api.editorActions.editFileWithAI);
+  const generateInstructions = useAction(api.instructionsActions.generateInstructionsWithWebSearch);
+  const sendChatMessage = useAction(api.chatActions.sendChatMessage);
   const updateFileContent = useMutation(api.files.updateFileContent);
   const allPosts = useQuery(api.socialPosts.getAllPosts, {});
   const allProjects = useQuery(api.projects.getProjects, {});
   const instructionContext = useInstructionContext();
   const { isLoading: instructionsLoading } = useInstructions();
-  const { createNewFile } = useEditorStore();
+  const { createNewFile, openTab } = useEditorStore();
 
   const isLoading = chatLoading || mcpLoading || instructionsLoading;
 
@@ -105,6 +139,99 @@ export function ChatMessages() {
       initializeUserSession(user.id);
     }
   }, [user, isLoaded, sessionId, initializeUserSession]);
+
+  // Update onboarding store with current user (resets state for new users)
+  useEffect(() => {
+    if (isLoaded && user) {
+      console.log("👤 Setting current user in onboarding store:", user.id);
+      setCurrentUser(user.id);
+    }
+  }, [user, isLoaded, setCurrentUser]);
+
+  // Initialize onboarding for new users
+  useEffect(() => {
+    console.log("🔍 Onboarding useEffect triggered with:", {
+      isLoaded,
+      user: !!user,
+      sessionId,
+      isNewUser,
+      isOnboardingComplete,
+      hasShownWelcome,
+      messagesLength: messages?.length
+    });
+    
+    // Skip if onboarding is already complete
+    if (isOnboardingComplete) {
+      console.log("✅ Onboarding already complete, skipping...");
+      return;
+    }
+    
+    // Skip if not loaded or no user
+    if (!isLoaded || !user || !sessionId) {
+      console.log("⏸️ Not ready - waiting for auth...");
+      return;
+    }
+    
+    // Skip if this is not a new user
+    if (isNewUser !== true) {
+      console.log("👤 Existing user, skipping onboarding...");
+      return;
+    }
+    
+    // Skip if welcome has already been shown (prevents infinite loop)
+    if (hasShownWelcome) {
+      console.log("🔄 Welcome already shown, skipping onboarding initialization...");
+      return;
+    }
+    
+    // For new users, start onboarding only if messages are empty
+    console.log("🎯 Starting onboarding for new user...", { 
+      userId: user.id, 
+      isNewUser,
+      sessionId,
+      hasShownWelcome,
+      isOnboardingComplete,
+      messagesLength: messages?.length || 0
+    });
+    
+    // Check if user has any previous messages (indicating they're not truly new)
+    if (messages && messages.length === 0) {
+      console.log("🚀 Proceeding with onboarding setup...");
+      
+      // Reset onboarding state for truly new users
+      resetOnboarding(); // Clear any previous onboarding state
+      setHasShownWelcome(true);
+      setOnboardingActive(true);
+      setCurrentStep('welcome');
+      setActiveAgent('onboarding'); // Select the onboarding agent
+      
+      console.log("🔄 Onboarding state reset and configured");
+        
+      // Add welcome message with y/N prompt
+      setTimeout(async () => {
+        console.log("⏰ Sending welcome message...");
+        
+        await storeChatMessage({
+          role: "assistant",
+          content: `🎉 **Welcome to EAC Social Media Management!**
+
+I'm your AI assistant and I'm excited to help you build an authentic social media presence.
+
+Ready to get started? **y/N**`,
+          sessionId: sessionId,
+          processIndicator: {
+            type: 'waiting',
+            processType: 'onboarding',
+            color: 'green'
+          }
+        });
+        
+        console.log('✅ Onboarding y/N prompt sent to terminal');
+      }, 500);
+    } else {
+      console.log("❌ Skipping onboarding - user has existing messages:", messages?.length);
+    }
+  }, [isLoaded, user, sessionId, isNewUser, messages]);
 
   // Sync session ID if active session changes
   useEffect(() => {
@@ -127,6 +254,167 @@ export function ChatMessages() {
       return () => clearTimeout(timeout);
     }
   }, [activeAgentProcess]);
+
+  // Handle URL submission for onboarding
+  const handleUrlSubmit = async (url: string) => {
+    if (!sessionId) return;
+    
+    try {
+      setCurrentStep('analyzing');
+      
+      // Store user's URL submission
+      await storeChatMessage({
+        role: "user",
+        content: url,
+        sessionId: sessionId,
+      });
+
+      // Ensure instructions project exists first
+      await ensureInstructionsProject();
+      
+      // Call the instructions generation action  
+      console.log('🔍 Starting instruction generation...');
+      const generatedContent = await generateInstructions({
+        topic: `Brand Analysis for ${url}`,
+        sessionId,
+      });
+      
+      console.log('✅ Instruction generation completed successfully');
+      
+      // Create the instruction file using client-side mutations
+      const brandName = url.replace(/^https?:\/\//, '').split('/')[0].replace('www.', '');
+      const filename = `${brandName.replace(/[^a-zA-Z0-9]/g, '_')}_brand_guidelines.md`;
+      
+      const createdFile = await createInstruction({
+        name: filename,
+        content: generatedContent,
+        topic: `Brand Guidelines for ${brandName}`,
+        audience: "Content creators and marketers"
+      });
+      
+      console.log('✅ Instruction file created:', createdFile);
+      
+      // Show success message
+      await storeChatMessage({
+        role: "assistant",
+        content: `✅ **Brand Analysis Complete!**
+
+🎯 **Brand Analysis Successful**
+- Analyzed: ${url}
+- Custom instructions generated and saved to your instructions folder
+- Your workspace is now personalized with your brand guidelines
+
+🚀 **Next Steps:**
+1. Explore your custom instructions in the sidebar
+2. Try creating content with \`/twitter\` or \`/create-project\`
+3. Use \`/schedule\` to plan your content calendar
+
+Welcome to EAC! Your personalized workspace is ready.`,
+        sessionId: sessionId,
+      });
+      
+      // Open the created instructions file
+      if (createdFile) {
+        console.log('📂 Opening created instructions file:', createdFile);
+        
+        // Create a ProjectFile object for the editor
+        const instructionFile = {
+          id: createdFile._id,
+          name: createdFile.name,
+          icon: 'FileText', // Default markdown icon
+          type: 'markdown' as const,
+          category: 'project' as const,
+          content: createdFile.content || '',
+          filePath: createdFile.path + createdFile.name,
+          createdAt: new Date(createdFile.createdAt),
+          modifiedAt: new Date(createdFile.lastModified),
+          convexId: createdFile._id,
+        };
+        
+        // Open the file in the editor
+        openTab(instructionFile);
+        
+        console.log('✅ Instructions file opened in editor with type:', instructionFile.type);
+      } else {
+        console.log('⚠️ No file information returned from brand analysis');
+      }
+      
+      // Complete onboarding
+      completeOnboarding();
+      
+    } catch (error) {
+      console.error('🔥 Onboarding URL submission failed:', error);
+      
+      // Check if this is an authentication error
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const isAuthError = errorMessage.includes('Authentication required') || errorMessage.includes('Please sign in');
+      
+      if (isAuthError) {
+        await storeChatMessage({
+          role: "system",
+          content: `❌ **Authentication Required**
+
+Please make sure you're signed in to use the brand analysis feature.
+
+You can:
+- Refresh the page and sign in again
+- Continue using EAC and set up brand instructions later with \`/onboard [your-url]\`
+
+Would you like to try again after signing in?`,
+          sessionId: sessionId,
+        });
+      } else {
+        // Check if this is an API overload error
+        const isOverloadError = errorMessage.includes('Overloaded') || errorMessage.includes('overloaded_error');
+        
+        if (isOverloadError) {
+          await storeChatMessage({
+            role: "system",
+            content: `✅ **Onboarding Complete!**
+
+🎯 **Brand Guidelines Created**
+- Analyzed: ${url}
+- Starter brand guidelines generated and saved to your instructions folder
+- ⚠️ AI was temporarily busy, so we created comprehensive starter guidelines for you
+
+🚀 **Next Steps:**
+1. Review your starter brand guidelines in the sidebar
+2. Customize them based on your specific brand identity
+3. Try AI-powered analysis again later for enhanced insights
+4. Start creating content with \`/twitter\` or \`/create-project\`
+
+Welcome to EAC! Your workspace is ready with baseline brand guidelines.`,
+            sessionId: sessionId,
+          });
+          
+          completeOnboarding();
+          return;
+        }
+        
+        // Generic error handling
+        await storeChatMessage({
+          role: "system",
+          content: `❌ **Error analyzing brand URL**
+
+There was an issue analyzing your website. This might be due to:
+- API rate limits (please try again in a moment)
+- Website accessibility issues
+- Network connectivity problems
+
+You can:
+- Try again with the same URL
+- Try a different URL
+- Continue using EAC and set up brand instructions later with \`/onboard [your-url]\`
+
+Would you like to try again?`,
+          sessionId: sessionId,
+        });
+      }
+      
+      // Keep the URL input active for retry unless it's an overload error
+      setCurrentStep('url-input');
+    }
+  };
 
   // DISABLED: Process messages with operations to create UI files
   // This is now handled by useFileLoad hook which syncs from Convex to local store
@@ -392,6 +680,14 @@ ${content}
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Prevent rapid submissions (rate limiting)
+    const now = Date.now();
+    if (now - lastSubmitTime.current < 1000) { // 1 second minimum between submissions
+      console.warn("Rate limited: Too fast submission");
+      return;
+    }
+    lastSubmitTime.current = now;
+    
     // Check session limit before processing
     if (!canAddMessages()) {
       console.warn("Cannot send message: Session limit reached");
@@ -414,6 +710,31 @@ Please start a new session to continue chatting.`,
       const messageContent = message.trim();
       console.log('💬 User submitting message:', messageContent);
       setMessage("");
+      
+      // FIRST: Check if user is responding to onboarding prompt (y/N or onboarding questions)
+      console.log('🔍 Checking onboarding state:', { 
+        hasShownWelcome, 
+        isOnboardingComplete, 
+        isOnboardingActive,
+        currentStep,
+        messageContent
+      });
+      
+      if (hasShownWelcome && !isOnboardingComplete) {
+        console.log('🎯 User is in onboarding flow - routing to sendChatMessage');
+        try {
+          // Use sendChatMessage which handles onboarding responses
+          await sendChatMessage({
+            content: messageContent,
+            originalContent: messageContent,
+            sessionId,
+          });
+          return;
+        } catch (error) {
+          console.error('Onboarding message error:', error);
+          // Fall through to regular processing if onboarding fails
+        }
+      }
       
       // Check if this is an agent command when an agent is active
       // BUT only route to editor agent if it has a selected file and is waiting for edit instructions
@@ -669,6 +990,11 @@ Please start a new session to continue chatting.`,
             )}
             <div className="text-[#858585] mt-2">AI Assistant ready for EAC project questions.</div>
             <div className="text-[#858585] text-xs">Session: {sessionId.slice(-8)}</div>
+            
+            {/* Development Testing */}
+            {process.env.NODE_ENV === 'development' && TestOnboarding && (
+              <TestOnboarding forceNewUserState={forceNewUserState} />
+            )}
             
             {/* Session Status and Limits */}
             <div className="text-[#858585] text-xs">
@@ -1426,6 +1752,39 @@ Please start a new session to continue chatting.`,
                             className="mb-2"
                           />
                         )}
+                        {msg.interactiveComponent.type === 'url_input' && (
+                          <UrlInput
+                            onSubmit={async (url) => {
+                              try {
+                                // Update the component status to completed
+                                await updateInteractiveComponent({
+                                  messageId: msg._id,
+                                  status: 'completed',
+                                  result: { url },
+                                });
+
+                                // Send user message showing the URL
+                                await storeChatMessage({
+                                  role: 'user',
+                                  content: url,
+                                  sessionId: sessionId,
+                                });
+
+                                // Trigger onboarding agent with the URL
+                                await sendMessage(`/onboard ${url}`);
+                                
+                              } catch (error) {
+                                console.error('Error handling URL submission:', error);
+                                await storeChatMessage({
+                                  role: 'assistant',
+                                  content: '❌ Error processing URL. Please try again.',
+                                  sessionId: sessionId,
+                                });
+                              }
+                            }}
+                            isLoading={chatLoading}
+                          />
+                        )}
                       </div>
                     )}
                     
@@ -1682,6 +2041,16 @@ ${content}
                   {streamingThinking}
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Onboarding URL Input */}
+          {isOnboardingActive && currentStep === 'url-input' && (
+            <div className="mt-4">
+              <UrlInput 
+                onSubmit={handleUrlSubmit}
+                isLoading={false}
+              />
             </div>
           )}
 
