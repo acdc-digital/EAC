@@ -18,6 +18,14 @@ export function TestOnboarding({ forceNewUserState }: TestOnboardingProps) {
     setOnboardingActive(true);
     setCurrentStep('welcome');
     
+    // Clear onboarding completion states
+    const completionKeys = [
+      'onboardingCompleted',
+      'onboarding_completed',
+      'hasCompletedOnboarding'
+    ];
+    completionKeys.forEach(key => localStorage.removeItem(key));
+    
     // Refresh the page to trigger onboarding
     window.location.reload();
   };
@@ -29,6 +37,15 @@ export function TestOnboarding({ forceNewUserState }: TestOnboardingProps) {
         localStorage.removeItem(key);
       }
     });
+    
+    // Also clear specific onboarding completion keys
+    const completionKeys = [
+      'onboardingCompleted',
+      'onboarding_completed',
+      'hasCompletedOnboarding'
+    ];
+    completionKeys.forEach(key => localStorage.removeItem(key));
+    
     sessionStorage.clear();
     
     // Reset new user detection state

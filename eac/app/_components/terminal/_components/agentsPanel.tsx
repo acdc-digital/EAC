@@ -61,14 +61,16 @@ export function AgentsPanel({ className }: AgentsPanelProps) {
   const allAgentTools = agents
     .filter(agent => agent.id !== 'director' && agent.id !== 'cmo') // Filter out premium extensions
     .flatMap(agent => {
-      console.log('Agent:', agent.name, 'Icon:', agent.icon);
+      console.log('Agent:', agent.name, 'Icon:', agent.icon, 'Disabled:', agent.disabled);
       return agent.tools.map(tool => ({
         ...tool,
         agentId: agent.id,
         agentName: agent.name,
         agentIcon: agent.icon,
         type: 'agent' as const,
-        isActive: activeAgentId === agent.id
+        isActive: activeAgentId === agent.id,
+        disabled: agent.disabled,
+        disabledReason: agent.disabledReason
       }));
     });
 
@@ -127,17 +129,23 @@ export function AgentsPanel({ className }: AgentsPanelProps) {
                 <div
                   key={`${tool.agentId}-${tool.id}`}
                   className={cn(
-                    "w-full flex items-center px-3 py-1.5 transition-all duration-200 hover:bg-[#2a2a2a] border-b border-[#333]",
-                    tool.isActive && tool.type === 'agent'
+                    "w-full flex items-center px-3 py-1.5 transition-all duration-200 border-b border-[#333]",
+                    tool.disabled
+                      ? "opacity-50 cursor-not-allowed"
+                      : "hover:bg-[#2a2a2a]",
+                    tool.isActive && tool.type === 'agent' && !tool.disabled
                       ? "border-l-2 border-l-[#0078d4]"
                       : ""
                   )}
+                  title={tool.disabled ? tool.disabledReason || "This agent is disabled" : undefined}
                 >
                   <div className="flex-shrink-0 w-16 flex items-center justify-start">
                     {tool.type === 'agent' ? (
                       <Checkbox
-                        checked={tool.isActive}
+                        checked={tool.isActive && !tool.disabled}
+                        disabled={tool.disabled}
                         onCheckedChange={(checked: boolean) => {
+                          if (tool.disabled) return;
                           if (checked) {
                             handleAgentSelect(tool.agentId);
                           } else if (tool.isActive) {

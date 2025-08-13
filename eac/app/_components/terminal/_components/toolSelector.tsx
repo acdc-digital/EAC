@@ -35,6 +35,12 @@ export function ToolSelector({ onToolSelect, onClose, selectedIndex, onIndexChan
     
     const tools: Tool[] = [];
     agents.forEach(agent => {
+      // Skip disabled agents using the getDisabledState method
+      const disabledState = agent.getDisabledState();
+      if (disabledState.disabled) {
+        return;
+      }
+      
       agent.tools.forEach(tool => {
         // Map icon names to emojis
         const iconMap: Record<string, string> = {

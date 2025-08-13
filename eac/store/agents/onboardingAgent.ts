@@ -182,6 +182,35 @@ An unexpected error occurred during onboarding. Please try again or contact supp
 **Error:** ${error instanceof Error ? error.message : 'Unknown error'}`;
     }
   }
+
+  // Override disabled state based on onboarding completion
+  getDisabledState(): { disabled: boolean; reason?: string } {
+    const isCompleted = this.getOnboardingState();
+    if (isCompleted) {
+      return {
+        disabled: true,
+        reason: 'Onboarding has been completed'
+      };
+    }
+    return { disabled: false };
+  }
+
+  // Helper method to check onboarding completion
+  private getOnboardingState(): boolean {
+    if (typeof window === 'undefined') return false;
+    
+    // Check multiple possible localStorage keys for completion
+    const completionKeys = [
+      'onboardingCompleted',
+      'onboarding_completed',
+      'hasCompletedOnboarding'
+    ];
+    
+    return completionKeys.some(key => {
+      const value = localStorage.getItem(key);
+      return value === 'true' || value === '1';
+    });
+  }
 }
 
 // Export instance

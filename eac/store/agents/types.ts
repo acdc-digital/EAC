@@ -8,6 +8,8 @@ export interface Agent {
   isActive: boolean;
   tools: AgentTool[];
   icon: string; // Use string identifier for icon names (e.g., 'FileText', 'Bot', etc.)
+  disabled?: boolean;
+  disabledReason?: string;
 }
 
 export interface AgentTool {

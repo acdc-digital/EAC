@@ -27,6 +27,8 @@ export interface Agent {
   isActive: boolean;
   icon: string;
   tools: AgentTool[];
+  disabled?: boolean;
+  disabledReason?: string;
 }
 
 export interface AgentExecution {
@@ -70,8 +72,14 @@ export abstract class BaseAgent implements AgentExecutor {
     sessionId?: string
   ): Promise<string>;
 
+  // Method to determine if agent should be disabled
+  getDisabledState(): { disabled: boolean; reason?: string } {
+    return { disabled: false };
+  }
+
   // Helper method to convert to Agent interface
   toAgent(isActive: boolean = false): Agent {
+    const disabledState = this.getDisabledState();
     return {
       id: this.id,
       name: this.name,
@@ -79,6 +87,8 @@ export abstract class BaseAgent implements AgentExecutor {
       isActive,
       icon: this.icon,
       tools: this.tools,
+      disabled: disabledState.disabled,
+      disabledReason: disabledState.reason,
     };
   }
 }

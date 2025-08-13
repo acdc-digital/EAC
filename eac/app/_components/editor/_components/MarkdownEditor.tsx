@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { Edit3, Eye } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
+import './MarkdownEditor.css'
 
 interface MarkdownEditorProps {
   content: string
