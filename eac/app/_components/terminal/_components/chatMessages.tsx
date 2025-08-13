@@ -86,7 +86,7 @@ export function ChatMessages() {
   } = useMCP();
   
   // Agent execution and mutations
-  const { agents, activeAgentId, setActiveAgent, executeAgentTool } = useAgentStore();
+  const { agents, activeAgentId, setActiveAgent, executeAgentTool, refreshAgents } = useAgentStore();
   
   // Onboarding state
   const {
@@ -342,6 +342,14 @@ Welcome to EAC! Your personalized workspace is ready.`,
       // Complete onboarding
       completeOnboarding();
       
+      // Clear the onboarding agent selection if it's currently active
+      if (activeAgentId === 'onboarding') {
+        setActiveAgent(null);
+      }
+      
+      // Refresh agents to update disabled states
+      refreshAgents();
+      
     } catch (error) {
       console.error('🔥 Onboarding URL submission failed:', error);
       
@@ -388,6 +396,15 @@ Welcome to EAC! Your workspace is ready with baseline brand guidelines.`,
           });
           
           completeOnboarding();
+          
+          // Clear the onboarding agent selection if it's currently active
+          if (activeAgentId === 'onboarding') {
+            setActiveAgent(null);
+          }
+          
+          // Refresh agents to update disabled states
+          refreshAgents();
+          
           return;
         }
         

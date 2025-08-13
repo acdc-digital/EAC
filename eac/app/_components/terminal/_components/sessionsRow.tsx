@@ -59,6 +59,17 @@ export function SessionsRow({ className }: SessionsRowProps) {
     }
   }, [userSessions, activeSessionId, setSessions, setActiveSession, setSessionId]);
 
+  // Clear active agent if it becomes disabled
+  useEffect(() => {
+    if (activeAgentId) {
+      const activeAgent = agents.find(agent => agent.id === activeAgentId);
+      if (activeAgent?.disabled) {
+        console.log(`🚫 Auto-clearing disabled agent: ${activeAgentId} (${activeAgent.disabledReason})`);
+        setActiveAgent(null);
+      }
+    }
+  }, [activeAgentId, agents, setActiveAgent]);
+
   const handleChatClick = () => {
     setSessionsPanelOpen(false);
     setAgentsPanelOpen(false);
@@ -180,12 +191,16 @@ export function SessionsRow({ className }: SessionsRowProps) {
 
       {/* Right Side - Active Agent/Extension & Thinking Indicator */}
       <div className="flex items-center gap-3 px-3">
-        {/* Active Agent Indicator - Show when agent is active and no extension */}
-        {activeAgentId && !activeExtensionId && (
-          <span className="text-xs font-medium text-[#4fc3f7]">
-            {agents.find(agent => agent.id === activeAgentId)?.name || 'Unknown Agent'}
-          </span>
-        )}
+        {/* Active Agent Indicator - Show when agent is active, not disabled, and no extension */}
+        {activeAgentId && !activeExtensionId && (() => {
+          const activeAgent = agents.find(agent => agent.id === activeAgentId);
+          // Only show if agent exists and is not disabled
+          return activeAgent && !activeAgent.disabled ? (
+            <span className="text-xs font-medium text-[#4fc3f7]">
+              {activeAgent.name}
+            </span>
+          ) : null;
+        })()}
         
         {/* Active Extension Indicator - Show when extension is active */}
         {activeExtensionId && (

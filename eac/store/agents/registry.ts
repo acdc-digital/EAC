@@ -170,20 +170,12 @@ export async function executeTwitterPostAgent(
  * Get all available agents for UI display
  */
 export function getAvailableAgents() {
-  return agentRegistry.getAllAgents().map(agent => ({
-    id: agent.id,
-    name: agent.name,
-    description: agent.description,
-    icon: agent.icon,
-    isActive: false, // Default to inactive
-    tools: agent.tools.map(tool => ({
-      id: tool.id,
-      name: tool.name,
-      command: tool.command,
-      description: tool.description,
-      parameters: tool.parameters,
-    })),
-  }));
+  return agentRegistry.getAllAgents().map(agent => {
+    // Use the agent's toAgent method which includes disabled state
+    const agentData = agent.toAgent(false); // false means not active by default
+    console.log(`🔍 Agent ${agent.id} disabled state:`, agentData.disabled, agentData.disabledReason);
+    return agentData;
+  });
 }
 
 /**

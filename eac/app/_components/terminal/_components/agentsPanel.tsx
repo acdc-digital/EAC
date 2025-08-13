@@ -10,7 +10,7 @@ import { useAgentStore } from "@/store";
 import { useSessionStore } from "@/store/terminal/session";
 import { useConvexAuth } from "convex/react";
 import { Bot, Calendar, FilePlus, FileText, LucideIcon, MessageSquare, Twitter } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface AgentsPanelProps {
   className?: string;
@@ -19,9 +19,14 @@ interface AgentsPanelProps {
 export function AgentsPanel({ className }: AgentsPanelProps) {
   const { isAuthenticated } = useConvexAuth();
   const { setAgentsPanelOpen, activeExtensionId, setActiveExtension } = useSessionStore();
-  const { agents, activeAgentId, setActiveAgent } = useAgentStore();
+  const { agents, activeAgentId, setActiveAgent, refreshAgents } = useAgentStore();
   const { availableTools: mcpTools } = useMCP();
   const [selectedToolId, setSelectedToolId] = useState<string | null>(null);
+
+  // Refresh agents when panel is active to get latest disabled states
+  useEffect(() => {
+    refreshAgents();
+  }, [refreshAgents]);
 
   // Map icon strings to Lucide React components
   const getIconComponent = (iconName: string): LucideIcon => {
@@ -43,6 +48,13 @@ export function AgentsPanel({ className }: AgentsPanelProps) {
   };
 
   const handleAgentSelect = (agentId: string) => {
+    // Don't allow selecting disabled agents
+    const agent = agents.find(a => a.id === agentId);
+    if (agent?.disabled) {
+      console.log(`Agent ${agentId} is disabled:`, agent.disabledReason);
+      return;
+    }
+    
     setActiveAgent(agentId);
     
     // Clear any active extension when selecting a regular agent

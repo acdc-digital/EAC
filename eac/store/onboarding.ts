@@ -58,11 +58,53 @@ export const useOnboardingStore = create<OnboardingState>()(
         responses: {},
       }),
       
-      completeOnboarding: () => set({
-        isOnboardingComplete: true,
-        isOnboardingActive: false,
-        currentStep: 'complete',
-      }),
+      completeOnboarding: () => {
+        console.log('🎯 completeOnboarding called - setting localStorage keys');
+        
+        // Set the completion state
+        set({
+          isOnboardingComplete: true,
+          isOnboardingActive: false,
+          currentStep: 'complete',
+        });
+        
+        // Also set localStorage keys that the onboarding agent checks
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('onboardingCompleted', 'true');
+          localStorage.setItem('onboarding_completed', 'true');
+          localStorage.setItem('hasCompletedOnboarding', 'true');
+          console.log('✅ localStorage keys set for onboarding completion');
+          
+          // Verify they were set
+          console.log('📊 Verification - localStorage values:');
+          console.log('- onboardingCompleted:', localStorage.getItem('onboardingCompleted'));
+          console.log('- onboarding_completed:', localStorage.getItem('onboarding_completed'));
+          console.log('- hasCompletedOnboarding:', localStorage.getItem('hasCompletedOnboarding'));
+          
+          // Trigger agent refresh to update disabled states
+          setTimeout(() => {
+            console.log('🔄 Triggering agent refresh after localStorage update');
+            try {
+              // Dynamic import to avoid circular dependency
+              import('./agents/index').then(({ useAgentStore }) => {
+                const store = useAgentStore.getState();
+                if (store.refreshAgents) {
+                  store.refreshAgents();
+                  console.log('✅ Agent refresh triggered from onboarding store');
+                } else {
+                  console.log('⚠️ refreshAgents method not found in agent store');
+                }
+              }).catch(err => {
+                console.error('❌ Failed to import agent store:', err);
+              });
+            } catch (err) {
+              console.error('❌ Failed to trigger agent refresh:', err);
+            }
+          }, 100);
+        } else {
+          console.log('⚠️ window is undefined, cannot set localStorage');
+        }
+      },
       
       setCurrentUser: (userId) => {
         const state = get();

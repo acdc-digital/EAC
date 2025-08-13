@@ -105,6 +105,14 @@ Invalid URL format. Please provide a valid website URL.
             });
             console.log('✅ Instruction file saved successfully');
 
+            // Mark onboarding as complete in localStorage
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('onboardingCompleted', 'true');
+              localStorage.setItem('onboarding_completed', 'true');
+              localStorage.setItem('hasCompletedOnboarding', 'true');
+              console.log('✅ Onboarding completion stored in localStorage');
+            }
+
             return `✅ **Onboarding Complete!**
 
 🎯 **Brand Analysis Successful**
@@ -186,6 +194,7 @@ An unexpected error occurred during onboarding. Please try again or contact supp
   // Override disabled state based on onboarding completion
   getDisabledState(): { disabled: boolean; reason?: string } {
     const isCompleted = this.getOnboardingState();
+    console.log('🔍 Onboarding Agent getDisabledState called:', { isCompleted });
     if (isCompleted) {
       return {
         disabled: true,
@@ -197,7 +206,10 @@ An unexpected error occurred during onboarding. Please try again or contact supp
 
   // Helper method to check onboarding completion
   private getOnboardingState(): boolean {
-    if (typeof window === 'undefined') return false;
+    if (typeof window === 'undefined') {
+      console.log('🔍 Onboarding getOnboardingState: window undefined (server-side)');
+      return false;
+    }
     
     // Check multiple possible localStorage keys for completion
     const completionKeys = [
@@ -206,10 +218,20 @@ An unexpected error occurred during onboarding. Please try again or contact supp
       'hasCompletedOnboarding'
     ];
     
-    return completionKeys.some(key => {
+    const keyValues = completionKeys.map(key => ({
+      key,
+      value: localStorage.getItem(key)
+    }));
+    
+    console.log('🔍 Onboarding localStorage check:', keyValues);
+    
+    const isCompleted = completionKeys.some(key => {
       const value = localStorage.getItem(key);
       return value === 'true' || value === '1';
     });
+    
+    console.log('🔍 Onboarding completion result:', isCompleted);
+    return isCompleted;
   }
 }
 
