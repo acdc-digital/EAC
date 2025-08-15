@@ -6,8 +6,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { Clock, FileText, Lightbulb, Plus, Sparkles, Users, X } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { ArrowDown, ArrowUp, Award, Clock, FileText, Lightbulb, MessageCircle, Plus, Share, Sparkles, TrendingUp, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 
 interface RedditPostData {
   title: string;
@@ -19,6 +19,18 @@ interface RedditPostData {
   tags: string[];
   status: 'draft' | 'scheduled' | 'published';
   scheduledTime?: string;
+}
+
+interface PostStats {
+  upvotes: number;
+  downvotes: number;
+  comments: number;
+  awards: number;
+  shares: number;
+  votes: number; // net votes (upvotes - downvotes)
+  upvotePercentage: number;
+  trending: boolean;
+  postedTime: string;
 }
 
 interface NewRedditPostEditorProps {
@@ -37,9 +49,48 @@ export function NewRedditPostEditor({ isVisible, onClose }: NewRedditPostEditorP
     status: 'draft'
   });
 
+  // Mock real-time post stats (in real app, this would come from API)
+  const [postStats, setPostStats] = useState<PostStats>({
+    upvotes: 1247,
+    downvotes: 89,
+    comments: 156,
+    awards: 3,
+    shares: 42,
+    votes: 1158, // upvotes - downvotes
+    upvotePercentage: 93,
+    trending: true,
+    postedTime: '4 hours ago'
+  });
+
   const [currentTag, setCurrentTag] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const titleRef = useRef<HTMLInputElement>(null);
+
+  // Simulate real-time stats updates
+  useEffect(() => {
+    if (postData.status === 'published') {
+      const interval = setInterval(() => {
+        setPostStats(prev => {
+          const randomUpvoteChange = Math.floor(Math.random() * 5) - 2; // -2 to +2
+          const randomCommentChange = Math.floor(Math.random() * 3); // 0 to +2
+          const newUpvotes = Math.max(0, prev.upvotes + randomUpvoteChange);
+          const newComments = prev.comments + randomCommentChange;
+          const newVotes = newUpvotes - prev.downvotes;
+          
+          return {
+            ...prev,
+            upvotes: newUpvotes,
+            comments: newComments,
+            votes: newVotes,
+            upvotePercentage: Math.round((newUpvotes / (newUpvotes + prev.downvotes)) * 100),
+            trending: newVotes > 1000 && prev.upvotePercentage > 90
+          };
+        });
+      }, 3000); // Update every 3 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [postData.status]);
 
   // Sample suggestions based on current content
   const generateSuggestions = (content: string) => {
@@ -108,9 +159,9 @@ export function NewRedditPostEditor({ isVisible, onClose }: NewRedditPostEditorP
 
   return (
     <div className="reddit-editor-container h-full flex flex-col overflow-hidden bg-[#1e1e1e]">
-      <div className="flex-1 flex justify-center pt-6 pb-8">
-        <ScrollArea className="h-full w-full max-w-4xl">
-          <div className="px-6 pb-6">
+      <div className="flex-1 flex justify-start pt-6 pb-8 pl-6">
+        <ScrollArea className="h-full w-full">
+          <div className="pr-6 pb-6">
             <Card className="bg-[#1e1e1e] border-[#454545] shadow-xl rounded-sm">
               <CardHeader className="pb-4 border-b border-[#454545] bg-[#1e1e1e] rounded-t-sm">
                 <div className="flex items-center justify-between">
@@ -300,46 +351,147 @@ export function NewRedditPostEditor({ isVisible, onClose }: NewRedditPostEditorP
                   </TabsContent>
 
                   <TabsContent value="preview" className="mt-6">
-                    <Card className="bg-[#252526] border-[#454545] rounded-sm">
-                      <CardHeader className="border-b border-[#454545] bg-[#252526] rounded-t-sm">
-                        <div className="flex items-center gap-2 text-sm text-[#858585]">
-                          <Users className="w-4 h-4" />
-                          {postData.subreddit || 'r/subreddit'}
-                          {postData.flair && (
-                            <Badge variant="outline" className="text-xs bg-[#2d2d30] border-[#454545] text-[#cccccc]">
-                              {postData.flair}
-                            </Badge>
-                          )}
+                    {/* Reddit-style Post Preview */}
+                    <div className="bg-[#1a1a1b] border border-[#343536] rounded-md overflow-hidden shadow-lg">
+                      {/* Post Header */}
+                      <div className="flex items-start gap-3 p-3 bg-[#1a1a1b]">
+                        {/* Vote Sidebar */}
+                        <div className="flex flex-col items-center gap-1 min-w-[40px]">
+                          <button 
+                            className="p-1 rounded hover:bg-[#272729] transition-colors"
+                            title="Upvote"
+                            aria-label="Upvote post"
+                          >
+                            <ArrowUp className={`w-5 h-5 ${postStats.votes > 0 ? 'text-[#ff4500]' : 'text-[#818384]'}`} />
+                          </button>
+                          <span className={`text-xs font-bold ${
+                            postStats.votes > 0 ? 'text-[#ff4500]' : 
+                            postStats.votes < 0 ? 'text-[#7193ff]' : 'text-[#d7dadc]'
+                          }`}>
+                            {postStats.votes > 999 ? `${(postStats.votes/1000).toFixed(1)}k` : postStats.votes}
+                          </span>
+                          <button 
+                            className="p-1 rounded hover:bg-[#272729] transition-colors"
+                            title="Downvote"
+                            aria-label="Downvote post"
+                          >
+                            <ArrowDown className={`w-5 h-5 ${postStats.votes < 0 ? 'text-[#7193ff]' : 'text-[#818384]'}`} />
+                          </button>
                         </div>
-                        <CardTitle className="text-xl text-[#cccccc]">
-                          {postData.title || 'Your Post Title'}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="p-4 bg-[#252526] rounded-b-sm">
-                        <ScrollArea className="max-h-96">
-                          <div className="prose max-w-none">
-                            {postData.content ? parseRedditContent(postData.content) : (
-                              <p className="text-[#858585] italic">Your post content will appear here...</p>
+
+                        {/* Post Content */}
+                        <div className="flex-1 min-w-0">
+                          {/* Post Meta Info */}
+                          <div className="flex items-center gap-2 text-xs text-[#818384] mb-2">
+                            <span className="font-bold text-[#d7dadc]">r/{postData.subreddit || 'subreddit'}</span>
+                            <span>•</span>
+                            <span>Posted by u/username {postStats.postedTime}</span>
+                            {postStats.trending && (
+                              <div className="flex items-center gap-1 bg-[#ff4500] text-white px-2 py-0.5 rounded-full">
+                                <TrendingUp className="w-3 h-3" />
+                                <span className="text-xs font-medium">Trending</span>
+                              </div>
+                            )}
+                            {postData.flair && (
+                              <Badge variant="outline" className="text-xs bg-[#373738] border-[#474748] text-[#d7dadc] px-2 py-0.5">
+                                {postData.flair}
+                              </Badge>
                             )}
                           </div>
-                          {postData.tags.length > 0 && (
-                            <div className="mt-4 pt-4 border-t border-[#454545]">
-                              <div className="flex flex-wrap gap-2">
-                                {postData.tags.map(tag => (
-                                  <Badge 
-                                    key={tag} 
-                                    variant="outline" 
-                                    className="text-xs bg-[#2d2d30] border-[#454545] text-[#cccccc]"
-                                  >
-                                    {tag}
-                                  </Badge>
-                                ))}
+
+                          {/* Post Title */}
+                          <h3 className="text-lg font-medium text-[#d7dadc] mb-3 leading-tight">
+                            {postData.title || 'Your Post Title Will Appear Here'}
+                          </h3>
+
+                          {/* Post Body */}
+                          <div className="text-[#d7dadc] text-sm leading-relaxed mb-4">
+                            {postData.content ? (
+                              <div className="prose prose-invert max-w-none">
+                                {parseRedditContent(postData.content)}
                               </div>
+                            ) : (
+                              <p className="text-[#818384] italic">Your post content will appear here...</p>
+                            )}
+                          </div>
+
+                          {/* Tags */}
+                          {postData.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mb-4">
+                              {postData.tags.map(tag => (
+                                <Badge 
+                                  key={tag} 
+                                  variant="outline" 
+                                  className="text-xs bg-[#373738] border-[#474748] text-[#7c7c83] hover:text-[#d7dadc] transition-colors"
+                                >
+                                  #{tag}
+                                </Badge>
+                              ))}
                             </div>
                           )}
-                        </ScrollArea>
-                      </CardContent>
-                    </Card>
+
+                          {/* Post Actions Bar */}
+                          <div className="flex items-center gap-6 text-xs text-[#818384] font-bold">
+                            <button className="flex items-center gap-2 hover:bg-[#272729] px-2 py-1 rounded transition-colors">
+                              <MessageCircle className="w-4 h-4" />
+                              <span>{postStats.comments} Comments</span>
+                            </button>
+                            <button className="flex items-center gap-2 hover:bg-[#272729] px-2 py-1 rounded transition-colors">
+                              <Share className="w-4 h-4" />
+                              <span>Share</span>
+                            </button>
+                            {postStats.awards > 0 && (
+                              <div className="flex items-center gap-2">
+                                <Award className="w-4 h-4 text-[#ffd700]" />
+                                <span className="text-[#ffd700]">{postStats.awards} Awards</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Real-time Stats Panel */}
+                      <div className="bg-[#272729] border-t border-[#343536] p-3">
+                        <div className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-4">
+                            <div className="text-[#818384]">
+                              <span className="text-[#d7dadc] font-medium">{postStats.upvotePercentage}%</span> Upvoted
+                            </div>
+                            <div className="text-[#818384]">
+                              <span className="text-[#d7dadc] font-medium">{postStats.upvotes}</span> Upvotes
+                            </div>
+                            <div className="text-[#818384]">
+                              <span className="text-[#d7dadc] font-medium">{postStats.downvotes}</span> Downvotes
+                            </div>
+                            {postStats.shares > 0 && (
+                              <div className="text-[#818384]">
+                                <span className="text-[#d7dadc] font-medium">{postStats.shares}</span> Shares
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Live indicator */}
+                          {postData.status === 'published' && (
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                              <span className="text-[#818384] text-xs">Live Stats</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Progress bar for upvote ratio */}
+                        <div className="mt-2">
+                          <div className="w-full bg-[#373738] rounded-full h-1.5">
+                            <div 
+                              className={`bg-[#ff4500] h-1.5 rounded-full transition-all duration-500`}
+                              style={{
+                                width: `${Math.min(100, Math.max(0, postStats.upvotePercentage))}%`
+                              }}
+                            ></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </TabsContent>
 
                   <TabsContent value="settings" className="mt-6 space-y-4">

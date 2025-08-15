@@ -4,10 +4,10 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -16,16 +16,16 @@ import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import {
-    Calendar,
-    Check,
-    ChevronDown,
-    Clock,
-    ExternalLink,
-    Hash,
-    Settings,
-    Sparkles,
-    TrendingUp,
-    X
+  Calendar,
+  Check,
+  ChevronDown,
+  Clock,
+  ExternalLink,
+  Hash,
+  Settings,
+  Sparkles,
+  TrendingUp,
+  X
 } from 'lucide-react'
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -330,9 +330,9 @@ ${fields.postType === 'link' ? `- Link URL: ${fields.linkUrl}` : ''}
   }
 
   return (
-    <div className="relative w-full max-w-xl mx-auto">
+    <div className="relative w-full ml-2">
       {/* Header Tab */}
-      <div className="bg-muted absolute -top-[28px] left-2 flex items-center justify-center py-1 px-4 border-b-none rounded-t-lg border-t-black/20 border-t-[0.5px] border-x-[0.5px] border-x-black/20">
+      <div className="bg-muted absolute -top-[28px] left-0 flex items-center justify-center py-1 px-4 border-b-none rounded-t-lg border-t-black/20 border-t-[0.5px] border-x-[0.5px] border-x-black/20">
         <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center mr-1.5">
           <span className="text-white font-bold text-xs">r/</span>
         </div>
@@ -358,7 +358,7 @@ ${fields.postType === 'link' ? `- Link URL: ${fields.linkUrl}` : ''}
           </div>
         )}
 
-        <div className="w-full max-w-2xl mx-auto bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="w-full bg-white rounded-lg shadow-md overflow-hidden">
           <div className="p-4">
             {/* Card Header */}
             <div className="flex items-center justify-between mb-4">

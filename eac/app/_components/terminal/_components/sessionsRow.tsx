@@ -193,6 +193,16 @@ export function SessionsRow({ className }: SessionsRowProps) {
       <div className="flex items-center gap-3 px-3">
         {/* Active Agent Indicator - Show when agent is active, not disabled, and no extension */}
         {activeAgentId && !activeExtensionId && (() => {
+          // Handle special case for auto mode
+          if (activeAgentId === 'auto') {
+            return (
+              <span className="text-xs font-medium text-white">
+                Auto
+              </span>
+            );
+          }
+          
+          // Handle regular agents from registry
           const activeAgent = agents.find(agent => agent.id === activeAgentId);
           // Only show if agent exists and is not disabled
           return activeAgent && !activeAgent.disabled ? (

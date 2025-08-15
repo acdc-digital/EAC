@@ -6,8 +6,10 @@
 import { useMCP } from "@/lib/hooks/useMCP";
 import { cn } from "@/lib/utils";
 import { useAgentStore } from "@/store";
+import { useEditorStore } from "@/store/editor";
 import { AtSign, Bot, ChevronDown, ChevronRight, Download, FileText, Puzzle, Search, Star, Terminal } from "lucide-react";
 import { useState } from "react";
+import { ExtensionRequestButton } from "../extensions/ExtensionRequestForm";
 
 interface Extension {
   id: string;
@@ -65,6 +67,12 @@ export function DashExtensions() {
   const [expandedExtensions, setExpandedExtensions] = useState<Set<string>>(new Set());
   const { agents } = useAgentStore();
   const { availableTools: mcpTools } = useMCP();
+  const { openSpecialTab } = useEditorStore();
+
+  // Handle opening logo generator
+  const handleOpenLogoGenerator = () => {
+    openSpecialTab('logo-generator', 'Logo Generator', 'logo-generator');
+  };
 
   // Convert agents to extension format
   const agentExtensions: Extension[] = agents.map(agent => ({
@@ -162,8 +170,8 @@ export function DashExtensions() {
   };
 
   return (
-    <div className="h-full bg-[#181818] text-[#cccccc] flex flex-col relative">
-      <div className="p-2 pb-16 overflow-y-auto flex-1">
+    <div className="h-full bg-[#181818] text-[#cccccc] flex flex-col">
+      <div className="p-2 overflow-y-auto flex-1">
         {/* Header */}
         <div className="flex items-center justify-between text-xs uppercase text-[#858585] px-2 py-1">
           <span>Extensions</span>
@@ -174,7 +182,7 @@ export function DashExtensions() {
         </div>
 
         {/* Search */}
-        <div className="relative mt-2 mb-3">
+        <div className="relative mt-2 mb-2">
           <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-[#858585]" />
           <input
             type="text"
@@ -183,6 +191,11 @@ export function DashExtensions() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-[#2d2d2d] border border-[#454545] rounded text-xs px-7 py-1.5 placeholder-[#858585] focus:outline-none focus:border-[#007acc]"
           />
+        </div>
+
+        {/* Extension Request Button */}
+        <div className="mb-3">
+          <ExtensionRequestButton />
         </div>
 
         {/* Extensions List */}
@@ -379,6 +392,109 @@ export function DashExtensions() {
             )}
           </div>
 
+          {/* Logo Generator Extension - Premium Extension */}
+          <div className="rounded border bg-[#1e1e1e] border-[#2d2d2d] border-l-2 border-l-[#ffcc02]">
+            {/* Logo Generator Header */}
+            <div 
+              className="flex items-center gap-2 px-2 py-1 cursor-pointer hover:bg-[#252526] transition-colors"
+              onClick={() => toggleExtensionExpansion('logo-generator')}
+            >
+              {/* Expand/Collapse Arrow */}
+              <div className="flex-shrink-0">
+                {expandedExtensions.has('logo-generator') ? (
+                  <ChevronDown className="w-3 h-3 text-[#858585]" />
+                ) : (
+                  <ChevronRight className="w-3 h-3 text-[#858585]" />
+                )}
+              </div>
+
+              {/* Extension Icon */}
+              <div className="flex-shrink-0">
+                <Puzzle className="w-3.5 h-3.5 text-[#858585]" />
+              </div>
+
+              {/* Extension Name and Download */}
+              <div className="flex-1 min-w-0">
+                <div className="text-xs text-[#cccccc] truncate">
+                  Logo Generator
+                </div>
+                <div className="flex items-center gap-1">
+                  <Download className="w-2 h-2 text-[#858585] flex-shrink-0" />
+                  <span className="text-[10px] text-[#858585] truncate">
+                    Download Now
+                  </span>
+                </div>
+              </div>
+
+              {/* Price Button */}
+              <div className="flex-shrink-0">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    console.log('Purchase Logo Generator for $29.00');
+                  }}
+                  className="px-1.5 py-1 text-[9px] rounded transition-colors bg-[#2d2d2d] hover:bg-[#454545] text-[#ffcc02] border border-[#ffcc02]/40 hover:border-[#ffcc02]/60 font-sm"
+                >
+                  $29.00
+                </button>
+              </div>
+            </div>
+
+            {/* Expanded Content for Logo Generator */}
+            {expandedExtensions.has('logo-generator') && (
+              <div className="px-2 pb-2 border-t border-[#2d2d2d] bg-[#1a1a1a]">
+                <div className="mt-2 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[10px] text-[#b3b3b3]">
+                      by EAC Design Team • v1.0.0
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Star className="w-2.5 h-2.5 text-[#ffcc02] fill-current" />
+                      <span className="text-[9px] text-[#b3b3b3]">4.7</span>
+                    </div>
+                  </div>
+                  
+                  <div className="text-[10px] text-[#b3b3b3] leading-relaxed">
+                    AI-powered logo creation and brand identity generation. Create professional logos, color palettes, and brand guidelines in minutes with advanced AI design algorithms.
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 bg-[#ffcc02]/20 text-[#ffcc02] text-[9px] rounded uppercase">
+                      Premium
+                    </span>
+                    <span className="px-2 py-0.5 bg-[#9c88ff]/20 text-[#9c88ff] text-[9px] rounded uppercase">
+                      Design
+                    </span>
+                    <span className="px-2 py-0.5 bg-[#4fc3f7]/20 text-[#4fc3f7] text-[9px] rounded uppercase">
+                      AI
+                    </span>
+                  </div>
+
+                  {/* Logo Generator features */}
+                  <div className="mt-3 space-y-1">
+                    <div className="text-[10px] text-[#858585] uppercase tracking-wide">Features:</div>
+                    <ul className="text-[10px] text-[#b3b3b3] space-y-0.5 pl-2">
+                      <li>• AI-Powered Logo Creation</li>
+                      <li>• Brand Identity Package Generation</li>
+                      <li>• Color Palette & Typography Suggestions</li>
+                      <li>• Multiple Format Exports (SVG, PNG, PDF)</li>
+                      <li>• Brand Guidelines Documentation</li>
+                      <li>• Logo Variations & Mockups</li>
+                    </ul>
+                  </div>
+
+                  {/* Usage Instructions */}
+                  <div className="mt-3 space-y-1">
+                    <div className="text-[10px] text-[#858585] uppercase tracking-wide">Usage:</div>
+                    <div className="text-[10px] text-[#b3b3b3] leading-relaxed">
+                      Install and use <code className="bg-[#2d2d2d] px-1 rounded text-[#9c88ff]">/logo</code> command to start creating professional logos with AI assistance.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           {filteredExtensions.length === 0 ? (
             <div className="text-center py-6">
               <Puzzle className="w-8 h-8 text-[#858585] mx-auto mb-2" />
@@ -478,16 +594,6 @@ export function DashExtensions() {
               );
             })
           )}
-        </div>
-      </div>
-
-      {/* Footer - Absolutely positioned at bottom */}
-      <div className="absolute bottom-0 left-0 right-0 p-2 bg-[#181818] border-t border-[#2d2d2d]">
-        <div className="text-[10px] text-[#858585] text-center">
-          Extensions marketplace coming soon
-        </div>
-        <div className="text-[10px] text-[#858585] text-center">
-          Create your own extensions with the EAC SDK
         </div>
       </div>
     </div>

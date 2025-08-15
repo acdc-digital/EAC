@@ -13,7 +13,7 @@ import { useEditorStore } from "@/store";
 import { ProjectFile } from "@/store/editor/types";
 import { useTerminalStore } from "@/store/terminal";
 import { useConvexAuth } from "convex/react";
-import { AtSign, Braces, Camera, ChevronLeft, ChevronRight, Edit3, FileCode, FileSpreadsheet, FileText, FileType, HelpCircle, MessageSquare, Pin, Plus, User, Users, X } from "lucide-react";
+import { AtSign, Braces, Camera, ChevronLeft, ChevronRight, DollarSign, Edit3, FileCode, FileSpreadsheet, FileText, FileType, HelpCircle, MessageSquare, Pin, Plus, User, Users, X } from "lucide-react";
 
 // Dynamic import to avoid SSR issues
 const TiptapEditor = dynamic(() => import('@/app/_components/editor/_components/TiptapEditor'), {
@@ -125,6 +125,18 @@ const InstagramPostEditor = dynamic(() => import('./socialPlatforms/instagramPos
 const RedditPostEditor = dynamic(() => import('./socialPlatforms/redditPostEditor').then(mod => ({ default: mod.RedditPostEditor })), {
   ssr: false,
   loading: () => <div className="p-4 text-[#858585]">Loading Reddit editor...</div>
+});
+
+// Dynamic import for Logo Generator Tab
+const LogoGeneratorTab = dynamic(() => import('../logo-generator/LogoGeneratorTab'), {
+  ssr: false,
+  loading: () => <div className="p-4 text-[#858585]">Loading Logo Generator...</div>
+});
+
+// Dynamic import for Subscription Plans Tab
+const SubscriptionPlans = dynamic(() => import('../subscription/SubscriptionPlans').then(mod => ({ default: mod.SubscriptionPlans })), {
+  ssr: false,
+  loading: () => <div className="p-4 text-[#858585]">Loading Subscription Plans...</div>
 });
 
 export function DashEditor() {
@@ -356,7 +368,7 @@ export function DashEditor() {
     if (!currentTab) return 1;
     
     // For special tabs (non-editable), use minimal line numbers
-    if (['sign-in', 'user-profile', 'calendar', 'social-connect', 'post-creator', 'platform-instructions', 'markdown'].includes(currentTab.type)) {
+    if (['sign-in', 'user-profile', 'calendar', 'social-connect', 'post-creator', 'platform-instructions', 'logo-generator', 'subscription', 'markdown'].includes(currentTab.type)) {
       return 1; // Minimal line numbers for special tabs
     }
     
@@ -398,6 +410,8 @@ export function DashEditor() {
   const isUserProfileModule = currentTab?.type === 'user-profile';
   const isSignInModule = currentTab?.type === 'sign-in';
   const isPlatformInstructionsModule = currentTab?.type === 'platform-instructions';
+  const isLogoGeneratorModule = currentTab?.type === 'logo-generator';
+  const isSubscriptionModule = currentTab?.type === 'subscription';
 
   // Social media files handle their own state management internally
   // No need for change handlers as they can cause content conflicts
@@ -510,6 +524,10 @@ export function DashEditor() {
                             return User;
                           case 'platform-instructions':
                             return HelpCircle;
+                          case 'logo-generator':
+                            return HelpCircle; // Using HelpCircle temporarily, can be updated to a more specific icon
+                          case 'subscription':
+                            return DollarSign;
                           default:
                             return FileCode;
                         }
@@ -699,7 +717,7 @@ export function DashEditor() {
                   : 'overflow-scroll editor-scrollbar'
               }`}
               style={
-                activeTab && ['sign-in', 'user-profile', 'calendar'].includes(activeTab)
+                activeTab && ['sign-in', 'user-profile', 'calendar', 'logo-generator'].includes(activeTab)
                   ? { 
                     overflow: 'hidden',
                     scrollbarWidth: 'none',
@@ -740,7 +758,7 @@ export function DashEditor() {
               `}</style>
               <div className="flex min-h-full">
                 {/* Line numbers - synchronized with content - only show for code/text files */}
-                {currentTab && !['sign-in', 'user-profile', 'calendar', 'social-connect', 'post-creator', 'platform-instructions', 'x', 'facebook', 'instagram', 'reddit', 'markdown'].includes(currentTab.type) && (
+                {currentTab && !['sign-in', 'user-profile', 'calendar', 'social-connect', 'post-creator', 'platform-instructions', 'logo-generator', 'subscription', 'x', 'facebook', 'instagram', 'reddit', 'markdown'].includes(currentTab.type) && (
                   <div className="bg-[#1a1a1a] text-[#858585] text-center px-2 select-none w-[40px] border-r border-[#2d2d2d] flex-shrink-0">
                     {Array.from({ length: lineCount }, (_, i) => (
                       <div key={i} className="leading-5 text-xs font-mono h-5">
@@ -774,6 +792,10 @@ export function DashEditor() {
                         <WelcomeSignInCard />
                       ) : isPlatformInstructionsModule ? (
                         <PlatformInstructions platform={currentTab?.id?.split('-')[0]} />
+                      ) : isLogoGeneratorModule ? (
+                        <LogoGeneratorTab />
+                      ) : isSubscriptionModule ? (
+                        <SubscriptionPlans />
                       ) : currentTab?.type === 'facebook' ? (
                         <SocialMediaFormEditor
                           content={currentTabContent}
@@ -799,21 +821,10 @@ export function DashEditor() {
                           fileName={currentTab.name}
                         />
                       ) : currentTab?.type === 'reddit' ? (
-                        // Feature flag to switch between old and new Reddit UI
-                        process.env.NEXT_PUBLIC_USE_NEW_REDDIT_UI === 'true' ? (
-                          <NewRedditPostEditor
-                            isVisible={true}
-                            onClose={() => {}}
-                          />
-                        ) : (
-                          <SocialMediaFormEditor
-                            content={currentTabContent}
-                            onChange={handleContentChange}
-                            editable={isEditable}
-                            platform="reddit"
-                            fileName={currentTab.name}
-                          />
-                        )
+                        <NewRedditPostEditor
+                          isVisible={true}
+                          onClose={() => {}}
+                        />
                       ) : isMarkdownFile ? (
                         <MarkdownEditor
                           key={currentTab?.id}

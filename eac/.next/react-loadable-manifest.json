@@ -20,6 +20,7 @@
   "app/_components/dashboard/dashEditor.tsx -> ../editor/_components/MarkdownEditor": {
     "id": "app/_components/dashboard/dashEditor.tsx -> ../editor/_components/MarkdownEditor",
     "files": [
+      "static/css/_app-pages-browser_app__components_editor__components_MarkdownEditor_tsx.css",
       "static/chunks/_app-pages-browser_app__components_editor__components_MarkdownEditor_tsx.js"
     ]
   },
@@ -47,6 +48,18 @@
       "static/chunks/_app-pages-browser_app__components_editor_editSchedule_tsx.js"
     ]
   },
+  "app/_components/dashboard/dashEditor.tsx -> ../logo-generator/LogoGeneratorTab": {
+    "id": "app/_components/dashboard/dashEditor.tsx -> ../logo-generator/LogoGeneratorTab",
+    "files": [
+      "static/chunks/_app-pages-browser_app__components_logo-generator_LogoGeneratorTab_tsx.js"
+    ]
+  },
+  "app/_components/dashboard/dashEditor.tsx -> ../subscription/SubscriptionPlans": {
+    "id": "app/_components/dashboard/dashEditor.tsx -> ../subscription/SubscriptionPlans",
+    "files": [
+      "static/chunks/_app-pages-browser_app__components_subscription_SubscriptionPlans_tsx.js"
+    ]
+  },
   "app/_components/dashboard/dashEditor.tsx -> ../terminal/terminal": {
     "id": "app/_components/dashboard/dashEditor.tsx -> ../terminal/terminal",
     "files": [
@@ -59,6 +72,18 @@
       "static/chunks/_app-pages-browser_app__components_user-profile_UserProfile_tsx.js"
     ]
   },
+  "app/_components/dashboard/dashEditor.tsx -> ./WelcomeSignInCard": {
+    "id": "app/_components/dashboard/dashEditor.tsx -> ./WelcomeSignInCard",
+    "files": [
+      "static/chunks/_app-pages-browser_app__components_dashboard_WelcomeSignInCard_tsx.js"
+    ]
+  },
+  "app/_components/dashboard/dashEditor.tsx -> ./WelcomeTab": {
+    "id": "app/_components/dashboard/dashEditor.tsx -> ./WelcomeTab",
+    "files": [
+      "static/chunks/_app-pages-browser_app__components_dashboard_WelcomeTab_tsx.js"
+    ]
+  },
   "app/_components/dashboard/dashEditor.tsx -> ./fileEditor": {
     "id": "app/_components/dashboard/dashEditor.tsx -> ./fileEditor",
     "files": [
@@ -69,12 +94,6 @@
     "id": "app/_components/dashboard/dashEditor.tsx -> ./platformInstructions",
     "files": [
       "static/chunks/_app-pages-browser_app__components_dashboard_platformInstructions_tsx.js"
-    ]
-  },
-  "app/_components/dashboard/dashEditor.tsx -> ./signInTab": {
-    "id": "app/_components/dashboard/dashEditor.tsx -> ./signInTab",
-    "files": [
-      "static/chunks/_app-pages-browser_app__components_dashboard_signInTab_tsx.js"
     ]
   },
   "app/_components/dashboard/dashEditor.tsx -> ./socialConnectors": {
@@ -105,6 +124,12 @@
     "id": "app/_components/dashboard/dashEditor.tsx -> ./socialPlatforms/xPostEditor",
     "files": [
       "static/chunks/_app-pages-browser_app__components_dashboard_socialPlatforms_xPostEditor_tsx.js"
+    ]
+  },
+  "app/_components/dashboard/dashEditor.tsx -> @/app/_components/editor/_components/NewRedditPostEditor": {
+    "id": "app/_components/dashboard/dashEditor.tsx -> @/app/_components/editor/_components/NewRedditPostEditor",
+    "files": [
+      "static/chunks/_app-pages-browser_app__components_editor__components_NewRedditPostEditor_tsx.js"
     ]
   },
   "app/_components/dashboard/dashEditor.tsx -> @/app/_components/editor/_components/SocialMediaFormEditor": {
@@ -152,8 +177,20 @@
     "id": "store/agents/instructionsAgent.ts -> convex/browser",
     "files": []
   },
+  "store/agents/onboardingAgent.ts -> ../../convex/_generated/api": {
+    "id": "store/agents/onboardingAgent.ts -> ../../convex/_generated/api",
+    "files": []
+  },
+  "store/agents/onboardingAgent.ts -> convex/browser": {
+    "id": "store/agents/onboardingAgent.ts -> convex/browser",
+    "files": []
+  },
   "store/agents/schedulingAgent.ts -> @/store": {
     "id": "store/agents/schedulingAgent.ts -> @/store",
+    "files": []
+  },
+  "store/onboarding.ts -> ./agents/index": {
+    "id": "store/onboarding.ts -> ./agents/index",
     "files": []
   }
 }

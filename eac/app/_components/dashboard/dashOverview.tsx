@@ -34,7 +34,7 @@ import { FilesDatabase } from "./filesDatabase";
 
 export function DashOverview() {
   const { createProject } = useProjects();
-  const { createFolder } = useEditorStore();
+  const { createFolder, openSpecialTab } = useEditorStore();
   const [isCreatingProject, setIsCreatingProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -301,9 +301,12 @@ export function DashOverview() {
                 <div className="text-[#c586c0] font-medium mb-1">Create Project</div>
                 <div className="text-xs text-[#858585]">Start new project</div>
               </button>
-              <button className="p-3 bg-[#454545] hover:bg-[#555555] rounded-lg text-left transition-colors">
-                <div className="text-[#dcdcaa] font-medium mb-1">View Analytics</div>
-                <div className="text-xs text-[#858585]">Open analytics dashboard</div>
+              <button 
+                className="p-3 bg-[#454545] hover:bg-[#555555] rounded-lg text-left transition-colors"
+                onClick={() => openSpecialTab('subscription', 'Subscription Plans', 'subscription')}
+              >
+                <div className="text-[#f1c40f] font-medium mb-1">Subscription</div>
+                <div className="text-xs text-[#858585]">View pricing plans</div>
               </button>
             </div>
           </CardContent>

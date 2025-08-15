@@ -97,6 +97,21 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
       <span className="text-[#4ec9b0] italic">{children}</span>
     ),
     
+    // Images - handle empty src attributes
+    img: ({ src, alt, title }) => {
+      if (!src || (typeof src === 'string' && src.trim() === '')) {
+        return null; // Don't render if src is empty
+      }
+      return (
+        <img 
+          src={src as string} 
+          alt={alt || ''} 
+          title={title}
+          className="max-w-full h-auto my-2 rounded border border-[#2d2d2d]"
+        />
+      );
+    },
+    
     // Links
     a: ({ href, children }) => (
       <span className="text-[#007acc] underline hover:text-[#4fc1ff] cursor-pointer">

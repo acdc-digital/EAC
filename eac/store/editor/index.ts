@@ -373,7 +373,7 @@ export const useEditorStore = create<EditorState>()(
           });
         },
 
-        openSpecialTab: (id: string, name: string, type: 'social-connect' | 'post-creator' | 'calendar' | 'user-profile' | 'sign-in' | 'platform-instructions') => {
+        openSpecialTab: (id: string, name: string, type: 'social-connect' | 'post-creator' | 'calendar' | 'user-profile' | 'sign-in' | 'platform-instructions' | 'logo-generator' | 'subscription') => {
           const { openTabs } = get();
           
           // Check if tab is already open
@@ -384,7 +384,7 @@ export const useEditorStore = create<EditorState>()(
           }
 
           // Define which tab types should be auto-pinned
-          const autoPinTypes = ['user-profile', 'calendar', 'social-connect', 'post-creator', 'platform-instructions'];
+          const autoPinTypes = ['user-profile', 'calendar', 'social-connect', 'post-creator', 'platform-instructions', 'logo-generator', 'subscription'];
           const shouldAutoPinn = autoPinTypes.includes(type);
           
           let pinnedOrder: number | undefined;

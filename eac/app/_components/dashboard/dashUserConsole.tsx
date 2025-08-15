@@ -5,6 +5,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useEditorStore } from "@/store";
 import { useTerminalStore } from "@/store/terminal";
 import { SignInButton, SignOutButton, useSignIn, useUser } from '@clerk/nextjs';
 import {
@@ -23,6 +24,7 @@ import { useState } from "react";
 export function DashUserConsole() {
   const { isSignedIn, user, isLoaded } = useUser();
   const { setCollapsed } = useTerminalStore();
+  const { openSpecialTab } = useEditorStore();
   const { signIn, isLoaded: signInLoaded, setActive } = useSignIn();
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [signInMethod, setSignInMethod] = useState<'google' | 'email' | null>(null);
@@ -456,6 +458,20 @@ export function DashUserConsole() {
                   className="text-xs text-[#007acc] hover:text-[#1e90ff] underline-offset-2 hover:underline"
                 >
                   Settings
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-[#858585] flex items-center gap-1">
+                  Subscription Plans
+                </span>
+                <button
+                  onClick={() => {
+                    openSpecialTab('subscription', 'Subscription Plans', 'subscription');
+                  }}
+                  className="text-xs text-[#f1c40f] hover:text-[#e1b404] underline-offset-2 hover:underline font-medium"
+                >
+                  View Plans
                 </button>
               </div>
             </div>

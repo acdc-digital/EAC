@@ -9,20 +9,19 @@ import { useTerminalStore } from "@/store/terminal";
 import { useChatStore } from "@/store/terminal/chat";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import {
-    ArrowRight,
-    AtSign,
-    Bot,
-    Calendar,
-    CheckCircle,
-    ChevronRight,
-    FileText,
-    FolderPlus,
-    Rocket,
-    Sparkles,
-    Star,
-    Terminal,
-    Twitter,
-    Zap
+  ArrowRight,
+  AtSign,
+  Bot,
+  Calendar,
+  CheckCircle,
+  ChevronRight,
+  FileText,
+  FolderPlus,
+  Rocket,
+  Sparkles,
+  Star,
+  Twitter,
+  Zap
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -197,12 +196,12 @@ Your social media management workspace is ready. Type \`/help\` to see available
         
         {/* Welcome Message for New Users */}
         {isNewUser && (
-          <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-lg p-3">
+          <div className="bg-[#1e1e1e] rounded-lg border border-[#2d2d2d] p-3">
             <div className="flex items-start gap-2">
               <Zap className="w-4 h-4 text-blue-400 mt-0.5" />
               <div className="flex-1">
-                <h3 className="text-xs font-semibold text-white mb-1">🎉 Welcome aboard!</h3>
-                <p className="text-xs text-[#cccccc] leading-relaxed">
+                <h3 className="text-xs font-semibold text-white mb-1">Welcome aboard!</h3>
+                <p className="text-s text-[#cccccc] leading-relaxed">
                   Your terminal is ready below. Our AI assistant will guide you through a quick 60-second setup 
                   to personalize your social media workspace.
                 </p>
@@ -318,39 +317,13 @@ Your social media management workspace is ready. Type \`/help\` to see available
           )}
         </div>
 
-        {/* Environment Stats */}
-        <div className="bg-[#1e1e1e] rounded-lg border border-[#2d2d2d] p-3">
-          <div className="flex items-center gap-2 mb-2">
-            <Terminal className="w-4 h-4 text-green-400" />
-            <span className="text-xs font-semibold">Environment Status</span>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-[#858585]">Platform</span>
-              <span className="text-xs font-medium text-green-400">EAC Social</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-[#858585]">Setup Time</span>
-              <span className="text-xs font-medium">~60 seconds</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-[#858585]">Terminal</span>
-              <span className="text-xs font-medium text-green-400">Ready</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-[#858585]">AI Agents</span>
-              <span className="text-xs font-medium">{agents.length} loaded</span>
-            </div>
-          </div>
-        </div>
-
         {/* Call to Action */}
         <div className="bg-gradient-to-r from-[#252525] to-[#1e1e1e] rounded-lg p-3 border border-[#2d2d2d]">
           <div className="flex items-center gap-2">
             <CheckCircle className="w-4 h-4 text-green-400" />
             <div className="flex-1">
               <p className="text-xs font-medium text-white">Ready to start?</p>
-              <p className="text-xs text-[#858585]">Your terminal is open below. Just start typing!</p>
+              <p className="text-xs text-[#858585]">Your terminal is open below. Just start typing with our onboarding agent to begin!</p>
             </div>
             <ArrowRight className="w-4 h-4 text-[#858585] animate-pulse" />
           </div>

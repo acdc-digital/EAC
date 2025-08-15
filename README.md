@@ -16,7 +16,39 @@ _  /___  _  ___ / /___      ____/ /_  /  / / _  /  / /
 
 [![Next.js](https://img.shields.io/badge/Next.js-15-000000?logo=next.js&logoColor=white&labelColor=101010)](https://nextjs.org/) [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white&labelColor=101010)](https://reactjs.org/) [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white&labelColor=101010)](https://www.typescriptlang.org/) [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white&labelColor=101010)](https://tailwindcss.com/) [![Zustand](https://img.shields.io/badge/Zustand-State_Management-FF6B35?logo=react&logoColor=white&labelColor=101010)](https://github.com/pmndrs/zustand) [![Convex](https://img.shields.io/badge/Convex-DB-FF6B35?logo=data%3Adownload&logoColor=white&labelColor=101010)](https://convex.dev/) [![Anthropic](https://img.shields.io/badge/Anthropic-Claude-FF6B35?logo=anthropic&logoColor=white&labelColor=101010)](https://anthropic.com/) [![pnpm](https://img.shields.io/badge/pnpm-Workspace-F69220?logo=pnpm&logoColor=white&labelColor=101010)](https://pnpm.io/)
 
-> An intelligent social media management platform powered by AI agents and advanced analytics. Built with Next.js, TypeScript, ShadCN, and Tailwind CSS, EAC provides automated content creation, multi-platform posting, engagement analytics, and AI-driven insights through integrated Claude agents. The VS Code-inspired interface offers a familiar development environment for managing social media campaigns with sophisticated automation and real-time data synchronization using Convex DB's reactive database.
+> **Your Marketing Co-Founder** — An intelligent social media management platform powered by AI agents and advanced analytics. Built with Next.js, TypeScript, ShadCN, and Tailwind CSS, EAC provides automated content creation, multi-platform posting, engagement analytics, and AI-driven insights through integrated Claude agents. The VS Code-inspired interface offers a familiar development environment for managing social media campaigns with sophisticated automation and real-time data synchronization using Convex DB's reactive database.
+
+## What is EAC?
+
+EAC is an **agentic social media audience control platform** that transforms how developers, creators, and businesses approach marketing. Think of it as your AI-powered marketing co-founder that helps you vibe-code your way from idea to market.
+
+### The Vision
+
+Starting with **app builders and vibe-coders** who have brilliant ideas but need marketing guidance, EAC gradually scales to serve:
+
+- **Developers** → Quick brand strategy and content creation
+- **Influencers** → Granular media control and automation  
+- **Teams** → Collaborative campaign management
+- **Enterprise** → Large-scale content distribution
+
+### Core Experience
+
+**First-time users** meet our intelligent **onboarding agent** that learns about your product through natural conversation, building a comprehensive brand knowledge base. From there, choose your workflow:
+
+- **Auto Mode**: Our orchestrator AI selects the perfect tool for each task
+- **Manual Mode**: Granular control over individual agents and workflows
+
+## Pricing & Features
+
+| Tier | Price | What's Included |
+|------|-------|----------------|
+| **Free** | $0/month | VS Code-inspired IDE • Unlimited manual posts • Scheduling • Core agent team • Brand identity builder |
+| **Pro** | $5/month + pay-per-use | All extensions unlocked • Logo generator • Research assistant • Content scheduler • Campaign director • Platform-specific tools |
+| **Power** | $20/month | Everything included • No extension fees • Full feature access |
+
+> **Extension Pricing**: Based on actual AI costs + safety margin. Most extensions cost just **$0.003-0.03** per use.
+
+*Teams & Enterprise: Custom pricing available (infrastructure in development)*
 
 ## Features
 
@@ -119,6 +151,79 @@ EAC/
 |                           | Trunk           | Additional linting and security scanning          |
 |                           | pnpm workspace  | Monorepo package management                       |
 
+## Key Features
+
+### AI Agent Terminal
+**Unified command center** with slash commands powering multi-step AI workflows:
+```bash
+/instructions    # Generate structured instruction files
+/twitter         # Create and schedule X/Twitter posts
+/create-project  # Natural language project bootstrap
+/create-file     # Guided file creation with AI assistance
+/schedule        # Timeline and scheduling optimization
+```
+
+### Real-time Everything
+- **Live sync** across all devices with Convex DB
+- **WebSocket updates** for instant collaboration
+- **Token accounting** with transparent cost tracking
+- **Activity logs** for complete audit trails
+
+### VS Code-Inspired Interface
+Familiar developer experience with:
+- **Activity Bar** for navigation
+- **Sidebar** with project explorer
+- **Tabbed Editor** for content management
+- **Terminal** for AI interactions
+
+### Multi-Platform Support
+Current integrations:
+- **Reddit** (full posting pipeline)
+- **X/Twitter** (content creation & scheduling)
+- **Instagram, LinkedIn, Facebook** (in progress)
+
+## Getting Started
+
+```bash
+# Clone the repository
+git clone https://github.com/matthewsimon/eac.git
+cd eac
+
+# Install dependencies
+pnpm install
+
+# Set up environment variables
+cp .env.example .env.local
+# Add your Convex and Anthropic API keys
+
+# Start development server
+pnpm dev
+
+# In another terminal, start Convex
+cd convex && npx convex dev
+```
+
+## Roadmap
+
+### Current Sprint
+- ✅ Core agent terminal with slash commands
+- ✅ Project & file management with soft delete
+- ✅ Reddit posting pipeline
+- 🔄 Twitter/X integration completion
+- 🔄 Advanced scheduling system
+
+### Next Quarter
+- **Analytics Dashboard** - Performance insights and optimization
+- **Content Performance AI** - Learn what works for your audience
+- **Platform Integrations** - Instagram, LinkedIn, TikTok APIs
+- **Extension Marketplace** - Community-built agent tools
+
+### Future Vision
+- **Enterprise Features** - Team collaboration and permissions
+- **Third-party Integrations** - CRM, email marketing, analytics tools
+- **Advanced AI Models** - Custom fine-tuned models for your brand
+- **Multi-language Support** - Global content creation capabilities
+
 ## Convex Backend
 
 The application uses Convex for real‑time data, agent interaction persistence, token accounting, and soft deletion workflows.
@@ -215,11 +320,16 @@ Safety / correctness guards:
 
 ## Contributing
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+We welcome contributions! Whether you're fixing bugs, adding features, or creating new agent extensions:
+
+1. **Fork** the repository
+2. **Create** your feature branch (`git checkout -b feature/amazing-agent`)
+3. **Commit** your changes (`git commit -m 'Add sentiment analysis agent'`)
+4. **Push** to the branch (`git push origin feature/amazing-agent`)
+5. **Open** a Pull Request
+
+### Want a Custom Extension?
+Have an idea for a new agent or tool? [Open an issue](https://github.com/matthewsimon/eac/issues) and describe your use case. We love building what our community needs!
 
 ## License
 
@@ -232,7 +342,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Tiptap** - Excellent rich text editing capabilities
 - **Zustand** - Simple and effective state management
 - **Anthropic** - Claude AI for intelligent agent automation
+- **Convex** - Real-time database that just works
 
 ---
 
-© 2025 ACDC.digital • Maintainer: msimon@acdc.digital
+**Built with precision by developers, for developers**
+
+© 2025 ACDC.digital • Maintainer: msimon@acdc.digital • [Documentation](./docs) • [Roadmap](https://github.com/matthewsimon/eac/projects)

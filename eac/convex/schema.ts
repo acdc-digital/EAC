@@ -453,4 +453,53 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_date", ["startDate"])
     .index("by_user", ["userId", "createdAt"]),
+
+  // Extension requests from users
+  extensionRequests: defineTable({
+    userId: v.optional(v.union(v.string(), v.id("users"))),
+    title: v.string(), // Short title/name for the extension
+    description: v.string(), // Detailed description of what the user wants
+    requestType: v.union(
+      v.literal("new_extension"),
+      v.literal("feature_enhancement"),
+      v.literal("platform_integration"),
+      v.literal("agent_improvement"),
+      v.literal("other")
+    ),
+    priority: v.union(
+      v.literal("low"),
+      v.literal("medium"),
+      v.literal("high"),
+      v.literal("urgent")
+    ),
+    status: v.union(
+      v.literal("submitted"),
+      v.literal("under_review"),
+      v.literal("approved"),
+      v.literal("in_development"),
+      v.literal("completed"),
+      v.literal("rejected")
+    ),
+    category: v.optional(v.string()), // e.g., "social media", "analytics", "content creation"
+    estimatedCost: v.optional(v.number()), // If pay-per-use, estimated cost
+    upvotes: v.number(), // Community voting
+    downvotes: v.number(),
+    
+    // Development tracking
+    assignedTo: v.optional(v.string()), // Developer/team assigned
+    estimatedCompletion: v.optional(v.number()), // Estimated completion date
+    actualCompletion: v.optional(v.number()), // Actual completion date
+    
+    // Admin notes
+    adminNotes: v.optional(v.string()), // Internal notes for development team
+    publicNotes: v.optional(v.string()), // Public updates for users
+    
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status", ["status", "createdAt"])
+    .index("by_user", ["userId", "createdAt"])
+    .index("by_priority", ["priority", "createdAt"])
+    .index("by_upvotes", ["upvotes"])
+    .index("by_category", ["category", "createdAt"]),
 });

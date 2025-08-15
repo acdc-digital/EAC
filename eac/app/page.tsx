@@ -11,8 +11,8 @@ import { useAgentStore, useSidebarStore } from "@/store";
 import { useEditorStore } from "@/store/editor";
 import { AuthLoading, useConvexAuth } from "convex/react";
 import {
-    AlertCircle,
-    Copyright
+  AlertCircle,
+  Copyright
 } from "lucide-react";
 import { useEffect } from "react";
 import { DashActivityBar } from "./_components/dashboard/dashActivityBar";
@@ -79,7 +79,7 @@ export default function HomePage() {
           {/* Title */}
           <div className="flex-1 flex justify-start ml-2">
             <span className="text-xs text-[#858585]">
-              EAC Social Media Management Platform
+              AMP Audience Management Platform
             </span>
           </div>
         </header>
@@ -112,7 +112,7 @@ export default function HomePage() {
               <AlertCircle className="w-3 h-3" />
               <span>0</span>
             </div>
-            <span>EAC Dashboard v1.0.0</span>
+            <span>AMP Dashboard v1.0.0</span>
           </div>
 
           <div className="flex items-center space-x-4">

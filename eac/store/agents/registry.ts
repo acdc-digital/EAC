@@ -7,6 +7,7 @@ import { directorAgent } from './directorAgent';
 import { editorAgent } from './editorAgent';
 import { fileCreatorAgent } from './fileCreatorAgent';
 import { instructionsAgent } from './instructionsAgent';
+import { logoGeneratorAgent } from './logoGeneratorAgent';
 import { onboardingAgent } from './onboardingAgent';
 import { parentOrchestratorAgent } from './parentOrchestratorAgent';
 import { projectCreatorAgent } from './projectCreatorAgent';
@@ -40,6 +41,8 @@ export class AgentRegistry {
     console.log('🤖 Registered:', fileCreatorAgent.id, fileCreatorAgent.name);
     this.registerAgent(editorAgent);
     console.log('🤖 Registered:', editorAgent.id, editorAgent.name);
+    this.registerAgent(logoGeneratorAgent);
+    console.log('🤖 Registered:', logoGeneratorAgent.id, logoGeneratorAgent.name);
     this.registerAgent(cmoAgent);
     console.log('🤖 Registered:', cmoAgent.id, cmoAgent.name);
     this.registerAgent(directorAgent);

@@ -12,7 +12,8 @@
     "lint": "next lint",
     "convex:dev": "npx convex dev",
     "convex:deploy": "npx convex deploy",
-    "convex:dashboard": "npx convex dashboard"
+    "convex:dashboard": "npx convex dashboard",
+    "depcruise": "depcruise --no-config ./app ./components ./lib ./store ./convex --output-type dot | dot -T svg > dependency-graph.svg"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.57.0",
@@ -58,6 +59,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/turndown": "^5.0.5",
+    "dependency-cruiser": "^17.0.1",
     "eslint": "^9",
     "eslint-config-next": "15.3.5",
     "tailwindcss": "^4",

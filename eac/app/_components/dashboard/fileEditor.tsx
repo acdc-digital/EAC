@@ -202,9 +202,9 @@ export function FileEditor() {
         {/* Table Header */}
         {(filesWithoutFolder.length > 0 || filesInFolders.length > 0) && (
           <div className="flex items-center px-3 py-2 text-xs font-medium text-[#858585] uppercase tracking-wide border-b border-[#2d2d2d] bg-[#1a1a1a]">
-            <div className="flex-1">File Name</div>
-            <div className="w-24 text-center">Type</div>
-            <div className="w-20 text-center">Status</div>
+            <div className="flex-1 min-w-0">File Name</div>
+            <div className="w-24 text-center flex-shrink-0">Type</div>
+            <div className="w-20 text-center flex-shrink-0">Status</div>
           </div>
         )}
 
@@ -217,16 +217,16 @@ export function FileEditor() {
                 openTab(file);
                 logger.fileOpened(file.name, getFileTypeLabel(file.type));
               }}
-              className="flex items-center gap-2 px-3 py-2 hover:bg-[#2d2d2d] cursor-pointer text-[#cccccc] text-sm group border-b border-[#2d2d2d]/30"
+              className="flex items-center px-3 py-2 hover:bg-[#2d2d2d] cursor-pointer text-[#cccccc] text-sm group border-b border-[#2d2d2d]/30"
             >
-              <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="flex items-center flex-1 min-w-0 overflow-hidden">
                 {renderFileIcon(file.type)}
-                <span className="truncate">{file.name}</span>
+                <span className="truncate ml-2 flex-1" title={file.name}>{file.name}</span>
               </div>
-              <div className="w-24 text-center text-xs text-[#858585]">
+              <div className="w-24 text-center text-xs text-[#858585] flex-shrink-0 ml-2">
                 {getFileTypeLabel(file.type)}
               </div>
-              <div className="w-20 flex justify-end">
+              <div className="w-20 flex justify-end flex-shrink-0 ml-2">
                 {getStatusBadge(file)}
               </div>
             </div>
@@ -240,21 +240,21 @@ export function FileEditor() {
             <div key={`${keyPrefix}-folder-${folder.id}-${folderIndex}`}>
               <div
                 onClick={() => toggleFolder(folder.id)}
-                className="flex items-center gap-1 px-3 py-2 hover:bg-[#2d2d2d] cursor-pointer text-[#cccccc] text-sm border-b border-[#2d2d2d]/30"
+                className="flex items-center px-3 py-2 hover:bg-[#2d2d2d] cursor-pointer text-[#cccccc] text-sm border-b border-[#2d2d2d]/30"
               >
-                <div className="flex items-center gap-1 flex-1">
+                <div className="flex items-center flex-1 min-w-0 overflow-hidden">
                   {isExpanded ? (
                     <ChevronDown className="w-3 h-3 flex-shrink-0" />
                   ) : (
                     <ChevronRight className="w-3 h-3 flex-shrink-0" />
                   )}
-                  <Folder className="w-4 h-4 flex-shrink-0 text-[#007acc]" />
-                  <span className="truncate">{folder.name}</span>
+                  <Folder className="w-4 h-4 flex-shrink-0 text-[#007acc] ml-1" />
+                  <span className="truncate ml-2 flex-1" title={folder.name}>{folder.name}</span>
                 </div>
-                <div className="w-24 text-center text-xs text-[#858585]">
+                <div className="w-24 text-center text-xs text-[#858585] flex-shrink-0 ml-2">
                   {files.length} files
                 </div>
-                <div className="w-20"></div>
+                <div className="w-20 flex-shrink-0 ml-2"></div>
               </div>
               
               {isExpanded && (
@@ -267,16 +267,16 @@ export function FileEditor() {
                           openTab(file);
                           logger.fileOpened(file.name, getFileTypeLabel(file.type));
                         }}
-                        className="flex items-center gap-2 px-6 py-2 hover:bg-[#2d2d2d] cursor-pointer text-[#cccccc] text-sm group border-b border-[#2d2d2d]/20"
+                        className="flex items-center px-6 py-2 hover:bg-[#2d2d2d] cursor-pointer text-[#cccccc] text-sm group border-b border-[#2d2d2d]/20"
                       >
-                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <div className="flex items-center flex-1 min-w-0 overflow-hidden">
                           {renderFileIcon(file.type)}
-                          <span className="truncate">{file.name}</span>
+                          <span className="truncate ml-2 flex-1" title={file.name}>{file.name}</span>
                         </div>
-                        <div className="w-24 text-center text-xs text-[#858585]">
+                        <div className="w-24 text-center text-xs text-[#858585] flex-shrink-0 ml-2">
                           {getFileTypeLabel(file.type)}
                         </div>
-                        <div className="w-20 flex justify-end">
+                        <div className="w-20 flex justify-end flex-shrink-0 ml-2">
                           {getStatusBadge(file)}
                         </div>
                       </div>

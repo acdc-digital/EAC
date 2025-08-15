@@ -6,8 +6,9 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { useAgentStore } from "@/store";
+import { useEditorStore } from "@/store/editor";
 import { useSessionStore } from "@/store/terminal/session";
-import { AtSign, Bot } from "lucide-react";
+import { AtSign, Bot, Puzzle } from "lucide-react";
 
 interface PremiumExtension {
   id: string;
@@ -20,6 +21,14 @@ interface PremiumExtension {
 
 // Premium extensions available
 const premiumExtensions: PremiumExtension[] = [
+  {
+    id: 'logo-generator',
+    name: 'Logo Generator',
+    description: 'AI-powered logo creation and brand identity generation. Create professional logos, color palettes, and brand guidelines.',
+    price: '$29.00',
+    isInstalled: true,
+    icon: 'Puzzle'
+  },
   {
     id: 'marketing-officer',
     name: 'Marketing Officer',
@@ -45,6 +54,12 @@ interface ExtensionsPanelProps {
 export function ExtensionsPanel({ className }: ExtensionsPanelProps) {
   const { activeExtensionId, setActiveExtension } = useSessionStore();
   const { activeAgentId, setActiveAgent } = useAgentStore();
+  const { openSpecialTab } = useEditorStore();
+
+  // Handle opening logo generator tab
+  const handleOpenLogoGenerator = () => {
+    openSpecialTab('logo-generator', 'Logo Generator', 'logo-generator');
+  };
 
   const handleExtensionSelect = (extensionId: string) => {
     // When selecting an extension, activate it and set corresponding agent
@@ -53,7 +68,8 @@ export function ExtensionsPanel({ className }: ExtensionsPanelProps) {
     // Clear any regular agent selection that's not the extension agent
     // This ensures mutual exclusivity
     const extensionAgentId = extensionId === 'marketing-officer' ? 'cmo' : 
-                            extensionId === 'campaign-director' ? 'director' : null;
+                            extensionId === 'campaign-director' ? 'director' :
+                            extensionId === 'logo-generator' ? 'logo-generator' : null;
     
     // Set the corresponding extension agent
     if (extensionAgentId) {
@@ -72,6 +88,8 @@ export function ExtensionsPanel({ className }: ExtensionsPanelProps) {
     switch (iconName) {
       case 'Bot':
         return <Bot className={`w-4 h-4 ${iconColor}`} />;
+      case 'Puzzle':
+        return <Puzzle className={`w-4 h-4 ${iconColor}`} />;
       case 'AtSign':
       default:
         return <AtSign className={`w-4 h-4 ${iconColor}`} />;
@@ -98,11 +116,22 @@ export function ExtensionsPanel({ className }: ExtensionsPanelProps) {
               <div
                 key={extension.id}
                 className={cn(
-                  "w-full flex items-center px-3 py-1.5 transition-all duration-200 hover:bg-[#2a2a2a] border-b border-[#333]",
+                  "w-full flex items-center px-3 py-1.5 transition-all duration-200 border-b border-[#333] cursor-pointer group",
+                  // Base hover effect for all extensions
+                  "hover:bg-[#2a2a2a]",
+                  // Enhanced hover effect specifically for logo-generator
+                  extension.id === 'logo-generator' && "hover:bg-[#2a2a2a] hover:border-l-2 hover:border-l-[#ffcc02]/60 hover:shadow-sm",
+                  // Active state styling
                   activeExtensionId === extension.id 
                     ? "border-l-2 border-l-[#ffcc02] bg-[#ffcc02]/10" 
                     : ""
                 )}
+                onClick={() => {
+                  // If it's the logo generator, open the tab
+                  if (extension.id === 'logo-generator') {
+                    handleOpenLogoGenerator();
+                  }
+                }}
               >
                 {/* Select Checkbox */}
                 <div className="flex-shrink-0 w-16 flex items-center justify-start">
@@ -132,7 +161,9 @@ export function ExtensionsPanel({ className }: ExtensionsPanelProps) {
                   <span className={cn(
                     activeExtensionId === extension.id 
                       ? "text-[#ffcc02] font-medium" 
-                      : "text-[#cccccc]"
+                      : "text-[#cccccc]",
+                    // Add hover effect for logo-generator
+                    extension.id === 'logo-generator' && "group-hover:text-[#ffcc02] transition-colors duration-200"
                   )}>
                     {extension.name}
                   </span>
@@ -140,7 +171,11 @@ export function ExtensionsPanel({ className }: ExtensionsPanelProps) {
                 
                 {/* Description */}
                 <div className="flex-1 px-2 min-w-0">
-                  <div className="text-xs text-[#b3b3b3] truncate">
+                  <div className={cn(
+                    "text-xs text-[#b3b3b3] truncate",
+                    // Add hover effect for logo-generator
+                    extension.id === 'logo-generator' && "group-hover:text-[#cccccc] transition-colors duration-200"
+                  )}>
                     {extension.description}
                   </div>
                 </div>

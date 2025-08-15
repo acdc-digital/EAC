@@ -17,22 +17,22 @@ import { useTrash } from "@/lib/hooks/useTrash";
 import { useEditorStore, useSidebarStore } from "@/store";
 import { useConvexAuth, useMutation } from "convex/react";
 import {
-    AtSign,
-    Braces,
-    Camera,
-    ChevronDown,
-    ChevronRight,
-    ChevronsDown,
-    FileCode,
-    FileSpreadsheet,
-    FileText,
-    FileType,
-    Folder,
-    GripVertical,
-    MessageSquare,
-    Pin,
-    Plus,
-    X
+  AtSign,
+  Braces,
+  Camera,
+  ChevronDown,
+  ChevronRight,
+  ChevronsDown,
+  FileCode,
+  FileSpreadsheet,
+  FileText,
+  FileType,
+  Folder,
+  GripVertical,
+  MessageSquare,
+  Pin,
+  Plus,
+  X
 } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
 import { DashAgents } from "./dashAgents";
@@ -800,7 +800,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
 
               const sectionContent = (
                 <div
-                  className={`flex items-center w-full hover:bg-[#2d2d2d] px-1 py-0.5 rounded group transition-all duration-150 ${
+                  className={`flex items-center w-full hover:bg-[#2d2d2d] px-1 py-0.5 rounded group transition-all duration-150 overflow-hidden ${
                     isDraggedOver ? 'bg-[#3a3a3a] border-l-2 border-[#007acc] shadow-lg transform scale-105' : ''
                   } ${isBeingDragged ? 'opacity-30 scale-95' : ''} ${isDraggableFolder ? 'cursor-move' : ''}`}
                   draggable={isDraggableFolder}
@@ -812,7 +812,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                 >
                   <div
                     onClick={() => !isCurrentlyRenamingFolder && toggleSection(section.id)}
-                    className={`flex items-center flex-1 text-left cursor-pointer`}
+                    className={`flex items-center flex-1 min-w-0 text-left cursor-pointer`}
                   >
                     {isOpen ? (
                       <ChevronDown className="w-4 h-4 mr-1 text-[#858585] cursor-pointer" />
@@ -845,16 +845,16 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                         aria-label="Enter folder name"
                       />
                     ) : (
-                      <div className="flex items-center min-w-0">
-                        <span className="text-xs text-[#cccccc] truncate block max-w-full">{section.name}</span>
+                      <div className="flex items-center min-w-0 flex-1 overflow-hidden">
+                        <span className="text-xs text-[#cccccc] truncate" title={section.name}>{section.name}</span>
                         {isPinnedFolder && (
-                          <div title="Pinned folder">
-                            <Pin className="w-3 h-3 ml-1 text-[#007acc]" />
+                          <div title="Pinned folder" className="flex-shrink-0 ml-1">
+                            <Pin className="w-3 h-3 text-[#007acc]" />
                           </div>
                         )}
                         {(section as any).isSystemFolder && (
-                          <div title="System folder">
-                            <Pin className="w-3 h-3 ml-1 text-blue-400" />
+                          <div title="System folder" className="flex-shrink-0 ml-1">
+                            <Pin className="w-3 h-3 text-blue-400" />
                           </div>
                         )}
                       </div>
@@ -967,7 +967,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                         return (
                           <div key={'id' in file ? file.id : `${section.id}-${index}`}>
                               <div
-                                className={`group flex items-center hover:bg-[#2d2d2d] px-1 py-0.5 rounded cursor-pointer transition-all duration-150 ${
+                                className={`group flex items-center hover:bg-[#2d2d2d] px-1 py-0.5 rounded cursor-pointer transition-all duration-150 overflow-hidden ${
                                   isDraggedOverFile ? 'bg-[#3a3a3a] border-l-2 border-[#007acc] shadow-lg transform scale-105' : ''
                                 } ${isDraggedFile ? 'opacity-30 scale-95' : ''} ${isProjectFile && !isCurrentlyRenaming ? 'cursor-move' : ''}`}
                                 draggable={isProjectFile && !isCurrentlyRenaming}
@@ -1007,7 +1007,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                                       aria-label="Enter file name"
                                     />
                                   ) : (
-                                    <span className="text-xs text-[#cccccc] block max-w-full overflow-hidden text-ellipsis whitespace-nowrap" title={file.name}>{file.name}</span>
+                                    <span className="text-xs text-[#cccccc] block w-full truncate" title={file.name}>{file.name}</span>
                                   )}
                                 </div>
                                 {isProjectFile && file.file && !isCurrentlyRenaming && (
@@ -1041,7 +1041,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                   {'file' in section && (
                     <div>
                         <div
-                          className={`group flex items-center hover:bg-[#2d2d2d] px-1 py-0.5 rounded ml-4 transition-all duration-150 ${
+                          className={`group flex items-center hover:bg-[#2d2d2d] px-1 py-0.5 rounded ml-4 transition-all duration-150 overflow-hidden ${
                             draggedFile === section.file.id ? 'opacity-30 scale-95' : ''
                           } ${dragOverFile === section.file.id ? 'bg-[#3a3a3a] border-l-2 border-[#007acc] shadow-lg transform scale-105' : ''} ${
                             renamingFile?.fileId !== section.file.id ? 'cursor-move' : ''
@@ -1087,7 +1087,7 @@ export function DashSidebar({ activePanel }: SidebarProps) {
                                 aria-label="Enter file name"
                               />
                             ) : (
-                              <span className="text-xs text-[#cccccc] block max-w-full overflow-hidden text-ellipsis whitespace-nowrap" title={section.name}>{section.name}</span>
+                              <span className="text-xs text-[#cccccc] block w-full truncate" title={section.name}>{section.name}</span>
                             )}
                           </div>
                           {renamingFile?.fileId !== section.file.id && (
