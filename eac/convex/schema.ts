@@ -502,4 +502,26 @@ export default defineSchema({
     .index("by_priority", ["priority", "createdAt"])
     .index("by_upvotes", ["upvotes"])
     .index("by_category", ["category", "createdAt"]),
+
+  // Logo generations table
+  logoGenerations: defineTable({
+    userId: v.string(),
+    sessionId: v.string(),
+    logoSvg: v.string(), // Base64 encoded image data
+    prompt: v.string(),
+    brief: v.object({
+      companyName: v.string(),
+      business: v.string(),
+      stylePreference: v.string(),
+      colorPreferences: v.array(v.string()),
+      logoType: v.string(),
+      targetAudience: v.string(),
+      specialInstructions: v.optional(v.string()),
+    }),
+    status: v.union(v.literal("generating"), v.literal("completed"), v.literal("failed")),
+    createdAt: v.number(),
+  })
+    .index("by_user_status", ["userId", "status", "createdAt"])
+    .index("by_session", ["sessionId"])
+    .index("by_user", ["userId", "createdAt"]),
 });

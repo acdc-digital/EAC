@@ -362,7 +362,26 @@ Type "yes" to start generation or "edit" if you want to modify anything.`;
       });
       
       if (generationResult.success && generationResult.imageUrl) {
-        // Store the generated logo in Convex for persistence
+        // Store the generated logo in Convex database for persistence
+        if (sessionId && convexMutations.createLogoGeneration) {
+          await convexMutations.createLogoGeneration({
+            sessionId,
+            logoSvg: generationResult.imageUrl, // Store actual image data instead of empty string
+            prompt: imagePrompt,
+            brief: {
+              companyName: brief.companyName || 'Unknown',
+              business: brief.businessDescription || 'Unknown',
+              stylePreference: brief.stylePreference || 'modern',
+              colorPreferences: brief.colorPreferences || ['blue'],
+              logoType: brief.logoType || 'combination',
+              targetAudience: brief.targetAudience || 'general',
+              specialInstructions: brief.additionalInstructions
+            },
+            status: 'completed'
+          });
+        }
+
+        // Store the generated logo in chat messages for display
         if (sessionId && convexMutations.storeChatMessage) {
           await convexMutations.storeChatMessage({
             role: "assistant",

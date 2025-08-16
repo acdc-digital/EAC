@@ -73,6 +73,21 @@ export interface ConvexMutations {
       status: 'pending' | 'completed' | 'cancelled';
     };
   }) => Promise<any>;
+  createLogoGeneration?: (params: {
+    sessionId: string;
+    logoSvg: string;
+    prompt: string;
+    brief: {
+      companyName: string;
+      business: string;
+      stylePreference: string;
+      colorPreferences: string[];
+      logoType: string;
+      targetAudience: string;
+      specialInstructions?: string;
+    };
+    status: 'generating' | 'completed' | 'failed';
+  }) => Promise<any>;
   updateInteractiveComponent?: (params: {
     messageId: string;
     status: 'pending' | 'completed' | 'cancelled';

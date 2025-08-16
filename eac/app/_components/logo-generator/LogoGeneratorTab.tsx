@@ -10,7 +10,7 @@ import { useAgentStore } from "@/store";
 import { useLogoGeneratorStore } from "@/store/logoGenerator";
 import { useTerminalStore } from "@/store/terminal";
 import { useSessionStore } from "@/store/terminal/session";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { Copy, Download, Image, Palette, RotateCcw, Sparkles, Zap } from "lucide-react";
 import { useState } from "react";
 
@@ -21,6 +21,9 @@ export function LogoGeneratorTab() {
   const { createNewSession, setActiveSession, setSessionsPanelOpen, setAgentsPanelOpen, setExtensionsPanelOpen } = useSessionStore();
   const { currentLogo, isGenerating: storeIsGenerating, logoHistory, selectFromHistory } = useLogoGeneratorStore();
   const storeChatMessage = useMutation(api.chat.storeChatMessage);
+  
+  // Get the latest completed logo from the database
+  const latestLogo = useQuery(api.logoGenerations.getLatestCompletedLogo);
   
   // Sync logo generation results from chat messages
   useLogoGenerationSync();
