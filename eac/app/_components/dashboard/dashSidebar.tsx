@@ -40,6 +40,7 @@ import { DashCalendarConsole } from "./dashCalendarConsole";
 import { DashDebug } from "./dashDebug";
 import { DashExtensions } from "./dashExtensions";
 import { DashHelp } from "./dashHelp";
+import { DashLogoGeneratorConsole } from "./dashLogoGeneratorConsole";
 import { DashSocialConnections } from "./dashSocialConnections";
 import { DashTrash } from "./dashTrash";
 import { DashUserConsole } from "./dashUserConsole";
@@ -672,6 +673,8 @@ export function DashSidebar({ activePanel }: SidebarProps) {
         return <DashAgents />;
       case 'extensions':
         return <DashExtensions />;
+      case 'logo-generator':
+        return <DashLogoGeneratorConsole />;
       case 'profile':
         return <DashUserConsole />;
       case 'social-connectors':

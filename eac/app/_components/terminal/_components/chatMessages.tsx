@@ -140,6 +140,24 @@ export function ChatMessages() {
     }
   }, [user, isLoaded, sessionId, initializeUserSession]);
 
+  // Sync chat store sessionId with active session from session store
+  useEffect(() => {
+    console.log("🔄 ChatMessages session sync check:", {
+      activeSessionId,
+      currentSessionId: sessionId,
+      messagesCount: messages?.length || 0,
+      needsSync: activeSessionId && activeSessionId !== sessionId
+    });
+    
+    if (activeSessionId && activeSessionId !== sessionId) {
+      console.log("🔄 Syncing chat sessionId with active session:", { 
+        activeSessionId, 
+        currentSessionId: sessionId 
+      });
+      setSessionId(activeSessionId);
+    }
+  }, [activeSessionId, sessionId, setSessionId, messages?.length]);
+
   // Update onboarding store with current user (resets state for new users)
   useEffect(() => {
     if (isLoaded && user) {

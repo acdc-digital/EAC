@@ -10,8 +10,8 @@ import { useAgentStore } from "@/store";
 import { useLogoGeneratorStore } from "@/store/logoGenerator";
 import { useTerminalStore } from "@/store/terminal";
 import { useSessionStore } from "@/store/terminal/session";
-import { useMutation, useQuery } from "convex/react";
-import { Copy, Download, Image, Palette, RotateCcw, Sparkles, Zap } from "lucide-react";
+import { useMutation } from "convex/react";
+import { Copy, Download, Image, RotateCcw, Sparkles } from "lucide-react";
 import { useState } from "react";
 
 export function LogoGeneratorTab() {
@@ -22,58 +22,47 @@ export function LogoGeneratorTab() {
   const { currentLogo, isGenerating: storeIsGenerating, logoHistory, selectFromHistory } = useLogoGeneratorStore();
   const storeChatMessage = useMutation(api.chat.storeChatMessage);
   
-  // Get the latest completed logo from the database
-  const latestLogo = useQuery(api.logoGenerations.getLatestCompletedLogo);
-  
   // Sync logo generation results from chat messages
   useLogoGenerationSync();
   const latestPrompt = useLogoGenerationPrompt();
 
-  const handleGetStarted = async () => {
+    const handleGetStarted = async () => {
+    // Create a new session specifically for logo generation
+    const newSessionId = createNewSession();
+    
+    // Set the active agent to logo-generator
+    setActiveAgent('logo-generator');
+    
+    // Store the initial message in the new session
     try {
-      setIsGenerating(true);
-      
-      // Create a new chat session for logo generation
-      const newSessionId = createNewSession();
-      setActiveSession(newSessionId);
-      
-      // Activate the logo generator agent
-      setActiveAgent('logo-generator');
-      
-      // Send initial message from the logo generator agent FIRST
       await storeChatMessage({
-        role: "assistant",
-        content: `🎨 **Welcome to the Logo Generator!**
+        role: 'assistant',
+        content: `# 🎨 Logo Generator Started
 
-I'm here to help you create a professional logo for your brand. I'll guide you through a step-by-step process to understand your vision and generate the perfect logo.
+Welcome! I'm your AI logo designer. I'll help you create professional logos for your brand.
 
-Let's start with the basics:
+**To get started, I'll need some information:**
+- Company/brand name
+- Industry or business type  
+- Style preferences (modern, classic, playful, etc.)
+- Color preferences
+- Any specific requirements or inspiration
 
-**What's the name of your company or brand?**`,
+What's the name of the company or brand you'd like to create a logo for?`,
         sessionId: newSessionId,
-        processIndicator: {
-          type: 'waiting',
-          processType: 'logo-generation',
-          color: 'blue'
+        operation: {
+          type: 'tool_executed',
+          details: {
+            tool: 'logo-generator',
+            action: 'session_started'
+          }
         }
       });
       
-      console.log('✅ Logo Generator session created and initial prompt sent');
-      
-      // Small delay to ensure message is processed, then open terminal to chat
-      setTimeout(() => {
-        setTerminalCollapsed(false);
-        setActiveTab('terminal'); // This is the correct tab name
-        // Close all sub-panels so ChatMessages shows by default
-        setSessionsPanelOpen(false);
-        setAgentsPanelOpen(false);
-        setExtensionsPanelOpen(false);
-      }, 100);
-      
+      // Switch to terminal view to show the conversation
+      setActiveTab("terminal");
     } catch (error) {
-      console.error('Failed to start logo generation:', error);
-    } finally {
-      setIsGenerating(false);
+      console.error('Failed to initialize logo generator session:', error);
     }
   };
 
@@ -211,67 +200,6 @@ Let's start with the basics:
               </div>
             )}
             
-            {/* Get Started Section */}
-            {!currentLogo && (
-              <div className="bg-[#2d2d2d] border border-[#454545] rounded-lg p-4 mb-6">
-                <div className="flex items-center gap-3 mb-3">
-                  <Zap className="w-5 h-5 text-[#ffcc02]" />
-                  <span className="font-medium text-[#cccccc]">AI-Powered Generation</span>
-                </div>
-                <p className="text-sm text-[#b3b3b3] mb-4">
-                  Our AI will guide you through creating the perfect logo for your brand. We'll ask about your style preferences, industry, and brand personality.
-                </p>
-                <Button 
-                  onClick={handleGetStarted}
-                  disabled={isGenerating || storeIsGenerating}
-                  className="w-full bg-[#ffcc02] hover:bg-[#e6b800] text-black font-medium"
-                >
-                  {isGenerating || storeIsGenerating ? (
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-                      {storeIsGenerating ? 'Generating...' : 'Starting...'}
-                    </div>
-                  ) : (
-                    'Get Started'
-                  )}
-                </Button>
-              </div>
-            )}
-
-            {/* Features */}
-            <div className="space-y-4 mb-6">
-              <div className="flex items-start gap-3">
-                <Palette className="w-5 h-5 text-[#4fc3f7] mt-0.5" />
-                <div>
-                  <h4 className="text-sm font-medium text-[#cccccc]">Color Customization</h4>
-                  <p className="text-xs text-[#858585]">Choose from unlimited color combinations</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-3">
-                <Image className="w-5 h-5 text-[#51cf66] mt-0.5" />
-                <div>
-                  <h4 className="text-sm font-medium text-[#cccccc]">Multiple Formats</h4>
-                  <p className="text-xs text-[#858585]">Export as SVG, PNG, or PDF</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-3">
-                <Sparkles className="w-5 h-5 text-[#ffcc02] mt-0.5" />
-                <div>
-                  <h4 className="text-sm font-medium text-[#cccccc]">AI Variations</h4>
-                  <p className="text-xs text-[#858585]">Generate multiple design options</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Brand Guidelines */}
-            <div className="p-4 bg-[#2a2a2a] rounded-lg">
-              <h4 className="text-sm font-medium text-[#cccccc] mb-2">Brand Guidelines</h4>
-              <p className="text-xs text-[#858585]">
-                Get a complete brand package including color codes, typography recommendations, and usage guidelines.
-              </p>
-            </div>
           </div>
         </div>
       </div>

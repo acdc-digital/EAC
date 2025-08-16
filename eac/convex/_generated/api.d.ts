@@ -25,6 +25,7 @@ import type * as debug from "../debug.js";
 import type * as eacConvexSchema from "../eacConvexSchema.js";
 import type * as editorActions from "../editorActions.js";
 import type * as extensionRequests from "../extensionRequests.js";
+import type * as fileStorage from "../fileStorage.js";
 import type * as files from "../files.js";
 import type * as instructionsActions from "../instructionsActions.js";
 import type * as messages from "../messages.js";
@@ -68,6 +69,7 @@ declare const fullApi: ApiFromModules<{
   eacConvexSchema: typeof eacConvexSchema;
   editorActions: typeof editorActions;
   extensionRequests: typeof extensionRequests;
+  fileStorage: typeof fileStorage;
   files: typeof files;
   instructionsActions: typeof instructionsActions;
   messages: typeof messages;

@@ -4,11 +4,15 @@
 "use client";
 
 import { Checkbox } from "@/components/ui/checkbox";
+import { api } from "@/convex/_generated/api";
 import { cn } from "@/lib/utils";
-import { useAgentStore } from "@/store";
+import { useAgentStore, useSidebarStore } from "@/store";
 import { useEditorStore } from "@/store/editor";
+import { useTerminalStore } from "@/store/terminal";
 import { useSessionStore } from "@/store/terminal/session";
+import { useMutation } from "convex/react";
 import { AtSign, Bot, Puzzle } from "lucide-react";
+import { useState } from "react";
 
 interface PremiumExtension {
   id: string;
@@ -52,13 +56,69 @@ interface ExtensionsPanelProps {
 }
 
 export function ExtensionsPanel({ className }: ExtensionsPanelProps) {
+  const [isGenerating, setIsGenerating] = useState(false);
   const { activeExtensionId, setActiveExtension } = useSessionStore();
   const { activeAgentId, setActiveAgent } = useAgentStore();
   const { openSpecialTab } = useEditorStore();
+  const { setActivePanel } = useSidebarStore();
+  const { setActiveTab } = useTerminalStore();
+  const { createNewSession } = useSessionStore();
+  const storeChatMessage = useMutation(api.chat.storeChatMessage);
 
-  // Handle opening logo generator tab
-  const handleOpenLogoGenerator = () => {
-    openSpecialTab('logo-generator', 'Logo Generator', 'logo-generator');
+  // Handle opening logo generator tab and starting chat workflow
+  const handleOpenLogoGenerator = async () => {
+    console.log('🎨 Extensions Panel: Logo Generator button clicked');
+    setIsGenerating(true);
+    
+    try {
+      // 1. Open the logo generator tab
+      console.log('🎨 Opening logo generator tab');
+      openSpecialTab('logo-generator', 'Logo Generator', 'logo-generator');
+      
+      // 2. Switch sidebar to logo generator console
+      console.log('🎨 Switching sidebar to logo-generator panel');
+      setActivePanel('logo-generator');
+      
+      // 3. Set active agent to logo generator
+      console.log('🎨 Setting active agent to logo-generator');
+      setActiveAgent('logo-generator');
+      
+      // 4. Create a new session for logo generation
+      const newSessionId = createNewSession();
+      
+      // 5. Store initial chat message to start the workflow
+      await storeChatMessage({
+        role: 'assistant',
+        content: `# 🎨 Logo Generator Started
+
+Welcome! I'm your AI logo designer. I'll help you create professional logos for your brand.
+
+**To get started, I'll need some information:**
+- Company/brand name
+- Industry or business type  
+- Style preferences (modern, classic, playful, etc.)
+- Color preferences
+- Any specific requirements or inspiration
+
+What's the name of the company or brand you'd like to create a logo for?`,
+        sessionId: newSessionId,
+        operation: {
+          type: 'tool_executed',
+          details: {
+            tool: 'logo-generator',
+            action: 'session_started'
+          }
+        }
+      });
+      
+      // 6. Switch to terminal view to show the conversation
+      setActiveTab("terminal");
+      
+    } catch (error) {
+      console.error('Failed to initialize logo generator workflow:', error);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleExtensionSelect = (extensionId: string) => {

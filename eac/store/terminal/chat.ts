@@ -170,8 +170,8 @@ export const useChatStore = create<ChatState>()(
       },
       
       setSessionId: (sessionId) => {
-        // Clear messages when switching sessions
-        set({ sessionId, messages: [], streamingThinking: "", isStreamingThinking: false });
+        // Don't clear messages when switching sessions - let useQuery handle loading the correct messages
+        set({ sessionId, streamingThinking: "", isStreamingThinking: false });
       },
 
       setStreamingThinking: (content: string, isStreaming: boolean) => {

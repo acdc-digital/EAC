@@ -1,11 +1,11 @@
-// Logo Generator Agent
+// Logo Generator Agent - API Route Integration
 // /Users/matthewsimon/Projects/eac/eac/store/agents/logoGeneratorAgent.ts
 
-import { generateLogoWithImagen, optimizeLogoPrompt } from '@/lib/api/imagen';
+import { 
+  optimizeLogoPrompt
+} from '@/lib/api/openai-images';
 import { AgentTool, BaseAgent } from './base';
-import { ConvexMutations } from './types';
-
-interface LogoBrief {
+import { ConvexMutations } from './types';interface LogoBrief {
   companyName: string;
   productName?: string;
   industry: string;
@@ -20,7 +20,7 @@ interface LogoBrief {
 export class LogoGeneratorAgent extends BaseAgent {
   id = 'logo-generator';
   name = 'Logo Generator';
-  description = 'AI-powered logo creation and brand identity generation using Google Imagen';
+  description = 'AI-powered logo creation and brand identity generation using OpenAI DALL-E';
   icon = 'Puzzle';
 
   // Instance state to track the logo generation process
@@ -32,7 +32,7 @@ export class LogoGeneratorAgent extends BaseAgent {
       id: 'logo-generation',
       name: 'Logo Generation',
       command: '/logo',
-      description: 'Generate professional logos with Google Imagen AI',
+      description: 'Generate professional logos with OpenAI DALL-E AI',
       parameters: []
     }
   ];
@@ -339,25 +339,32 @@ Type "yes" to start generation or "edit" if you want to modify anything.`;
     }
 
     try {
-      // Create optimized Imagen prompt from the brief
-      const imagePrompt = optimizeLogoPrompt(
-        brief.companyName,
-        brief.businessDescription || '',
-        brief.stylePreference || 'modern',
-        brief.colorPreferences?.[0] || '',
-        brief.logoType || 'combination',
-        brief.targetAudience || '',
-        brief.additionalInstructions
-      );
+      // Create consolidated prompt from the brief using the new OpenAI system
+      const logoPrompt = this.createConsolidatedLogoPrompt(brief);
       
-      // Start generation process
-      const generationResult = await generateLogoWithImagen(imagePrompt);
+      // Call our API route instead of direct OpenAI call (for server-side execution)
+      const response = await fetch('/api/generate-logo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: logoPrompt,
+          style: 'vivid', // Professional logo style
+          size: '1024x1024', // Square format works best for logos
+          quality: 'hd', // High quality for professional results
+          numberOfImages: 1
+        }),
+      });
+
+      const generationResult = await response.json();
       
       console.log('🎨 Logo generation result:', {
         success: generationResult.success,
         hasImageUrl: !!generationResult.imageUrl,
         imageUrlLength: generationResult.imageUrl?.length,
         imageUrlPreview: generationResult.imageUrl?.substring(0, 50),
+        revisedPrompt: generationResult.revisedPrompt,
         error: generationResult.error
       });
       
@@ -367,7 +374,7 @@ Type "yes" to start generation or "edit" if you want to modify anything.`;
           await convexMutations.createLogoGeneration({
             sessionId,
             logoSvg: generationResult.imageUrl, // Store actual image data instead of empty string
-            prompt: imagePrompt,
+            prompt: logoPrompt,
             brief: {
               companyName: brief.companyName || 'Unknown',
               business: brief.businessDescription || 'Unknown',
@@ -397,8 +404,12 @@ Here's your custom logo for **${brief.companyName}**:
 • **Colors:** ${brief.colorPreferences?.[0]}
 • **Target Audience:** ${brief.targetAudience}
 
-**Imagen Prompt Used:**
-\`${imagePrompt}\`
+**OpenAI DALL-E Prompt Used:**
+\`${logoPrompt}\`
+
+${generationResult.revisedPrompt && generationResult.revisedPrompt !== logoPrompt ? `
+**AI-Revised Prompt:**
+\`${generationResult.revisedPrompt}\`` : ''}
 
 **What's Next?**
 1. **Generate Variation** - Create another version
@@ -413,7 +424,7 @@ Type your choice to continue!`,
                 tool: "logo_generation",
                 imageUrl: generationResult.imageUrl,
                 imageData: generationResult.imageData,
-                prompt: imagePrompt,
+                prompt: logoPrompt,
                 brief: brief
               }
             }
@@ -512,6 +523,55 @@ Type "restart" to begin with a new brief.`;
   reset(): void {
     this.currentBrief = {};
     this.currentStep = 'welcome';
+  }
+
+  /**
+   * Create consolidated logo prompt using the unified OpenAI system
+   * Combines all brief elements into a single optimized prompt
+   */
+  private createConsolidatedLogoPrompt(brief: Partial<LogoBrief>): string {
+    let basePrompt = `Professional logo design for ${brief.companyName}`;
+    
+    if (brief.businessDescription) {
+      basePrompt += `, a ${brief.businessDescription}`;
+    }
+    
+    if (brief.industry) {
+      basePrompt += ` in the ${brief.industry} industry`;
+    }
+    
+    // Style preferences
+    if (brief.stylePreference && brief.stylePreference !== 'modern') {
+      basePrompt += `, ${brief.stylePreference} style`;
+    }
+    
+    // Logo type
+    if (brief.logoType && brief.logoType !== 'combination') {
+      if (brief.logoType === 'text') {
+        basePrompt += `, text-based logo`;
+      } else if (brief.logoType === 'icon') {
+        basePrompt += `, icon-only logo`;
+      }
+    }
+    
+    // Color preferences
+    if (brief.colorPreferences && brief.colorPreferences[0] && 
+        brief.colorPreferences[0].toLowerCase() !== 'no preference') {
+      basePrompt += `, using ${brief.colorPreferences[0]} color scheme`;
+    }
+    
+    // Target audience
+    if (brief.targetAudience) {
+      basePrompt += `, appealing to ${brief.targetAudience}`;
+    }
+    
+    // Additional instructions
+    if (brief.additionalInstructions) {
+      basePrompt += `, ${brief.additionalInstructions}`;
+    }
+    
+    // Use the OpenAI prompt optimizer for consistency
+    return optimizeLogoPrompt(basePrompt);
   }
 }
 

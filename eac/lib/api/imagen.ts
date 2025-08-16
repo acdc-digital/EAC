@@ -28,98 +28,17 @@ export interface LogoGenerationResult {
 }
 
 /**
- * Generate a logo using Google's Imagen model
+ * Generate a logo using the API route
  */
-export async function generateLogoWithImagen(
-  prompt: string,
-  options: Partial<ImagenGenerationRequest> = {}
-): Promise<LogoGenerationResult> {
-  try {
-    // TODO: Replace with actual Google Imagen API integration
-    // For now, return a mock response
-    console.log('🎨 Generating logo with Imagen:', prompt);
-    
-    // Mock generation delay
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    // For development, return a placeholder/mock response
-    const mockImageData = generateMockLogoBase64();
-    const imageUrl = `data:image/svg+xml;base64,${mockImageData}`;
-    
-    console.log('🎨 Mock logo generated:', { imageUrl: imageUrl.substring(0, 50) + '...', prompt });
-    
-    return {
-      imageUrl,
-      imageData: mockImageData,
-      prompt,
-      success: true
-    };
-    
-    /* 
-    // REAL IMPLEMENTATION (uncomment when ready to integrate)
-    const apiKey = process.env.GOOGLE_CLOUD_API_KEY;
-    if (!apiKey) {
-      throw new Error('Google Cloud API key not configured');
-    }
+// DEPRECATED: Google Imagen API Integration
+// ⚠️  This file has been deprecated in favor of OpenAI DALL-E implementation
+// ⚠️  See: /lib/api/openai-images.ts for the current implementation
+// ⚠️  All code commented out but preserved as reference
 
-    const requestData = {
-      instances: [{
-        prompt: prompt,
-        sampleCount: 1,
-        aspectRatio: options.aspectRatio || 'ASPECT_RATIO_1_1',
-        negativePrompt: options.negativePrompt || 'blurry, low quality, distorted, text overlay',
-        addWatermark: options.addWatermark ?? false,
-        seed: options.seed,
-        outputOptions: {
-          mimeType: options.outputMimeType || 'image/png'
-        }
-      }]
-    };
+// Note: This entire file is deprecated. The logoGeneratorAgent.ts has been updated
+// to use the new OpenAI implementation instead of these Imagen functions.
 
-    const response = await fetch(
-      `https://us-central1-aiplatform.googleapis.com/v1/projects/${process.env.GOOGLE_CLOUD_PROJECT_ID}/locations/us-central1/publishers/google/models/imagen-3.0-generate-001:predict`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestData)
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`Imagen API error: ${response.status} ${response.statusText}`);
-    }
-
-    const result: ImagenGenerationResponse = await response.json();
-    
-    if (!result.images || result.images.length === 0) {
-      throw new Error('No images generated');
-    }
-
-    const imageData = result.images[0].bytesBase64Encoded;
-    const imageUrl = `data:${result.images[0].mimeType};base64,${imageData}`;
-
-    return {
-      imageUrl,
-      imageData,
-      prompt,
-      success: true
-    };
-    */
-    
-  } catch (error) {
-    console.error('❌ Logo generation failed:', error);
-    return {
-      imageUrl: '',
-      imageData: '',
-      prompt,
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    };
-  }
-}
+// END OF DEPRECATED FILE - Use /lib/api/openai-images.ts for current implementation
 
 /**
  * Generate a mock logo for development/testing

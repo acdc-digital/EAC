@@ -17,11 +17,30 @@ export function useChat() {
   // Use the active session ID from session store, fallback to chat store
   const currentSessionId = activeSessionId || sessionId;
   
+  // Debug log for session changes
+  useEffect(() => {
+    console.log('🔄 useChat session debug:', {
+      activeSessionId,
+      chatSessionId: sessionId,
+      currentSessionId,
+      activeAgentId
+    });
+  }, [activeSessionId, sessionId, currentSessionId, activeAgentId]);
+  
   // Get messages from Convex for the current session
   const messages = useQuery(api.chat.getChatMessages, {
     sessionId: currentSessionId,
     limit: 500,
   });
+
+  // Debug log when messages change
+  useEffect(() => {
+    console.log('📨 Messages updated:', {
+      sessionId: currentSessionId,
+      messageCount: messages?.length || 0,
+      messages: messages?.slice(-3).map(m => ({ role: m.role, content: m.content.substring(0, 50) + '...' }))
+    });
+  }, [messages, currentSessionId]);
   
   // Action to send messages to Claude
   const sendChatMessage = useAction(api.chatActions.sendChatMessage);
